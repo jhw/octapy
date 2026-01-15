@@ -12,7 +12,7 @@ File layout (636113 bytes total):
 - Patterns: 16 × 36588 bytes = 585408 bytes
 - Parts (unsaved + saved): variable
 - Part names: 4 × 7 bytes
-- Checksum: 1 byte
+- Checksum: 2 bytes (big-endian u16)
 
 Ported from ot-tools-io (Rust).
 """
@@ -21,9 +21,10 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Optional
 
-from . import OTBlock, MachineType, read_u16_le, write_u16_le
+from . import OTBlock, MachineType, read_u16_le, write_u16_le, read_u16_be, write_u16_be
 from .patterns import PatternArray, Pattern, PATTERN_SIZE
 from .parts import Parts, Part, PART_BLOCK_SIZE
+from .projects import read_template_file
 
 
 # Bank file constants
@@ -47,7 +48,7 @@ class BankOffset(IntEnum):
     # Machine slots are 680 bytes after machine types (offset 723 - 43 in Part)
     MACHINE_SLOTS_BASE = 0x8F1A8    # Slot assignments: 8 tracks * 5 bytes each
     FLEX_COUNTER = 0x9B4B2          # Counter for active flex slots
-    CHECKSUM = 0x9B4D0              # Last byte (checksum)
+    CHECKSUM = 0x9B4CF              # 2-byte checksum (big-endian u16)
 
 
 # Machine slot structure (5 bytes per track)
@@ -290,21 +291,34 @@ class BankFile(OTBlock):
         """
         Calculate checksum for bank file.
 
-        The checksum is (sum of all bytes except last byte - 1) mod 256.
+        The checksum is a 16-bit value calculated as:
+        template_checksum + sum_of_byte_differences (mod 65536)
+
+        Where byte differences are calculated from offset 16 to end-2
+        (skipping header and checksum bytes).
         """
         # Make sure patterns are synced
         self.sync_patterns()
 
-        total = sum(self._data[:-1])
-        return (total - 1) & 0xFF
+        # Load template for comparison
+        template = read_template_file('bank01.work')
+        template_checksum = read_u16_be(template, BankOffset.CHECKSUM)
+
+        # Calculate byte differences from template (offset 16 to checksum)
+        byte_diffs = 0
+        for i in range(16, BankOffset.CHECKSUM):
+            byte_diffs += self._data[i] - template[i]
+
+        return (template_checksum + byte_diffs) & 0xFFFF
 
     def update_checksum(self):
-        """Recalculate and update the checksum."""
-        self._data[BankOffset.CHECKSUM] = self.calculate_checksum()
+        """Recalculate and update the checksum (2 bytes, big-endian)."""
+        write_u16_be(self._data, BankOffset.CHECKSUM, self.calculate_checksum())
 
     def verify_checksum(self) -> bool:
         """Verify the checksum matches the calculated value."""
-        return self._data[BankOffset.CHECKSUM] == self.calculate_checksum()
+        stored = read_u16_be(self._data, BankOffset.CHECKSUM)
+        return stored == self.calculate_checksum()
 
     # === Write helper ===
 

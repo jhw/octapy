@@ -165,10 +165,10 @@ class TestBankFileChecksum:
     """Checksum tests."""
 
     def test_checksum_calculation(self, bank_file):
-        """Test that checksum can be calculated."""
+        """Test that checksum can be calculated (16-bit value)."""
         checksum = bank_file.calculate_checksum()
         assert isinstance(checksum, int)
-        assert 0 <= checksum <= 255
+        assert 0 <= checksum <= 65535
 
     def test_checksum_verification(self, bank_file):
         """Test checksum verification on template."""
