@@ -1,0 +1,7 @@
+# octapy - Octatrack binary file I/O library
+# No external dependencies required for core functionality
+# The library uses only Python standard library
+
+# Development dependencies (optional)
+# pytest>=7.0.0
+# pytest-cov>=4.0.0

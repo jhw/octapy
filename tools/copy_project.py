@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""
+Copy a project to the connected Octatrack device.
+
+Accepts either:
+- A zip file path (e.g., /tmp/HELLO FLEX.zip)
+- A project directory path (e.g., /tmp/HELLO FLEX)
+"""
+
+import argparse
+import os
+import shutil
+import sys
+import zipfile
+from pathlib import Path
+
+OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
+
+
+def copy_project(source: str):
+    """Copy a project to the Octatrack."""
+    if not os.path.exists(OCTATRACK_DEVICE):
+        print(f"Error: Octatrack not found at {OCTATRACK_DEVICE}")
+        print("Make sure the device is connected and mounted.")
+        sys.exit(1)
+
+    source_path = Path(source)
+
+    if not source_path.exists():
+        print(f"Error: Source not found at {source_path}")
+        sys.exit(1)
+
+    # Determine if source is a zip file or directory
+    is_zip = source_path.suffix.lower() == '.zip'
+
+    if is_zip:
+        # Extract project name from zip filename
+        name = source_path.stem.upper()
+        dest_path = Path(OCTATRACK_DEVICE) / name
+
+        # Verify zip contains project.work
+        with zipfile.ZipFile(source_path, 'r') as zf:
+            if 'project.work' not in zf.namelist():
+                print(f"Error: '{source_path}' does not appear to be an Octatrack project zip")
+                print("(missing project.work file)")
+                sys.exit(1)
+    else:
+        # Source is a directory
+        name = source_path.name.upper()
+        dest_path = Path(OCTATRACK_DEVICE) / name
+
+        # Verify it's a project directory
+        project_work = source_path / "project.work"
+        if not project_work.exists():
+            print(f"Error: '{source_path}' does not appear to be an Octatrack project")
+            print("(missing project.work file)")
+            sys.exit(1)
+
+    # Check if destination already exists
+    if dest_path.exists():
+        print(f"Warning: Project '{name}' already exists on device")
+        response = input("Overwrite? [y/N] ")
+        if response.lower() != 'y':
+            print("Aborted.")
+            sys.exit(0)
+        shutil.rmtree(dest_path)
+
+    print(f"Copying '{name}' to {OCTATRACK_DEVICE}")
+
+    if is_zip:
+        # Unzip to destination
+        dest_path.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(source_path, 'r') as zf:
+            zf.extractall(dest_path)
+    else:
+        # Copy directory
+        shutil.copytree(source_path, dest_path)
+
+    print("Done.")
+    print("\nNote: You may need to reload the project on the Octatrack.")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Copy a project to the Octatrack"
+    )
+    parser.add_argument(
+        "source",
+        help="Project zip file or directory path"
+    )
+
+    args = parser.parse_args()
+
+    copy_project(args.source)
+
+
+if __name__ == "__main__":
+    main()
