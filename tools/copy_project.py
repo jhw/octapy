@@ -3,8 +3,9 @@
 Copy a project to the connected Octatrack device.
 
 Accepts either:
-- A zip file path (e.g., /tmp/HELLO FLEX.zip)
-- A project directory path (e.g., /tmp/HELLO FLEX)
+- A project name (looks in tmp/ directory, e.g., "HELLO FLEX")
+- A zip file path (e.g., /path/to/HELLO FLEX.zip)
+- A project directory path (e.g., /path/to/HELLO FLEX)
 """
 
 import argparse
@@ -15,6 +16,7 @@ import zipfile
 from pathlib import Path
 
 OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
+TMP_DIR = Path(__file__).parent.parent / "tmp"
 
 
 def copy_project(source: str):
@@ -26,9 +28,17 @@ def copy_project(source: str):
 
     source_path = Path(source)
 
+    # If source doesn't exist, check tmp/ directory for a zip with that name
     if not source_path.exists():
-        print(f"Error: Source not found at {source_path}")
-        sys.exit(1)
+        # Try as project name in tmp/
+        name = source.upper()
+        tmp_zip = TMP_DIR / f"{name}.zip"
+        if tmp_zip.exists():
+            source_path = tmp_zip
+        else:
+            print(f"Error: Source not found at {source_path}")
+            print(f"       Also checked: {tmp_zip}")
+            sys.exit(1)
 
     # Determine if source is a zip file or directory
     is_zip = source_path.suffix.lower() == '.zip'

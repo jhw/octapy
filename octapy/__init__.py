@@ -15,7 +15,7 @@ from .api import (
     PatternScale,
 )
 from .api.banks import BankFile, BankOffset
-from .api.patterns import Pattern, PatternArray, AudioTrack
+from .api.patterns import Pattern, PatternArray, AudioTrack, TrigCondition, PlockOffset
 from .api.parts import Part, Parts, PartOffset
 from .api.markers import MarkersFile, SlotMarkers
 from .api.projects import (
@@ -53,7 +53,9 @@ __all__ = [
     "FX2Type",
     "ScaleMode",
     "PatternScale",
+    "TrigCondition",
     # Offset enums
     "BankOffset",
     "PartOffset",
+    "PlockOffset",
 ]

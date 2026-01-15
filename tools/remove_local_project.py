@@ -1,38 +1,42 @@
 #!/usr/bin/env python3
 """
-Remove a project from the local staging directory.
+Remove a project from the local staging directory (tmp/).
 """
 
 import argparse
-import os
 import shutil
 import sys
+from pathlib import Path
 
-DEFAULT_LOCAL_DIR = "/tmp"
+TMP_DIR = Path(__file__).parent.parent / "tmp"
 
 
 def remove_project(name, local_dir):
-    """Remove a project from the local directory."""
-    project_path = os.path.join(local_dir, name)
+    """Remove a project (zip or directory) from the local directory."""
+    local_path = Path(local_dir)
+    zip_path = local_path / f"{name}.zip"
+    dir_path = local_path / name
 
-    if not os.path.exists(project_path):
-        print(f"Error: Project '{name}' not found")
-        print(f"Path: {project_path}")
+    removed = []
+
+    # Remove zip file if exists
+    if zip_path.exists():
+        print(f"Removing {zip_path}")
+        zip_path.unlink()
+        removed.append("zip")
+
+    # Remove directory if exists
+    if dir_path.exists() and dir_path.is_dir():
+        print(f"Removing {dir_path}")
+        shutil.rmtree(dir_path)
+        removed.append("directory")
+
+    if not removed:
+        print(f"Error: Project '{name}' not found in {local_dir}")
+        print(f"  Checked: {zip_path}")
+        print(f"           {dir_path}")
         sys.exit(1)
 
-    if not os.path.isdir(project_path):
-        print(f"Error: '{name}' is not a directory")
-        sys.exit(1)
-
-    # Verify it's a project directory
-    project_work = os.path.join(project_path, "project.work")
-    if not os.path.exists(project_work):
-        print(f"Error: '{name}' does not appear to be an Octatrack project")
-        print("(missing project.work file)")
-        sys.exit(1)
-
-    print(f"Removing project '{name}' from {local_dir}")
-    shutil.rmtree(project_path)
     print("Done.")
 
 
@@ -46,8 +50,8 @@ def main():
     )
     parser.add_argument(
         "-d", "--directory",
-        default=DEFAULT_LOCAL_DIR,
-        help=f"Local directory (default: {DEFAULT_LOCAL_DIR})"
+        default=str(TMP_DIR),
+        help=f"Local directory (default: {TMP_DIR})"
     )
     parser.add_argument(
         "-f", "--force",

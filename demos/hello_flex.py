@@ -28,6 +28,7 @@ from octapy import BankFile, MarkersFile, ProjectFile, MachineType, zip_project,
 
 # Constants
 OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
+OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
 
 # Sample paths for each track (relative to project folder)
 TRACK_SAMPLES = [
@@ -187,7 +188,7 @@ def create_project(name: str, output_dir: Path) -> Path:
 
     print(f"\nProject created: {zip_path}")
     print("\nTo copy to Octatrack, run:")
-    print(f"  python tools/copy_project.py '{zip_path}'")
+    print(f"  python tools/copy_project.py '{name}'")
 
     return zip_path
 
@@ -204,8 +205,8 @@ def main():
     )
     parser.add_argument(
         "-o", "--output",
-        default=".",
-        help="Output directory for zip file (default: current directory)"
+        default=str(OUTPUT_DIR),
+        help=f"Output directory for zip file (default: {OUTPUT_DIR})"
     )
 
     args = parser.parse_args()
@@ -213,7 +214,11 @@ def main():
     # Normalize project name to uppercase
     name = args.name.upper()
 
-    create_project(name, Path(args.output))
+    # Ensure output directory exists
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    create_project(name, output_dir)
 
 
 if __name__ == "__main__":

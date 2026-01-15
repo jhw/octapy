@@ -15,7 +15,7 @@ Ported from ot-tools-io (Rust).
 """
 
 from enum import IntEnum
-from typing import List
+from typing import List, Optional, Union
 
 from . import OTBlock
 
@@ -51,6 +51,140 @@ class AudioTrackOffset(IntEnum):
     TRIG_MODE = 94              # 1 byte: trig mode
     TRIG_QUANT = 95             # 1 byte: trig quantization
     ONESHOT_TRK = 96            # 1 byte: oneshot track setting
+    UNKNOWN_2 = 97              # 1 byte
+    PLOCKS = 98                 # 2048 bytes: 32 bytes × 64 steps
+    UNKNOWN_3 = 2146            # 64 bytes
+    TRIG_CONDITIONS = 2210      # 128 bytes: 2 bytes × 64 steps
+
+
+# P-lock constants
+PLOCK_SIZE = 32                 # Bytes per step's parameter locks
+PLOCK_DISABLED = 255            # Value indicating p-lock is disabled
+
+
+class PlockOffset(IntEnum):
+    """
+    Offsets within a single step's parameter lock data (32 bytes).
+
+    SRC page (0-5): Meaning depends on machine type - use machine-specific methods.
+    LFO page (6-11): Consistent across all machine types.
+    AMP page (12-17): Consistent across all machine types.
+    FX1 page (18-23): Meaning depends on selected effect.
+    FX2 page (24-29): Meaning depends on selected effect.
+    """
+    # SRC/Machine page (6 bytes) - interpretation varies by machine type:
+    #   Flex/Static: PTCH, STRT, LEN, RATE, RTRG, RTIM
+    #   Thru: IN_AB, VOL_AB, unused, IN_CD, VOL_CD, unused
+    #   Neighbor: all unused
+    #   Pickup: PTCH, DIR, LEN, unused, GAIN, OP
+    SRC_1 = 0
+    SRC_2 = 1
+    SRC_3 = 2
+    SRC_4 = 3
+    SRC_5 = 4
+    SRC_6 = 5
+    # LFO page (6 bytes) - consistent
+    LFO_SPEED1 = 6
+    LFO_SPEED2 = 7
+    LFO_SPEED3 = 8
+    LFO_DEPTH1 = 9
+    LFO_DEPTH2 = 10
+    LFO_DEPTH3 = 11
+    # AMP page (6 bytes) - consistent
+    AMP_ATTACK = 12
+    AMP_HOLD = 13
+    AMP_RELEASE = 14
+    AMP_VOLUME = 15
+    AMP_BALANCE = 16
+    AMP_F = 17                  # Reserved param for Scenes/LFOs
+    # FX1 page (6 bytes) - meaning depends on selected effect
+    FX1_1 = 18
+    FX1_2 = 19
+    FX1_3 = 20
+    FX1_4 = 21
+    FX1_5 = 22
+    FX1_6 = 23
+    # FX2 page (6 bytes) - meaning depends on selected effect
+    FX2_1 = 24
+    FX2_2 = 25
+    FX2_3 = 26
+    FX2_4 = 27
+    FX2_5 = 28
+    FX2_6 = 29
+    # Sample slot locks
+    STATIC_SLOT = 30
+    FLEX_SLOT = 31
+
+
+class TrigCondition(IntEnum):
+    """Trig conditions for conditional triggering and probability."""
+    NONE = 0
+    FILL = 1
+    NOT_FILL = 2
+    PRE = 3
+    NOT_PRE = 4
+    NEI = 5
+    NOT_NEI = 6
+    FIRST = 7
+    NOT_FIRST = 8
+    # Probability conditions
+    PERCENT_1 = 9
+    PERCENT_2 = 10
+    PERCENT_4 = 11
+    PERCENT_6 = 12
+    PERCENT_9 = 13
+    PERCENT_13 = 14
+    PERCENT_19 = 15
+    PERCENT_25 = 16
+    PERCENT_33 = 17
+    PERCENT_41 = 18
+    PERCENT_50 = 19
+    PERCENT_59 = 20
+    PERCENT_67 = 21
+    PERCENT_75 = 22
+    PERCENT_81 = 23
+    PERCENT_87 = 24
+    PERCENT_91 = 25
+    PERCENT_94 = 26
+    PERCENT_96 = 27
+    PERCENT_98 = 28
+    PERCENT_99 = 29
+    # Pattern loop conditions (X:Y means trigger on loop X, reset every Y loops)
+    T1_R2 = 30
+    T2_R2 = 31
+    T1_R3 = 32
+    T2_R3 = 33
+    T3_R3 = 34
+    T1_R4 = 35
+    T2_R4 = 36
+    T3_R4 = 37
+    T4_R4 = 38
+    T1_R5 = 39
+    T2_R5 = 40
+    T3_R5 = 41
+    T4_R5 = 42
+    T5_R5 = 43
+    T1_R6 = 44
+    T2_R6 = 45
+    T3_R6 = 46
+    T4_R6 = 47
+    T5_R6 = 48
+    T6_R6 = 49
+    T1_R7 = 50
+    T2_R7 = 51
+    T3_R7 = 52
+    T4_R7 = 53
+    T5_R7 = 54
+    T6_R7 = 55
+    T7_R7 = 56
+    T1_R8 = 57
+    T2_R8 = 58
+    T3_R8 = 59
+    T4_R8 = 60
+    T5_R8 = 61
+    T6_R8 = 62
+    T7_R8 = 63
+    T8_R8 = 64
 
 
 class PatternOffset(IntEnum):
@@ -199,6 +333,548 @@ class AudioTrack(OTBlock):
         """Verify the header matches expected audio track header."""
         return bytes(self._data[0:4]) == AUDIO_TRACK_HEADER
 
+    # =========================================================================
+    # P-Lock (Parameter Lock) Methods - Core
+    # =========================================================================
+
+    def _get_plock_offset(self, step: int, param: Union[PlockOffset, int]) -> int:
+        """Get the byte offset for a p-lock parameter at a given step."""
+        if step < 1 or step > 64:
+            raise ValueError(f"Step must be 1-64, got {step}")
+        return AudioTrackOffset.PLOCKS + (step - 1) * PLOCK_SIZE + int(param)
+
+    def _get_plock(self, step: int, param: Union[PlockOffset, int]) -> Optional[int]:
+        """Get a p-lock value. Returns None if disabled (255)."""
+        offset = self._get_plock_offset(step, param)
+        value = self._data[offset]
+        return None if value == PLOCK_DISABLED else value
+
+    def _set_plock(self, step: int, param: Union[PlockOffset, int], value: Optional[int]):
+        """Set a p-lock value. None disables the p-lock."""
+        offset = self._get_plock_offset(step, param)
+        if value is None:
+            self._data[offset] = PLOCK_DISABLED
+        else:
+            self._data[offset] = value & 0x7F  # Clamp to 0-127
+
+    # =========================================================================
+    # SRC Page - Flex/Static Machine Methods
+    # =========================================================================
+
+    def get_flex_pitch(self, step: int) -> Optional[int]:
+        """Get pitch p-lock for Flex/Static machine (SRC param 1)."""
+        return self._get_plock(step, PlockOffset.SRC_1)
+
+    def set_flex_pitch(self, step: int, value: Optional[int]):
+        """Set pitch p-lock for Flex/Static machine (SRC param 1)."""
+        self._set_plock(step, PlockOffset.SRC_1, value)
+
+    def get_flex_start(self, step: int) -> Optional[int]:
+        """Get sample start p-lock for Flex/Static machine (SRC param 2)."""
+        return self._get_plock(step, PlockOffset.SRC_2)
+
+    def set_flex_start(self, step: int, value: Optional[int]):
+        """Set sample start p-lock for Flex/Static machine (SRC param 2)."""
+        self._set_plock(step, PlockOffset.SRC_2, value)
+
+    def get_flex_length(self, step: int) -> Optional[int]:
+        """Get sample length p-lock for Flex/Static machine (SRC param 3)."""
+        return self._get_plock(step, PlockOffset.SRC_3)
+
+    def set_flex_length(self, step: int, value: Optional[int]):
+        """Set sample length p-lock for Flex/Static machine (SRC param 3)."""
+        self._set_plock(step, PlockOffset.SRC_3, value)
+
+    def get_flex_rate(self, step: int) -> Optional[int]:
+        """Get playback rate p-lock for Flex/Static machine (SRC param 4).
+        127 = normal forward, <64 = reverse."""
+        return self._get_plock(step, PlockOffset.SRC_4)
+
+    def set_flex_rate(self, step: int, value: Optional[int]):
+        """Set playback rate p-lock for Flex/Static machine (SRC param 4).
+        127 = normal forward, <64 = reverse."""
+        self._set_plock(step, PlockOffset.SRC_4, value)
+
+    def get_flex_retrig(self, step: int) -> Optional[int]:
+        """Get retrig count p-lock for Flex/Static machine (SRC param 5)."""
+        return self._get_plock(step, PlockOffset.SRC_5)
+
+    def set_flex_retrig(self, step: int, value: Optional[int]):
+        """Set retrig count p-lock for Flex/Static machine (SRC param 5)."""
+        self._set_plock(step, PlockOffset.SRC_5, value)
+
+    def get_flex_retrig_time(self, step: int) -> Optional[int]:
+        """Get retrig time p-lock for Flex/Static machine (SRC param 6)."""
+        return self._get_plock(step, PlockOffset.SRC_6)
+
+    def set_flex_retrig_time(self, step: int, value: Optional[int]):
+        """Set retrig time p-lock for Flex/Static machine (SRC param 6)."""
+        self._set_plock(step, PlockOffset.SRC_6, value)
+
+    # =========================================================================
+    # SRC Page - Thru Machine Methods
+    # =========================================================================
+
+    def get_thru_in_ab(self, step: int) -> Optional[int]:
+        """Get input A/B select p-lock for Thru machine (SRC param 1)."""
+        return self._get_plock(step, PlockOffset.SRC_1)
+
+    def set_thru_in_ab(self, step: int, value: Optional[int]):
+        """Set input A/B select p-lock for Thru machine (SRC param 1)."""
+        self._set_plock(step, PlockOffset.SRC_1, value)
+
+    def get_thru_vol_ab(self, step: int) -> Optional[int]:
+        """Get volume A/B p-lock for Thru machine (SRC param 2)."""
+        return self._get_plock(step, PlockOffset.SRC_2)
+
+    def set_thru_vol_ab(self, step: int, value: Optional[int]):
+        """Set volume A/B p-lock for Thru machine (SRC param 2)."""
+        self._set_plock(step, PlockOffset.SRC_2, value)
+
+    def get_thru_in_cd(self, step: int) -> Optional[int]:
+        """Get input C/D select p-lock for Thru machine (SRC param 4)."""
+        return self._get_plock(step, PlockOffset.SRC_4)
+
+    def set_thru_in_cd(self, step: int, value: Optional[int]):
+        """Set input C/D select p-lock for Thru machine (SRC param 4)."""
+        self._set_plock(step, PlockOffset.SRC_4, value)
+
+    def get_thru_vol_cd(self, step: int) -> Optional[int]:
+        """Get volume C/D p-lock for Thru machine (SRC param 5)."""
+        return self._get_plock(step, PlockOffset.SRC_5)
+
+    def set_thru_vol_cd(self, step: int, value: Optional[int]):
+        """Set volume C/D p-lock for Thru machine (SRC param 5)."""
+        self._set_plock(step, PlockOffset.SRC_5, value)
+
+    # =========================================================================
+    # SRC Page - Neighbor Machine Methods
+    # =========================================================================
+
+    def get_neighbor_1(self, step: int) -> Optional[int]:
+        """Get p-lock for Neighbor machine (SRC param 1). Unused on Neighbor."""
+        return self._get_plock(step, PlockOffset.SRC_1)
+
+    def set_neighbor_1(self, step: int, value: Optional[int]):
+        """Set p-lock for Neighbor machine (SRC param 1). Unused on Neighbor."""
+        self._set_plock(step, PlockOffset.SRC_1, value)
+
+    def get_neighbor_2(self, step: int) -> Optional[int]:
+        """Get p-lock for Neighbor machine (SRC param 2). Unused on Neighbor."""
+        return self._get_plock(step, PlockOffset.SRC_2)
+
+    def set_neighbor_2(self, step: int, value: Optional[int]):
+        """Set p-lock for Neighbor machine (SRC param 2). Unused on Neighbor."""
+        self._set_plock(step, PlockOffset.SRC_2, value)
+
+    def get_neighbor_3(self, step: int) -> Optional[int]:
+        """Get p-lock for Neighbor machine (SRC param 3). Unused on Neighbor."""
+        return self._get_plock(step, PlockOffset.SRC_3)
+
+    def set_neighbor_3(self, step: int, value: Optional[int]):
+        """Set p-lock for Neighbor machine (SRC param 3). Unused on Neighbor."""
+        self._set_plock(step, PlockOffset.SRC_3, value)
+
+    def get_neighbor_4(self, step: int) -> Optional[int]:
+        """Get p-lock for Neighbor machine (SRC param 4). Unused on Neighbor."""
+        return self._get_plock(step, PlockOffset.SRC_4)
+
+    def set_neighbor_4(self, step: int, value: Optional[int]):
+        """Set p-lock for Neighbor machine (SRC param 4). Unused on Neighbor."""
+        self._set_plock(step, PlockOffset.SRC_4, value)
+
+    def get_neighbor_5(self, step: int) -> Optional[int]:
+        """Get p-lock for Neighbor machine (SRC param 5). Unused on Neighbor."""
+        return self._get_plock(step, PlockOffset.SRC_5)
+
+    def set_neighbor_5(self, step: int, value: Optional[int]):
+        """Set p-lock for Neighbor machine (SRC param 5). Unused on Neighbor."""
+        self._set_plock(step, PlockOffset.SRC_5, value)
+
+    def get_neighbor_6(self, step: int) -> Optional[int]:
+        """Get p-lock for Neighbor machine (SRC param 6). Unused on Neighbor."""
+        return self._get_plock(step, PlockOffset.SRC_6)
+
+    def set_neighbor_6(self, step: int, value: Optional[int]):
+        """Set p-lock for Neighbor machine (SRC param 6). Unused on Neighbor."""
+        self._set_plock(step, PlockOffset.SRC_6, value)
+
+    # =========================================================================
+    # SRC Page - Pickup Machine Methods
+    # =========================================================================
+
+    def get_pickup_pitch(self, step: int) -> Optional[int]:
+        """Get pitch p-lock for Pickup machine (SRC param 1)."""
+        return self._get_plock(step, PlockOffset.SRC_1)
+
+    def set_pickup_pitch(self, step: int, value: Optional[int]):
+        """Set pitch p-lock for Pickup machine (SRC param 1)."""
+        self._set_plock(step, PlockOffset.SRC_1, value)
+
+    def get_pickup_dir(self, step: int) -> Optional[int]:
+        """Get direction p-lock for Pickup machine (SRC param 2)."""
+        return self._get_plock(step, PlockOffset.SRC_2)
+
+    def set_pickup_dir(self, step: int, value: Optional[int]):
+        """Set direction p-lock for Pickup machine (SRC param 2)."""
+        self._set_plock(step, PlockOffset.SRC_2, value)
+
+    def get_pickup_length(self, step: int) -> Optional[int]:
+        """Get length p-lock for Pickup machine (SRC param 3)."""
+        return self._get_plock(step, PlockOffset.SRC_3)
+
+    def set_pickup_length(self, step: int, value: Optional[int]):
+        """Set length p-lock for Pickup machine (SRC param 3)."""
+        self._set_plock(step, PlockOffset.SRC_3, value)
+
+    def get_pickup_gain(self, step: int) -> Optional[int]:
+        """Get gain p-lock for Pickup machine (SRC param 5)."""
+        return self._get_plock(step, PlockOffset.SRC_5)
+
+    def set_pickup_gain(self, step: int, value: Optional[int]):
+        """Set gain p-lock for Pickup machine (SRC param 5)."""
+        self._set_plock(step, PlockOffset.SRC_5, value)
+
+    def get_pickup_op(self, step: int) -> Optional[int]:
+        """Get operation mode p-lock for Pickup machine (SRC param 6)."""
+        return self._get_plock(step, PlockOffset.SRC_6)
+
+    def set_pickup_op(self, step: int, value: Optional[int]):
+        """Set operation mode p-lock for Pickup machine (SRC param 6)."""
+        self._set_plock(step, PlockOffset.SRC_6, value)
+
+    # =========================================================================
+    # LFO Page Methods
+    # =========================================================================
+
+    def get_lfo_speed1(self, step: int) -> Optional[int]:
+        """Get LFO 1 speed p-lock."""
+        return self._get_plock(step, PlockOffset.LFO_SPEED1)
+
+    def set_lfo_speed1(self, step: int, value: Optional[int]):
+        """Set LFO 1 speed p-lock."""
+        self._set_plock(step, PlockOffset.LFO_SPEED1, value)
+
+    def get_lfo_speed2(self, step: int) -> Optional[int]:
+        """Get LFO 2 speed p-lock."""
+        return self._get_plock(step, PlockOffset.LFO_SPEED2)
+
+    def set_lfo_speed2(self, step: int, value: Optional[int]):
+        """Set LFO 2 speed p-lock."""
+        self._set_plock(step, PlockOffset.LFO_SPEED2, value)
+
+    def get_lfo_speed3(self, step: int) -> Optional[int]:
+        """Get LFO 3 speed p-lock."""
+        return self._get_plock(step, PlockOffset.LFO_SPEED3)
+
+    def set_lfo_speed3(self, step: int, value: Optional[int]):
+        """Set LFO 3 speed p-lock."""
+        self._set_plock(step, PlockOffset.LFO_SPEED3, value)
+
+    def get_lfo_depth1(self, step: int) -> Optional[int]:
+        """Get LFO 1 depth p-lock."""
+        return self._get_plock(step, PlockOffset.LFO_DEPTH1)
+
+    def set_lfo_depth1(self, step: int, value: Optional[int]):
+        """Set LFO 1 depth p-lock."""
+        self._set_plock(step, PlockOffset.LFO_DEPTH1, value)
+
+    def get_lfo_depth2(self, step: int) -> Optional[int]:
+        """Get LFO 2 depth p-lock."""
+        return self._get_plock(step, PlockOffset.LFO_DEPTH2)
+
+    def set_lfo_depth2(self, step: int, value: Optional[int]):
+        """Set LFO 2 depth p-lock."""
+        self._set_plock(step, PlockOffset.LFO_DEPTH2, value)
+
+    def get_lfo_depth3(self, step: int) -> Optional[int]:
+        """Get LFO 3 depth p-lock."""
+        return self._get_plock(step, PlockOffset.LFO_DEPTH3)
+
+    def set_lfo_depth3(self, step: int, value: Optional[int]):
+        """Set LFO 3 depth p-lock."""
+        self._set_plock(step, PlockOffset.LFO_DEPTH3, value)
+
+    # =========================================================================
+    # AMP Page Methods
+    # =========================================================================
+
+    def get_amp_attack(self, step: int) -> Optional[int]:
+        """Get attack p-lock."""
+        return self._get_plock(step, PlockOffset.AMP_ATTACK)
+
+    def set_amp_attack(self, step: int, value: Optional[int]):
+        """Set attack p-lock."""
+        self._set_plock(step, PlockOffset.AMP_ATTACK, value)
+
+    def get_amp_hold(self, step: int) -> Optional[int]:
+        """Get hold p-lock."""
+        return self._get_plock(step, PlockOffset.AMP_HOLD)
+
+    def set_amp_hold(self, step: int, value: Optional[int]):
+        """Set hold p-lock."""
+        self._set_plock(step, PlockOffset.AMP_HOLD, value)
+
+    def get_amp_release(self, step: int) -> Optional[int]:
+        """Get release p-lock."""
+        return self._get_plock(step, PlockOffset.AMP_RELEASE)
+
+    def set_amp_release(self, step: int, value: Optional[int]):
+        """Set release p-lock."""
+        self._set_plock(step, PlockOffset.AMP_RELEASE, value)
+
+    def get_amp_volume(self, step: int) -> Optional[int]:
+        """Get volume p-lock."""
+        return self._get_plock(step, PlockOffset.AMP_VOLUME)
+
+    def set_amp_volume(self, step: int, value: Optional[int]):
+        """Set volume p-lock."""
+        self._set_plock(step, PlockOffset.AMP_VOLUME, value)
+
+    def get_amp_balance(self, step: int) -> Optional[int]:
+        """Get balance p-lock."""
+        return self._get_plock(step, PlockOffset.AMP_BALANCE)
+
+    def set_amp_balance(self, step: int, value: Optional[int]):
+        """Set balance p-lock."""
+        self._set_plock(step, PlockOffset.AMP_BALANCE, value)
+
+    def get_amp_f(self, step: int) -> Optional[int]:
+        """Get AMP F parameter p-lock (reserved for Scenes/LFOs)."""
+        return self._get_plock(step, PlockOffset.AMP_F)
+
+    def set_amp_f(self, step: int, value: Optional[int]):
+        """Set AMP F parameter p-lock (reserved for Scenes/LFOs)."""
+        self._set_plock(step, PlockOffset.AMP_F, value)
+
+    # Convenience aliases for common usage
+    def get_volume(self, step: int) -> Optional[int]:
+        """Alias for get_amp_volume."""
+        return self.get_amp_volume(step)
+
+    def set_volume(self, step: int, value: Optional[int]):
+        """Alias for set_amp_volume."""
+        self.set_amp_volume(step, value)
+
+    # =========================================================================
+    # FX1 Page Methods (generic - meaning depends on selected effect)
+    # =========================================================================
+
+    def get_fx1_1(self, step: int) -> Optional[int]:
+        """Get FX1 param 1 p-lock."""
+        return self._get_plock(step, PlockOffset.FX1_1)
+
+    def set_fx1_1(self, step: int, value: Optional[int]):
+        """Set FX1 param 1 p-lock."""
+        self._set_plock(step, PlockOffset.FX1_1, value)
+
+    def get_fx1_2(self, step: int) -> Optional[int]:
+        """Get FX1 param 2 p-lock."""
+        return self._get_plock(step, PlockOffset.FX1_2)
+
+    def set_fx1_2(self, step: int, value: Optional[int]):
+        """Set FX1 param 2 p-lock."""
+        self._set_plock(step, PlockOffset.FX1_2, value)
+
+    def get_fx1_3(self, step: int) -> Optional[int]:
+        """Get FX1 param 3 p-lock."""
+        return self._get_plock(step, PlockOffset.FX1_3)
+
+    def set_fx1_3(self, step: int, value: Optional[int]):
+        """Set FX1 param 3 p-lock."""
+        self._set_plock(step, PlockOffset.FX1_3, value)
+
+    def get_fx1_4(self, step: int) -> Optional[int]:
+        """Get FX1 param 4 p-lock."""
+        return self._get_plock(step, PlockOffset.FX1_4)
+
+    def set_fx1_4(self, step: int, value: Optional[int]):
+        """Set FX1 param 4 p-lock."""
+        self._set_plock(step, PlockOffset.FX1_4, value)
+
+    def get_fx1_5(self, step: int) -> Optional[int]:
+        """Get FX1 param 5 p-lock."""
+        return self._get_plock(step, PlockOffset.FX1_5)
+
+    def set_fx1_5(self, step: int, value: Optional[int]):
+        """Set FX1 param 5 p-lock."""
+        self._set_plock(step, PlockOffset.FX1_5, value)
+
+    def get_fx1_6(self, step: int) -> Optional[int]:
+        """Get FX1 param 6 p-lock."""
+        return self._get_plock(step, PlockOffset.FX1_6)
+
+    def set_fx1_6(self, step: int, value: Optional[int]):
+        """Set FX1 param 6 p-lock."""
+        self._set_plock(step, PlockOffset.FX1_6, value)
+
+    # =========================================================================
+    # FX2 Page Methods (generic - meaning depends on selected effect)
+    # =========================================================================
+
+    def get_fx2_1(self, step: int) -> Optional[int]:
+        """Get FX2 param 1 p-lock."""
+        return self._get_plock(step, PlockOffset.FX2_1)
+
+    def set_fx2_1(self, step: int, value: Optional[int]):
+        """Set FX2 param 1 p-lock."""
+        self._set_plock(step, PlockOffset.FX2_1, value)
+
+    def get_fx2_2(self, step: int) -> Optional[int]:
+        """Get FX2 param 2 p-lock."""
+        return self._get_plock(step, PlockOffset.FX2_2)
+
+    def set_fx2_2(self, step: int, value: Optional[int]):
+        """Set FX2 param 2 p-lock."""
+        self._set_plock(step, PlockOffset.FX2_2, value)
+
+    def get_fx2_3(self, step: int) -> Optional[int]:
+        """Get FX2 param 3 p-lock."""
+        return self._get_plock(step, PlockOffset.FX2_3)
+
+    def set_fx2_3(self, step: int, value: Optional[int]):
+        """Set FX2 param 3 p-lock."""
+        self._set_plock(step, PlockOffset.FX2_3, value)
+
+    def get_fx2_4(self, step: int) -> Optional[int]:
+        """Get FX2 param 4 p-lock."""
+        return self._get_plock(step, PlockOffset.FX2_4)
+
+    def set_fx2_4(self, step: int, value: Optional[int]):
+        """Set FX2 param 4 p-lock."""
+        self._set_plock(step, PlockOffset.FX2_4, value)
+
+    def get_fx2_5(self, step: int) -> Optional[int]:
+        """Get FX2 param 5 p-lock."""
+        return self._get_plock(step, PlockOffset.FX2_5)
+
+    def set_fx2_5(self, step: int, value: Optional[int]):
+        """Set FX2 param 5 p-lock."""
+        self._set_plock(step, PlockOffset.FX2_5, value)
+
+    def get_fx2_6(self, step: int) -> Optional[int]:
+        """Get FX2 param 6 p-lock."""
+        return self._get_plock(step, PlockOffset.FX2_6)
+
+    def set_fx2_6(self, step: int, value: Optional[int]):
+        """Set FX2 param 6 p-lock."""
+        self._set_plock(step, PlockOffset.FX2_6, value)
+
+    # =========================================================================
+    # Sample Slot Lock Methods
+    # =========================================================================
+
+    def get_static_slot_lock(self, step: int) -> Optional[int]:
+        """Get static sample slot lock for a step."""
+        return self._get_plock(step, PlockOffset.STATIC_SLOT)
+
+    def set_static_slot_lock(self, step: int, value: Optional[int]):
+        """Set static sample slot lock for a step."""
+        self._set_plock(step, PlockOffset.STATIC_SLOT, value)
+
+    def get_flex_slot_lock(self, step: int) -> Optional[int]:
+        """Get flex sample slot lock for a step."""
+        return self._get_plock(step, PlockOffset.FLEX_SLOT)
+
+    def set_flex_slot_lock(self, step: int, value: Optional[int]):
+        """Set flex sample slot lock for a step."""
+        self._set_plock(step, PlockOffset.FLEX_SLOT, value)
+
+    # Legacy aliases for backward compatibility
+    def get_pitch(self, step: int) -> Optional[int]:
+        """Alias for get_flex_pitch (assumes Flex/Static machine)."""
+        return self.get_flex_pitch(step)
+
+    def set_pitch(self, step: int, value: Optional[int]):
+        """Alias for set_flex_pitch (assumes Flex/Static machine)."""
+        self.set_flex_pitch(step, value)
+
+    # =========================================================================
+    # Trig Condition Methods
+    # =========================================================================
+
+    def _get_trig_condition_offset(self, step: int) -> int:
+        """Get the byte offset for trig condition data at a given step."""
+        if step < 1 or step > 64:
+            raise ValueError(f"Step must be 1-64, got {step}")
+        # Each step has 2 bytes: [repeats+offset, condition+offset_flag]
+        return AudioTrackOffset.TRIG_CONDITIONS + (step - 1) * 2
+
+    def get_trig_condition(self, step: int) -> TrigCondition:
+        """
+        Get the trig condition for a step.
+
+        Args:
+            step: Step number (1-64)
+
+        Returns:
+            TrigCondition enum value
+        """
+        offset = self._get_trig_condition_offset(step)
+        # Condition is in byte 1, masked by 128 (offset flag)
+        raw_value = self._data[offset + 1]
+        condition_value = raw_value % 128  # Remove offset flag if present
+        try:
+            return TrigCondition(condition_value)
+        except ValueError:
+            return TrigCondition.NONE
+
+    def set_trig_condition(
+        self, step: int, condition: Union[TrigCondition, int]
+    ):
+        """
+        Set the trig condition for a step.
+
+        Args:
+            step: Step number (1-64)
+            condition: TrigCondition enum or raw value (0-64)
+        """
+        offset = self._get_trig_condition_offset(step)
+        if isinstance(condition, TrigCondition):
+            condition_value = condition.value
+        else:
+            condition_value = condition & 0x7F  # Max 127
+
+        # Preserve the offset flag (bit 7) if present
+        current = self._data[offset + 1]
+        offset_flag = current & 0x80
+        self._data[offset + 1] = offset_flag | condition_value
+
+    def get_trig_repeat(self, step: int) -> int:
+        """
+        Get the trig repeat count for a step.
+
+        Args:
+            step: Step number (1-64)
+
+        Returns:
+            Number of repeats (1-8, where 1 means no repeat)
+        """
+        offset = self._get_trig_condition_offset(step)
+        raw_value = self._data[offset]
+        # Repeat count is encoded as (count - 1) * 32, masked within 0-224 range
+        # The offset portion uses values 0-31
+        repeat_portion = (raw_value // 32)
+        return repeat_portion + 1
+
+    def set_trig_repeat(self, step: int, count: int):
+        """
+        Set the trig repeat count for a step.
+
+        Args:
+            step: Step number (1-64)
+            count: Number of repeats (1-8)
+        """
+        if count < 1 or count > 8:
+            raise ValueError(f"Repeat count must be 1-8, got {count}")
+
+        offset = self._get_trig_condition_offset(step)
+        current = self._data[offset]
+        # Preserve offset portion (0-31)
+        offset_portion = current % 32
+        repeat_portion = (count - 1) * 32
+        self._data[offset] = offset_portion + repeat_portion
+
 
 class Pattern(OTBlock):
     """
@@ -282,6 +958,84 @@ class Pattern(OTBlock):
             List of step numbers (1-64)
         """
         return self.get_audio_track(track).get_trigger_steps()
+
+    # =========================================================================
+    # P-Lock Convenience Methods (Pattern-level, delegates to AudioTrack)
+    # =========================================================================
+
+    # --- AMP page ---
+    def get_volume(self, track: int, step: int) -> Optional[int]:
+        """Get volume p-lock for a track/step."""
+        return self.get_audio_track(track).get_volume(step)
+
+    def set_volume(self, track: int, step: int, value: Optional[int]):
+        """Set volume p-lock for a track/step."""
+        audio_track = self.get_audio_track(track)
+        audio_track.set_volume(step, value)
+        self.set_audio_track(track, audio_track)
+
+    # --- Flex/Static machine SRC page ---
+    def get_flex_pitch(self, track: int, step: int) -> Optional[int]:
+        """Get pitch p-lock for Flex/Static machine."""
+        return self.get_audio_track(track).get_flex_pitch(step)
+
+    def set_flex_pitch(self, track: int, step: int, value: Optional[int]):
+        """Set pitch p-lock for Flex/Static machine."""
+        audio_track = self.get_audio_track(track)
+        audio_track.set_flex_pitch(step, value)
+        self.set_audio_track(track, audio_track)
+
+    def get_flex_length(self, track: int, step: int) -> Optional[int]:
+        """Get sample length p-lock for Flex/Static machine."""
+        return self.get_audio_track(track).get_flex_length(step)
+
+    def set_flex_length(self, track: int, step: int, value: Optional[int]):
+        """Set sample length p-lock for Flex/Static machine."""
+        audio_track = self.get_audio_track(track)
+        audio_track.set_flex_length(step, value)
+        self.set_audio_track(track, audio_track)
+
+    def get_flex_rate(self, track: int, step: int) -> Optional[int]:
+        """Get playback rate p-lock for Flex/Static machine."""
+        return self.get_audio_track(track).get_flex_rate(step)
+
+    def set_flex_rate(self, track: int, step: int, value: Optional[int]):
+        """Set playback rate p-lock for Flex/Static machine."""
+        audio_track = self.get_audio_track(track)
+        audio_track.set_flex_rate(step, value)
+        self.set_audio_track(track, audio_track)
+
+    # Legacy alias
+    def get_pitch(self, track: int, step: int) -> Optional[int]:
+        """Alias for get_flex_pitch."""
+        return self.get_flex_pitch(track, step)
+
+    def set_pitch(self, track: int, step: int, value: Optional[int]):
+        """Alias for set_flex_pitch."""
+        self.set_flex_pitch(track, step, value)
+
+    # --- Trig conditions ---
+    def get_trig_condition(self, track: int, step: int) -> TrigCondition:
+        """Get trig condition for a track/step."""
+        return self.get_audio_track(track).get_trig_condition(step)
+
+    def set_trig_condition(
+        self, track: int, step: int, condition: Union[TrigCondition, int]
+    ):
+        """Set trig condition for a track/step."""
+        audio_track = self.get_audio_track(track)
+        audio_track.set_trig_condition(step, condition)
+        self.set_audio_track(track, audio_track)
+
+    def get_trig_repeat(self, track: int, step: int) -> int:
+        """Get trig repeat count for a track/step."""
+        return self.get_audio_track(track).get_trig_repeat(step)
+
+    def set_trig_repeat(self, track: int, step: int, count: int):
+        """Set trig repeat count for a track/step."""
+        audio_track = self.get_audio_track(track)
+        audio_track.set_trig_repeat(step, count)
+        self.set_audio_track(track, audio_track)
 
     def check_header(self) -> bool:
         """Verify the header matches expected pattern header."""
