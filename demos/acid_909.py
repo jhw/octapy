@@ -78,10 +78,12 @@ def snare_skip(rng: random.Random, length: int = 16) -> List[float]:
 
 
 def hat_closed(rng: random.Random, length: int = 16) -> List[float]:
-    """Closed hi-hat pattern.
+    """Closed hi-hat pattern (single track).
 
     Hits every other beat at 0.4 intensity, with 50% chance
     of additional varied hits.
+
+    Returns single pattern for track 3.
     """
     pattern = [0.0] * length
     for i in range(length):
@@ -92,19 +94,26 @@ def hat_closed(rng: random.Random, length: int = 16) -> List[float]:
     return pattern
 
 
-def hat_offbeats(rng: random.Random, length: int = 16) -> List[float]:
-    """Offbeat hi-hat pattern.
+def hat_offbeats(rng: random.Random, length: int = 16) -> tuple[List[float], List[float]]:
+    """Offbeat hi-hat pattern (dual track - open and closed hats).
 
-    Hits at positions 2,6,10,14 at 0.4 intensity, with 30% chance
-    of additional random hits (0.2 max).
+    Open hats on offbeats (positions 2,6,10,14), closed hats fill
+    remaining positions with varied velocities.
+
+    Returns tuple of (open_hat_pattern, closed_hat_pattern) for tracks 3 and 4.
     """
-    pattern = [0.0] * length
+    oh_pattern = [0.0] * length
+    ch_pattern = [0.0] * length
+
     for i in range(length):
         if i % 4 == 2:
-            pattern[i] = 0.4
-        elif rng.random() < 0.3:
-            pattern[i] = rng.random() * 0.2
-    return pattern
+            # Open hat on offbeats
+            oh_pattern[i] = 0.4
+        elif rng.random() < 0.5:
+            # Closed hat fills
+            ch_pattern[i] = rng.random() * 0.3
+
+    return oh_pattern, ch_pattern
 
 
 # Pattern function registries by type
@@ -118,6 +127,7 @@ SNARE_PATTERNS = {
     'skip': snare_skip,
 }
 
+# Hat patterns - 'closed' returns single pattern, 'offbeats' returns tuple of two
 HAT_PATTERNS = {
     'closed': hat_closed,
     'offbeats': hat_offbeats,
@@ -138,8 +148,14 @@ def get_random_snare_pattern(rng: random.Random, length: int = 16) -> tuple[str,
     return pattern_name, pattern
 
 
-def get_random_hat_pattern(rng: random.Random, length: int = 16) -> tuple[str, List[float]]:
-    """Get a random hat pattern."""
+def get_random_hat_pattern(rng: random.Random, length: int = 16):
+    """Get a random hat pattern.
+
+    Returns:
+        tuple of (name, patterns) where patterns is either:
+        - Single List[float] for 'closed' mode (track 3 only)
+        - Tuple of (open_hat, closed_hat) for 'offbeats' mode (tracks 3 and 4)
+    """
     pattern_name = rng.choice(list(HAT_PATTERNS.keys()))
     pattern = HAT_PATTERNS[pattern_name](rng, length)
     return pattern_name, pattern
