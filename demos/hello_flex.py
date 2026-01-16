@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool
+from octapy import Project, MachineType, SamplePool, SampleDuration
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
@@ -62,6 +62,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     print(f"\nCreating project '{name}'")
     project = Project.from_template(name)
     project.tempo = 124
+    project.sample_duration = SampleDuration.SIXTEENTH
     bank = project.bank(1)
     part = bank.part(1)
     pattern = bank.pattern(1)

@@ -28,6 +28,23 @@ class InvalidSlotNumber(OctapyError):
     pass
 
 
+# === Sample duration ===
+
+class SampleDuration(IntEnum):
+    """
+    Sample duration in musical subdivisions.
+
+    Used to normalize sample lengths based on BPM.
+    At 120 BPM:
+      - SIXTEENTH (1 step) = 125ms
+      - EIGHTH (2 steps) = 250ms
+      - THIRTY_SECOND (0.5 steps) = 62.5ms
+    """
+    THIRTY_SECOND = 8   # divisor: 60/bpm/8
+    SIXTEENTH = 4       # divisor: 60/bpm/4
+    EIGHTH = 2          # divisor: 60/bpm/2
+
+
 # Machine types (for audio tracks in Parts)
 class MachineType(IntEnum):
     """Machine types for audio tracks."""

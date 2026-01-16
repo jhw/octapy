@@ -83,6 +83,9 @@ class Project:
         # Temp directory reference (kept alive when loading from zip)
         self._temp_dir = None
 
+        # Sample normalization (None = no normalization)
+        self._sample_duration = None
+
     @classmethod
     def from_template(cls, name: str) -> "Project":
         """
@@ -246,13 +249,21 @@ class Project:
         for arr_num, arr_data in self._arr_files.items():
             (path / f"arr{arr_num:02d}.work").write_bytes(arr_data)
 
-        # Save samples from pool
+        # Save samples from pool (with optional normalization)
         if self._sample_pool:
-            import shutil
             samples_dir = path / "samples"
             samples_dir.mkdir(exist_ok=True)
-            for filename, local_path in self._sample_pool.items():
-                shutil.copy2(local_path, samples_dir / filename)
+
+            if self._sample_duration is not None:
+                # Normalize samples to target duration
+                target_ms = _calculate_duration_ms(self.tempo, self._sample_duration)
+                for filename, local_path in self._sample_pool.items():
+                    _normalize_sample(local_path, samples_dir / filename, target_ms)
+            else:
+                # Copy samples without normalization
+                import shutil
+                for filename, local_path in self._sample_pool.items():
+                    shutil.copy2(local_path, samples_dir / filename)
 
     def to_zip(self, zip_path: Path) -> None:
         """
@@ -307,6 +318,23 @@ class Project:
     def tempo(self, bpm: float):
         """Set the project tempo in BPM."""
         self._project_file.tempo = bpm
+
+    @property
+    def sample_duration(self):
+        """
+        Get/set sample duration for normalization.
+
+        When set, samples are normalized (trimmed/padded) to this duration
+        based on BPM when saving the project.
+
+        Values: SampleDuration.SIXTEENTH (1 step), EIGHTH (2 steps),
+                THIRTY_SECOND (0.5 steps), or None (no normalization)
+        """
+        return self._sample_duration
+
+    @sample_duration.setter
+    def sample_duration(self, value):
+        self._sample_duration = value
 
     # === Sample management ===
 
@@ -479,3 +507,47 @@ def _get_wav_frame_count(wav_path: Path) -> int:
             return w.getnframes()
     except Exception:
         return 0
+
+
+def _calculate_duration_ms(bpm: float, sample_duration) -> int:
+    """
+    Calculate target sample duration in milliseconds.
+
+    Args:
+        bpm: Project tempo in BPM
+        sample_duration: SampleDuration enum value (divisor for beat)
+
+    Returns:
+        Duration in milliseconds
+    """
+    # duration = (60 / bpm) / divisor seconds
+    # SampleDuration values are the divisors (2, 4, 8)
+    seconds = (60.0 / bpm) / int(sample_duration)
+    return int(seconds * 1000)
+
+
+def _normalize_sample(source_path: Path, dest_path: Path, target_ms: int) -> None:
+    """
+    Normalize a sample to a target duration.
+
+    Trims (with 3ms fade out) or pads with silence as needed.
+
+    Args:
+        source_path: Path to source WAV file
+        dest_path: Path to write normalized WAV file
+        target_ms: Target duration in milliseconds
+    """
+    from pydub import AudioSegment
+
+    audio = AudioSegment.from_wav(str(source_path))
+    current_ms = len(audio)
+
+    if current_ms > target_ms:
+        # Trim with fade out to avoid clicks
+        audio = audio[:target_ms].fade_out(3)
+    elif current_ms < target_ms:
+        # Pad with silence
+        silence = AudioSegment.silent(duration=target_ms - current_ms)
+        audio = audio + silence
+
+    audio.export(str(dest_path), format="wav")

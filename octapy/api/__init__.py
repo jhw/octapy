@@ -16,6 +16,7 @@ from .enums import (
     ScaleMode,
     PatternScale,
     TrigCondition,
+    SampleDuration,
     OctapyError,
     SlotLimitExceeded,
     InvalidSlotNumber,
