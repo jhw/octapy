@@ -16,40 +16,15 @@ Output is a zip file that can be copied to the Octatrack using copy_project.py.
 
 import argparse
 import random
-import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
-from octapy import Project, MachineType
+from octapy import Project, MachineType, SamplePool
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
 SAMPLES_DIR = OUTPUT_DIR / "Erica Pico" / "default"
-
-# Sample categorization patterns (case insensitive)
-KICK_PATTERNS = re.compile(r'(kk|kick|kik|bd|bass)', re.IGNORECASE)
-SNARE_PATTERNS = re.compile(r'(sn|rm|sd|cl)', re.IGNORECASE)
-HAT_PATTERNS = re.compile(r'(hh|oh|ch|perc)', re.IGNORECASE)
-
-
-def scan_samples(samples_dir: Path) -> Dict[str, List[Path]]:
-    """Scan directory for WAV samples and categorize them."""
-    categories = {'kick': [], 'snare': [], 'hat': []}
-
-    if not samples_dir.exists():
-        return categories
-
-    for wav_file in samples_dir.rglob('*.wav'):
-        filename = wav_file.name
-        if KICK_PATTERNS.search(filename):
-            categories['kick'].append(wav_file)
-        elif SNARE_PATTERNS.search(filename):
-            categories['snare'].append(wav_file)
-        elif HAT_PATTERNS.search(filename):
-            categories['hat'].append(wav_file)
-
-    return categories
 
 
 def generate_hat_pattern() -> Tuple[List[int], List[int]]:
@@ -72,12 +47,15 @@ def create_project(name: str, output_dir: Path) -> Path:
         print(f"Error: Samples directory not found at {SAMPLES_DIR}")
         sys.exit(1)
 
-    categories = scan_samples(SAMPLES_DIR)
+    # Create sample pools with pattern matching (match type suffix before .wav)
+    kicks = SamplePool(SAMPLES_DIR, r"BD\d*\.wav$")
+    snares = SamplePool(SAMPLES_DIR, r"(SD|CL)\d*\.wav$")
+    hats = SamplePool(SAMPLES_DIR, r"(HH|OH|CH)\d*\.wav$")
 
-    for cat_name, samples in categories.items():
-        print(f"  - Found {len(samples)} {cat_name} samples")
-        if not samples:
-            print(f"Error: No {cat_name} samples found.")
+    for pool_name, pool in [("kick", kicks), ("snare", snares), ("hat", hats)]:
+        print(f"  - Found {len(pool)} {pool_name} samples")
+        if not pool:
+            print(f"Error: No {pool_name} samples found.")
             sys.exit(1)
 
     # Create project
@@ -91,25 +69,23 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Generate hat pattern
     open_hat_steps, closed_hat_steps = generate_hat_pattern()
 
-    # Track configurations: (track, category, steps)
+    # Track configurations: (track, pool, steps)
     track_configs = [
-        (1, 'kick', [1, 5, 9, 13]),
-        (2, 'snare', [5, 13]),
-        (3, 'hat', open_hat_steps),
-        (4, 'hat', closed_hat_steps),
+        (1, kicks, [1, 5, 9, 13]),
+        (2, snares, [5, 13]),
+        (3, hats, open_hat_steps),
+        (4, hats, closed_hat_steps),
     ]
 
     print(f"\nConfiguring Part 1:")
     print(f"  - Hat pattern: track 3 = {open_hat_steps}")
     print(f"                 track 4 = {closed_hat_steps}")
 
-    for track_num, category, steps in track_configs:
-        sample_path = random.choice(categories[category])
-
-        # Add sample to project pool (auto-generates OT path)
+    for track_num, pool, steps in track_configs:
+        sample_path = pool.random()
         slot = project.add_sample(sample_path)
 
-        print(f"  - Track {track_num}: {category} ({sample_path.name}) -> slot {slot}")
+        print(f"  - Track {track_num}: {sample_path.name} -> slot {slot}")
 
         part.track(track_num).machine_type = MachineType.FLEX
         part.track(track_num).flex_slot = slot - 1

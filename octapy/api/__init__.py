@@ -26,3 +26,4 @@ from .bank import Bank
 from .part import Part, PartTrack
 from .pattern import Pattern, PatternTrack
 from .step import Step
+from .sample_pool import SamplePool

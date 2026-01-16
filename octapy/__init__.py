@@ -48,6 +48,7 @@ from .api.bank import Bank
 from .api.part import Part, PartTrack
 from .api.pattern import Pattern, PatternTrack
 from .api.step import Step
+from .api.sample_pool import SamplePool
 
 __version__ = "0.1.0"
 
@@ -61,6 +62,8 @@ __all__ = [
     "Pattern",
     "PatternTrack",
     "Step",
+    # Utilities
+    "SamplePool",
     # Enums
     "MachineType",
     "FX1Type",
