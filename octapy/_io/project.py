@@ -353,13 +353,18 @@ class ProjectFile:
 # =============================================================================
 
 def zip_project(project_dir: Path, zip_path: Path) -> None:
-    """Zip a project directory into a single archive."""
+    """Zip a project directory into a single archive.
+
+    Structure:
+        project/   - .work files (goes to OT project folder)
+        samples/   - .wav files (goes to OT AUDIO folder)
+    """
     import zipfile
 
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         for file_path in project_dir.iterdir():
             if file_path.is_file() and file_path.suffix == '.work':
-                zf.write(file_path, file_path.name)
+                zf.write(file_path, f"project/{file_path.name}")
 
         # Include samples/ directory if present
         samples_dir = project_dir / "samples"

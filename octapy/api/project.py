@@ -182,6 +182,10 @@ class Project:
         """
         Load a project from a zip file.
 
+        Zip structure:
+            project/   - .work files
+            samples/   - .wav files
+
         Args:
             zip_path: Path to project zip file
 
@@ -195,9 +199,24 @@ class Project:
         tmp_dir = tempfile.TemporaryDirectory()
         tmp_path = Path(tmp_dir.name)
         unzip_project(zip_path, tmp_path)
-        project = cls.from_directory(tmp_path)
+
+        # Load .work files from project/ subdirectory
+        project_subdir = tmp_path / "project"
+        if project_subdir.exists():
+            project = cls.from_directory(project_subdir)
+        else:
+            # Fallback for old flat structure
+            project = cls.from_directory(tmp_path)
+
         project.name = Path(zip_path).stem.upper()
         project._temp_dir = tmp_dir  # Keep alive until Project is garbage collected
+
+        # Load samples from samples/ subdirectory
+        samples_dir = tmp_path / "samples"
+        if samples_dir.exists():
+            for sample_file in samples_dir.glob("*.wav"):
+                project._sample_pool[sample_file.name] = sample_file
+
         return project
 
     def to_directory(self, path: Path) -> None:
