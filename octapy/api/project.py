@@ -65,9 +65,10 @@ class Project:
         """
         self.name = name.upper()
         self._project_file = ProjectFile()
-        self._markers = None  # Lazy loaded
+        self._markers = None
         self._bank_files: Dict[int, BankFile] = {}
         self._banks: Dict[int, Bank] = {}
+        self._arr_files: Dict[int, bytes] = {}  # arr file raw data
 
         # Slot tracking: path -> slot_number (for reuse when same sample added twice)
         self._flex_slots: Dict[str, int] = {}  # path -> slot (1-128)
@@ -78,16 +79,27 @@ class Project:
         """
         Create a new project from the embedded template.
 
+        Loads ALL template files (16 banks, 8 arr files, markers, project).
+
         Args:
             name: Project name (will be uppercased)
 
         Returns:
             New Project instance with default template data
         """
+        from .._io.project import read_template_file
+
         project = cls(name)
         project._project_file = ProjectFile.new()
         project._markers = MarkersFile.new()
-        project._bank_files[1] = BankFile.new(1)
+
+        # Load all 16 banks
+        for i in range(1, 17):
+            project._bank_files[i] = BankFile.new(i)
+
+        # Load all 8 arr files (stored as raw bytes)
+        for i in range(1, 9):
+            project._arr_files[i] = read_template_file(f"arr{i:02d}.work")
 
         return project
 
@@ -122,6 +134,12 @@ class Project:
             bank_path = path / f"bank{i:02d}.work"
             if bank_path.exists():
                 project._bank_files[i] = BankFile.from_file(bank_path)
+
+        # Load arr files (as raw bytes)
+        for i in range(1, 9):
+            arr_path = path / f"arr{i:02d}.work"
+            if arr_path.exists():
+                project._arr_files[i] = arr_path.read_bytes()
 
         # Initialize slot tracking from existing samples
         project._init_slots_from_project_file()
@@ -168,6 +186,8 @@ class Project:
         """
         Save the project to a directory.
 
+        Writes all files (project, markers, banks, arr files).
+
         Args:
             path: Destination directory (will be created if needed)
         """
@@ -181,9 +201,13 @@ class Project:
         if self._markers:
             self._markers.to_file(path / "markers.work")
 
-        # Save bank files
+        # Save all bank files
         for bank_num, bank_file in self._bank_files.items():
             bank_file.to_file(path / f"bank{bank_num:02d}.work")
+
+        # Save all arr files
+        for arr_num, arr_data in self._arr_files.items():
+            (path / f"arr{arr_num:02d}.work").write_bytes(arr_data)
 
     def to_zip(self, zip_path: Path) -> None:
         """
