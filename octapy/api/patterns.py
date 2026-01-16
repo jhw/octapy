@@ -192,7 +192,11 @@ class PatternOffset(IntEnum):
     HEADER = 0                  # 8 bytes: "PTRN...."
     AUDIO_TRACKS = 8            # 8 audio tracks, each AUDIO_TRACK_SIZE bytes
     # MIDI tracks follow audio tracks
-    # Scale settings at end of pattern
+    # Scale/settings at end of pattern
+    # TODO: Verify these offsets with actual OT files
+    SCALE_LENGTH = 36577        # 1 byte: pattern length (16 = 16 steps)
+    SCALE_MULT = 36578          # 1 byte: scale multiplier
+    PART_ASSIGNMENT = 36581     # 1 byte: assigned part (0-3 = Part 1-4)
 
 
 class AudioTrack(OTBlock):
@@ -1040,6 +1044,30 @@ class Pattern(OTBlock):
     def check_header(self) -> bool:
         """Verify the header matches expected pattern header."""
         return bytes(self._data[0:8]) == PATTERN_HEADER
+
+    # =========================================================================
+    # Pattern Settings
+    # =========================================================================
+
+    @property
+    def part_assignment(self) -> int:
+        """
+        Get the assigned part for this pattern (0-3 = Part 1-4).
+
+        Returns:
+            Part index (0-3)
+        """
+        return self._data[PatternOffset.PART_ASSIGNMENT]
+
+    @part_assignment.setter
+    def part_assignment(self, value: int):
+        """
+        Set the assigned part for this pattern.
+
+        Args:
+            value: Part index (0-3 = Part 1-4)
+        """
+        self._data[PatternOffset.PART_ASSIGNMENT] = value & 0x03
 
 
 class PatternArray(list):

@@ -10,7 +10,7 @@ File layout (636113 bytes total):
 - Header: 21 bytes ("FORM....DPS1BANK.....")
 - Version: 1 byte (23)
 - Patterns: 16 × 36588 bytes = 585408 bytes
-- Parts (unsaved + saved): variable
+- Parts: 8 × 6331 bytes = 50648 bytes (4 unsaved + 4 saved)
 - Part names: 4 × 7 bytes
 - Checksum: 2 bytes (big-endian u16)
 
@@ -44,18 +44,9 @@ class BankOffset(IntEnum):
     PATTERNS = 22                   # 16 patterns start here (0x16)
     # After patterns: 16 * 0x8EEC = 0x8EEC0 bytes
     # Parts start at 0x8EEC0 + 0x16 = 0x8EED6
-    MACHINE_TYPES_BASE = 0x8EF00    # Machine types at 0x8EF01-0x8EF08
-    # Machine slots are 680 bytes after machine types (offset 723 - 43 in Part)
-    MACHINE_SLOTS_BASE = 0x8F1A8    # Slot assignments: 8 tracks * 5 bytes each
+    PARTS = 0x8EED6                 # 8 parts start here (4 unsaved + 4 saved)
     FLEX_COUNTER = 0x9B4B2          # Counter for active flex slots
     CHECKSUM = 0x9B4CF              # 2-byte checksum (big-endian u16)
-
-
-# Machine slot structure (5 bytes per track)
-SLOT_SIZE = 5
-SLOT_STATIC_ID = 0
-SLOT_FLEX_ID = 1
-SLOT_RECORDER_ID = 4
 
 
 class BankFile(OTBlock):
@@ -76,8 +67,9 @@ class BankFile(OTBlock):
         self._data[0:21] = BANK_HEADER
         self._data[BankOffset.VERSION] = BANK_FILE_VERSION
 
-        # Patterns are initialized lazily when accessing
+        # Patterns and Parts are initialized lazily when accessing
         self._patterns: Optional[PatternArray] = None
+        self._parts: Optional[Parts] = None
 
     @classmethod
     def read(cls, data) -> "BankFile":
@@ -85,6 +77,7 @@ class BankFile(OTBlock):
         instance = cls.__new__(cls)
         instance._data = bytearray(data[:BANK_FILE_SIZE])
         instance._patterns = None
+        instance._parts = None
         return instance
 
     @classmethod
@@ -97,8 +90,10 @@ class BankFile(OTBlock):
     def to_file(self, path: Path):
         """Write the bank file to disk."""
         # Sync any modified pattern data back
-        if self._patterns is not None:
-            self._patterns.write_to(self._data, BankOffset.PATTERNS)
+        self.sync_patterns()
+
+        # Sync any modified parts data back
+        self.sync_parts()
 
         # Update checksum
         self.update_checksum()
@@ -168,83 +163,60 @@ class BankFile(OTBlock):
         if self._patterns is not None:
             self._patterns.write_to(self._data, BankOffset.PATTERNS)
 
-    # === Machine types (stored in Part 1 unsaved) ===
+    # === Parts ===
 
-    def get_machine_type(self, track: int) -> MachineType:
+    @property
+    def parts(self) -> Parts:
         """
-        Get the machine type for an audio track.
+        Get the parts container (lazy loaded).
 
-        Args:
-            track: Track number (1-8)
+        Parts contain machine types, slot assignments, and track parameters.
+        Each bank has 4 parts, stored in both unsaved (working) and saved states.
+
+        Usage:
+            # Get Part 1's unsaved state (index 0)
+            part = bank.parts.unsaved[0]
+
+            # Set machine type on track 1
+            part.set_machine_type(1, MachineType.FLEX)
+
+            # Set flex slot on track 1
+            part.set_flex_slot(1, slot=0)  # 0-indexed slot
 
         Returns:
-            MachineType enum value
+            Parts container with unsaved[0-3] and saved[0-3] lists
         """
-        offset = BankOffset.MACHINE_TYPES_BASE + track
-        return MachineType(self._data[offset])
+        if self._parts is None:
+            self._parts = Parts.read(
+                self._data,
+                unsaved_offset=BankOffset.PARTS,
+                saved_offset=BankOffset.PARTS + 4 * PART_BLOCK_SIZE,
+                part_size=PART_BLOCK_SIZE,
+            )
+        return self._parts
 
-    def set_machine_type(self, track: int, machine_type: MachineType):
+    def get_part(self, part: int, saved: bool = False) -> Part:
         """
-        Set the machine type for an audio track.
-
-        Note: This sets the machine type in the Part 1 unsaved state.
+        Get a specific part.
 
         Args:
-            track: Track number (1-8)
-            machine_type: MachineType enum value
-        """
-        offset = BankOffset.MACHINE_TYPES_BASE + track
-        self._data[offset] = machine_type
-
-    # === Slot assignments (stored in Part 1 unsaved) ===
-
-    def get_flex_slot(self, track: int) -> int:
-        """
-        Get the flex sample slot assigned to a track.
-
-        Args:
-            track: Track number (1-8)
+            part: Part number (1-4)
+            saved: If True, get the saved state; otherwise get unsaved (working) state
 
         Returns:
-            Slot number (0-indexed, 0-127 for samples, 128-135 for recorders)
+            Part instance
         """
-        offset = BankOffset.MACHINE_SLOTS_BASE + (track - 1) * SLOT_SIZE + SLOT_FLEX_ID
-        return self._data[offset]
+        parts_list = self.parts.saved if saved else self.parts.unsaved
+        return parts_list[part - 1]
 
-    def set_flex_slot(self, track: int, slot: int):
-        """
-        Set the flex sample slot for a track.
-
-        Args:
-            track: Track number (1-8)
-            slot: Slot number (0-indexed, 0-127 for samples, 128-135 for recorders)
-        """
-        offset = BankOffset.MACHINE_SLOTS_BASE + (track - 1) * SLOT_SIZE + SLOT_FLEX_ID
-        self._data[offset] = slot & 0xFF
-
-    def get_static_slot(self, track: int) -> int:
-        """
-        Get the static sample slot assigned to a track.
-
-        Args:
-            track: Track number (1-8)
-
-        Returns:
-            Slot number (0-indexed, 0-127)
-        """
-        offset = BankOffset.MACHINE_SLOTS_BASE + (track - 1) * SLOT_SIZE + SLOT_STATIC_ID
-        return self._data[offset]
-
-    def set_static_slot(self, track: int, slot: int):
-        """
-        Set the static sample slot for a track.
-
-        Args:
-            track: Track number (1-8)
-            slot: Slot number (0-indexed, 0-127)
-        """
-        offset = BankOffset.MACHINE_SLOTS_BASE + (track - 1) * SLOT_SIZE + SLOT_STATIC_ID
-        self._data[offset] = slot & 0xFF
+    def sync_parts(self):
+        """Write any modified parts data back to the buffer."""
+        if self._parts is not None:
+            self._parts.write_to(
+                self._data,
+                unsaved_offset=BankOffset.PARTS,
+                saved_offset=BankOffset.PARTS + 4 * PART_BLOCK_SIZE,
+            )
 
     # === Flex counter ===
 
@@ -297,8 +269,9 @@ class BankFile(OTBlock):
         Where byte differences are calculated from offset 16 to end-2
         (skipping header and checksum bytes).
         """
-        # Make sure patterns are synced
+        # Make sure patterns and parts are synced
         self.sync_patterns()
+        self.sync_parts()
 
         # Load template for comparison
         template = read_template_file('bank01.work')
@@ -323,7 +296,8 @@ class BankFile(OTBlock):
     # === Write helper ===
 
     def write(self) -> bytes:
-        """Get the bank data as bytes (includes syncing patterns and checksum)."""
+        """Get the bank data as bytes (includes syncing patterns, parts, and checksum)."""
         self.sync_patterns()
+        self.sync_parts()
         self.update_checksum()
         return bytes(self._data)

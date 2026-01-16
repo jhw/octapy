@@ -49,8 +49,9 @@ class TestBankFileRoundTrip:
         """Test that checksum is recalculated on write."""
         path = temp_dir / "bank01.work"
 
-        # Modify something
-        bank_file.set_machine_type(1, MachineType.FLEX)
+        # Modify something via Part
+        part = bank_file.get_part(1)
+        part.set_machine_type(1, MachineType.FLEX)
 
         # Write (should update checksum)
         bank_file.to_file(path)
@@ -60,23 +61,43 @@ class TestBankFileRoundTrip:
         assert loaded.verify_checksum() is True
 
 
-class TestBankFileMachineTypes:
-    """Machine type tests."""
+class TestBankFileParts:
+    """Parts access tests."""
 
-    def test_default_machine_type(self, bank_file):
-        """Test default machine type is STATIC."""
-        # Template should have STATIC machines by default
+    def test_get_part(self, bank_file):
+        """Test getting a Part from BankFile."""
+        part = bank_file.get_part(1)
+        assert part is not None
+        assert part.check_header() is True
+
+    def test_get_all_parts(self, bank_file):
+        """Test getting all 4 parts."""
+        for i in range(1, 5):
+            part = bank_file.get_part(i)
+            assert part is not None
+            assert part.part_id == i - 1  # 0-indexed internally
+
+    def test_parts_unsaved_and_saved(self, bank_file):
+        """Test accessing unsaved and saved parts."""
+        assert len(bank_file.parts.unsaved) == 4
+        assert len(bank_file.parts.saved) == 4
+
+    def test_default_machine_type_via_part(self, bank_file):
+        """Test default machine type is STATIC via Part."""
+        part = bank_file.get_part(1)
         for track in range(1, 9):
-            machine = bank_file.get_machine_type(track)
+            machine = part.get_machine_type(track)
             assert machine == MachineType.STATIC
 
-    def test_set_machine_type_flex(self, bank_file):
-        """Test setting machine type to FLEX."""
-        bank_file.set_machine_type(1, MachineType.FLEX)
-        assert bank_file.get_machine_type(1) == MachineType.FLEX
+    def test_set_machine_type_via_part(self, bank_file):
+        """Test setting machine type via Part."""
+        part = bank_file.get_part(1)
+        part.set_machine_type(1, MachineType.FLEX)
+        assert part.get_machine_type(1) == MachineType.FLEX
 
-    def test_set_machine_type_all_tracks(self, bank_file):
-        """Test setting machine types on all tracks."""
+    def test_set_machine_type_all_tracks_via_part(self, bank_file):
+        """Test setting machine types on all tracks via Part."""
+        part = bank_file.get_part(1)
         types = [
             MachineType.FLEX,
             MachineType.STATIC,
@@ -89,10 +110,10 @@ class TestBankFileMachineTypes:
         ]
 
         for track, machine_type in enumerate(types, 1):
-            bank_file.set_machine_type(track, machine_type)
+            part.set_machine_type(track, machine_type)
 
         for track, expected in enumerate(types, 1):
-            assert bank_file.get_machine_type(track) == expected
+            assert part.get_machine_type(track) == expected
 
 
 class TestBankFileTrigs:
@@ -143,17 +164,19 @@ class TestBankFileTrigs:
 
 
 class TestBankFileSlots:
-    """Slot assignment tests."""
+    """Slot assignment tests via Part."""
 
-    def test_set_flex_slot(self, bank_file):
-        """Test setting flex slot assignment."""
-        bank_file.set_flex_slot(track=1, slot=5)
-        assert bank_file.get_flex_slot(track=1) == 5
+    def test_set_flex_slot_via_part(self, bank_file):
+        """Test setting flex slot assignment via Part."""
+        part = bank_file.get_part(1)
+        part.set_flex_slot(track=1, slot=5)
+        assert part.get_flex_slot(track=1) == 5
 
-    def test_set_static_slot(self, bank_file):
-        """Test setting static slot assignment."""
-        bank_file.set_static_slot(track=1, slot=10)
-        assert bank_file.get_static_slot(track=1) == 10
+    def test_set_static_slot_via_part(self, bank_file):
+        """Test setting static slot assignment via Part."""
+        part = bank_file.get_part(1)
+        part.set_static_slot(track=1, slot=10)
+        assert part.get_static_slot(track=1) == 10
 
     def test_flex_count(self, bank_file):
         """Test flex counter."""
@@ -181,8 +204,9 @@ class TestBankFileChecksum:
         bank_file.update_checksum()
         original_checksum = bank_file._data[-1]
 
-        # Modify data
-        bank_file.set_machine_type(1, MachineType.FLEX)
+        # Modify data via Part
+        part = bank_file.get_part(1)
+        part.set_machine_type(1, MachineType.FLEX)
         bank_file.update_checksum()
         new_checksum = bank_file._data[-1]
 

@@ -20,15 +20,13 @@ from typing import List
 from . import OTBlock, MachineType, _read_fixed_string, _write_fixed_string
 
 
-# Part block size (calculated from Rust struct layout)
-# header(4) + data_block_1(4) + part_id(1) + fx1(8) + fx2(8) + scenes(2) +
-# volumes(16) + machine_types(8) + machine_params(240) + params_values(192) +
-# machine_setup(240) + machine_slots(40) + params_setup(288) +
-# midi_params_values(272) + midi_params_setup(288) + recorder_setup(96) +
-# scene_params(4352) + scene_xlvs(160) + custom_lfos_audio(128) +
-# custom_lfo_interp_audio(16) + custom_lfos_midi(128) + custom_lfo_interp_midi(16) +
-# arp_mutes(16) + arp_seqs(128) = ~6626 bytes per part (approximate)
-PART_BLOCK_SIZE = 6626  # Approximate - actual size determined by template
+# Part block size (verified from template analysis)
+# Layout: header + data_block_1 + part_id + fx1 + fx2 + scenes + volumes +
+# machine_types + machine_params + params_values + machine_setup + machine_slots +
+# params_setup + midi_params_values + midi_params_setup + recorder_setup +
+# scene_params + scene_xlvs + custom_lfos_audio + custom_lfo_interp_audio +
+# custom_lfos_midi + custom_lfo_interp_midi + arp_mutes + arp_seqs
+PART_BLOCK_SIZE = 6331  # Verified from OS 1.40B template
 
 PART_HEADER = bytes([0x50, 0x41, 0x52, 0x54])  # "PART"
 

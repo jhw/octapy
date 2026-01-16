@@ -132,14 +132,26 @@ def create_project(name: str, output_dir: Path) -> Path:
 
         bank = BankFile.from_file(bank01_path)
 
+        # Get Part 1 (unsaved state) to configure machines
+        part = bank.get_part(1)
+        print(f"  - Configuring Part 1")
+
         for track, slot, steps, sample_path in track_configs:
-            print(f"  - Track {track}: Flex machine, steps {steps}")
+            print(f"  - Track {track}: Flex machine, slot {slot}, steps {steps}")
 
             # Set trigger pattern for track in pattern 1
             bank.set_trigs(pattern=1, track=track, steps=steps)
 
-            # Set machine type to Flex
-            bank.set_machine_type(track=track, machine_type=MachineType.FLEX)
+            # Set machine type to Flex in Part 1
+            part.set_machine_type(track=track, machine_type=MachineType.FLEX)
+
+            # Set flex sample slot assignment in Part 1 (0-indexed internally)
+            part.set_flex_slot(track=track, slot=slot - 1)
+
+        # Assign pattern 1 to Part 1 (part_assignment 0 = Part 1)
+        pattern = bank.get_pattern(1)
+        pattern.part_assignment = 0
+        print(f"  - Pattern 1 assigned to Part 1")
 
         # Set flex counter (number of active flex sample slots)
         bank.flex_count = len(track_configs)
