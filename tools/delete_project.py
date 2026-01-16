@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Remove a project from the connected Octatrack device (remote).
+Remove a project from the connected Octatrack device.
 """
 
 import argparse
