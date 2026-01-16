@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-Create a minimal Octatrack project with Flex machines.
+Create an Octatrack project with Flex machines and randomized samples.
 
 This demo generates a project from scratch using the embedded template,
 using the octapy library (pym8-style, ported from ot-tools-io Rust).
 
 Configuration:
-- Track 1: Kick drum, slot 1, steps 1, 5, 9, 13
-- Track 2: Snare/clap, slot 2, steps 5, 13
-- Track 3: Open hat, slot 3, randomized pattern
-- Track 4: Closed hat, slot 4, randomized pattern
+- 4 Parts, each with different randomly selected samples
+- Track 1: Kick drum (random from kicks)
+- Track 2: Snare/clap (random from snares)
+- Track 3: Open hat (random from hats)
+- Track 4: Closed hat (random from hats)
+- Hi-hat pattern: beat on every step, randomly assigned to track 3 or 4
 
-Hats have 80% chance per step, with 50/50 split between open and closed.
+Samples are scanned from the Erica Pico folder and categorized by filename:
+- Kicks: kk, kick, kik, BD, bass
+- Snares: sn, RM, SD, cl
+- Hats: HH, oh, ch
 
 Output is a zip file that can be copied to the Octatrack using copy_project.py.
 """
@@ -19,24 +24,56 @@ Output is a zip file that can be copied to the Octatrack using copy_project.py.
 import argparse
 import os
 import random
-import shutil
+import re
+import sys
 import tempfile
 import wave
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 from octapy import BankFile, MarkersFile, ProjectFile, MachineType, zip_project, extract_template
 
 # Constants
 OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
+PICO_SAMPLES_DIR = "AUDIO/Erica Pico"
 
-# Sample paths for each track (relative to project folder)
-TRACK_SAMPLES = [
-    "../AUDIO/Erica Pico/default/028008BD.wav",   # Track 1: Kick drum
-    "../AUDIO/Erica Pico/default/31IBHC.wav",     # Track 2: Snare/clap
-    "../AUDIO/Erica Pico/default/468008OH.wav",   # Track 3: Open hat
-    "../AUDIO/Erica Pico/default/418008CH.wav",   # Track 4: Closed hat
-]
+# Sample categorization patterns (case insensitive)
+KICK_PATTERNS = re.compile(r'(kk|kick|kik|bd|bass)', re.IGNORECASE)
+SNARE_PATTERNS = re.compile(r'(sn|rm|sd|cl)', re.IGNORECASE)
+HAT_PATTERNS = re.compile(r'(hh|oh|ch)', re.IGNORECASE)
+
+
+def scan_samples(samples_dir: Path) -> Dict[str, List[Path]]:
+    """
+    Recursively scan directory for WAV samples and categorize them.
+
+    Args:
+        samples_dir: Path to the samples directory
+
+    Returns:
+        Dict with keys 'kick', 'snare', 'hat' mapping to lists of sample paths
+    """
+    categories = {
+        'kick': [],
+        'snare': [],
+        'hat': [],
+    }
+
+    if not samples_dir.exists():
+        return categories
+
+    for wav_file in samples_dir.rglob('*.wav'):
+        filename = wav_file.name
+
+        if KICK_PATTERNS.search(filename):
+            categories['kick'].append(wav_file)
+        elif SNARE_PATTERNS.search(filename):
+            categories['snare'].append(wav_file)
+        elif HAT_PATTERNS.search(filename):
+            categories['hat'].append(wav_file)
+
+    return categories
 
 
 def resolve_sample_path(sample_path: str) -> Path:
@@ -56,11 +93,20 @@ def get_wav_frame_count(wav_path: Path) -> int:
         return 0
 
 
-def generate_hat_patterns() -> tuple:
-    """
-    Generate randomized hat patterns.
+def path_to_relative(absolute_path: Path, base_dir: Path) -> str:
+    """Convert absolute path to relative path from project folder."""
+    try:
+        relative = absolute_path.relative_to(base_dir)
+        return f"../{relative}"
+    except ValueError:
+        return str(absolute_path)
 
-    80% chance of a hat on each step, 50/50 split between open and closed.
+
+def generate_hat_pattern() -> Tuple[List[int], List[int]]:
+    """
+    Generate randomized hat pattern with a beat on every step.
+
+    Each step is randomly assigned to either track 3 (open hat) or track 4 (closed hat).
 
     Returns:
         Tuple of (open_hat_steps, closed_hat_steps)
@@ -69,18 +115,39 @@ def generate_hat_patterns() -> tuple:
     closed_hat_steps = []
 
     for step in range(1, 17):
-        if random.random() < 0.8:  # 80% chance of a hat
-            if random.random() < 0.5:
-                open_hat_steps.append(step)
-            else:
-                closed_hat_steps.append(step)
+        if random.random() < 0.5:
+            open_hat_steps.append(step)
+        else:
+            closed_hat_steps.append(step)
 
     return open_hat_steps, closed_hat_steps
+
+
+def select_samples_for_part(categories: Dict[str, List[Path]]) -> Dict[str, Path]:
+    """
+    Randomly select one sample from each category for a part.
+
+    Args:
+        categories: Dict mapping category names to lists of sample paths
+
+    Returns:
+        Dict mapping category names to selected sample paths
+    """
+    selected = {}
+
+    for category, samples in categories.items():
+        if samples:
+            selected[category] = random.choice(samples)
+
+    return selected
 
 
 def create_project(name: str, output_dir: Path) -> Path:
     """
     Create a complete Octatrack project with Flex machines.
+
+    Sets up 4 parts, each with different randomly selected samples
+    and different hi-hat patterns.
 
     Args:
         name: Project name (will be uppercased)
@@ -89,6 +156,25 @@ def create_project(name: str, output_dir: Path) -> Path:
     Returns:
         Path to the created zip file
     """
+    # Scan for samples
+    pico_dir = Path(OCTATRACK_DEVICE) / PICO_SAMPLES_DIR
+    print(f"Scanning for samples in {pico_dir}")
+
+    if not pico_dir.exists():
+        print(f"Error: Erica Pico samples directory not found at {pico_dir}")
+        print("Please ensure the Octatrack is mounted and contains the Erica Pico samples.")
+        sys.exit(1)
+
+    categories = scan_samples(pico_dir)
+
+    # Check we have samples in each category
+    for cat_name, samples in categories.items():
+        print(f"  - Found {len(samples)} {cat_name} samples")
+        if not samples:
+            print(f"Error: No {cat_name} samples found.")
+            print("Please ensure the Erica Pico folder contains properly named samples.")
+            sys.exit(1)
+
     zip_path = output_dir / f"{name}.zip"
 
     # Work in a temp directory
@@ -96,98 +182,117 @@ def create_project(name: str, output_dir: Path) -> Path:
         project_dir = Path(tmp) / name
 
         # Extract embedded template to create project
-        print(f"Creating project '{name}'")
+        print(f"\nCreating project '{name}'")
         print("  - Using embedded template (OS 1.40B)")
         extract_template(project_dir)
 
-        # Generate randomized hat patterns
-        open_hat_steps, closed_hat_steps = generate_hat_patterns()
-
-        # Track configurations: (track, slot, steps, sample_path)
-        track_configs = [
-            (1, 1, [1, 5, 9, 13], TRACK_SAMPLES[0]),      # Kick on beats
-            (2, 2, [5, 13], TRACK_SAMPLES[1]),             # Snare on backbeats
-            (3, 3, open_hat_steps, TRACK_SAMPLES[2]),      # Open hat (randomized)
-            (4, 4, closed_hat_steps, TRACK_SAMPLES[3]),    # Closed hat (randomized)
-        ]
-
-        print(f"  - Open hat pattern: steps {open_hat_steps}")
-        print(f"  - Closed hat pattern: steps {closed_hat_steps}")
-
-        # Get sample frame counts (requires Octatrack to be mounted)
-        sample_counts = {}
-        for track, slot, steps, sample_path in track_configs:
-            actual_path = resolve_sample_path(sample_path)
-            frame_count = get_wav_frame_count(actual_path)
-            sample_counts[slot] = frame_count
-            sample_name = os.path.basename(sample_path)
-            if frame_count > 0:
-                print(f"  - Track {track} sample ({sample_name}): {frame_count} frames")
-            else:
-                print(f"  - Warning: Could not determine sample length for {sample_name}")
-
         # === Modify bank01.work ===
         bank01_path = project_dir / "bank01.work"
-        print(f"Configuring bank01.work")
+        print(f"\nConfiguring bank01.work")
 
         bank = BankFile.from_file(bank01_path)
 
-        # Get Part 1 (unsaved state) to configure machines
-        part = bank.get_part(1)
-        print(f"  - Configuring Part 1")
+        # Track all unique samples used across parts (for markers and project.work)
+        all_samples: Dict[int, Tuple[str, Path]] = {}  # slot -> (relative_path, absolute_path)
+        slot_counter = 1
 
-        for track, slot, steps, sample_path in track_configs:
-            print(f"  - Track {track}: Flex machine, slot {slot}, steps {steps}")
+        # Configure 4 parts with different samples and patterns
+        for part_num in range(1, 5):
+            print(f"\n  Part {part_num}:")
 
-            # Set trigger pattern for track in pattern 1
-            bank.set_trigs(pattern=1, track=track, steps=steps)
+            # Select random samples for this part
+            selected = select_samples_for_part(categories)
 
-            # Set machine type to Flex in Part 1
-            part.set_machine_type(track=track, machine_type=MachineType.FLEX)
+            # Generate hat pattern for this part
+            open_hat_steps, closed_hat_steps = generate_hat_pattern()
 
-            # Set flex sample slot assignment in Part 1 (0-indexed internally)
-            part.set_flex_slot(track=track, slot=slot - 1)
+            # Get the Part object
+            part = bank.get_part(part_num)
 
-        # Assign pattern 1 to Part 1 (part_assignment 0 = Part 1)
-        pattern = bank.get_pattern(1)
-        pattern.part_assignment = 0
-        print(f"  - Pattern 1 assigned to Part 1")
+            # Track configurations for this part: (track, category, steps)
+            track_configs = [
+                (1, 'kick', [1, 5, 9, 13]),           # Kick on beats
+                (2, 'snare', [5, 13]),                # Snare on backbeats
+                (3, 'hat', open_hat_steps),           # Open hat (randomized)
+                (4, 'hat', closed_hat_steps),         # Closed hat (randomized)
+            ]
+
+            print(f"    - Hat pattern: track 3 = {open_hat_steps}")
+            print(f"                   track 4 = {closed_hat_steps}")
+
+            for track, category, steps in track_configs:
+                sample_path = selected[category]
+                relative_path = path_to_relative(sample_path, Path(OCTATRACK_DEVICE))
+                sample_name = sample_path.name
+
+                # Assign slot for this sample (reuse if same sample already used)
+                existing_slot = None
+                for slot, (rel_path, _) in all_samples.items():
+                    if rel_path == relative_path:
+                        existing_slot = slot
+                        break
+
+                if existing_slot:
+                    slot = existing_slot
+                else:
+                    slot = slot_counter
+                    all_samples[slot] = (relative_path, sample_path)
+                    slot_counter += 1
+
+                print(f"    - Track {track}: {category} ({sample_name}) -> slot {slot}")
+
+                # Set trigger pattern for this track in the corresponding pattern
+                bank.set_trigs(pattern=part_num, track=track, steps=steps)
+
+                # Set machine type to Flex
+                part.set_machine_type(track=track, machine_type=MachineType.FLEX)
+
+                # Set flex sample slot assignment (0-indexed internally)
+                part.set_flex_slot(track=track, slot=slot - 1)
+
+            # Assign pattern to this part
+            pattern = bank.get_pattern(part_num)
+            pattern.part_assignment = part_num - 1  # 0-indexed
+            print(f"    - Pattern {part_num} assigned to Part {part_num}")
 
         # Set flex counter (number of active flex sample slots)
-        bank.flex_count = len(track_configs)
-        print(f"  - Flex counter: {bank.flex_count}")
+        bank.flex_count = len(all_samples)
+        print(f"\n  Total flex slots used: {bank.flex_count}")
 
         # Write bank file (auto-updates checksum)
         bank.to_file(bank01_path)
 
         # === Modify markers.work ===
         markers_path = project_dir / "markers.work"
-        print(f"Configuring markers.work")
+        print(f"\nConfiguring markers.work")
 
         markers = MarkersFile.from_file(markers_path)
 
-        for slot, frame_count in sample_counts.items():
+        for slot, (relative_path, absolute_path) in all_samples.items():
+            frame_count = get_wav_frame_count(absolute_path)
             if frame_count > 0:
                 markers.set_sample_length(slot=slot, length=frame_count)
-                print(f"  - Slot {slot} sample length: {frame_count}")
+                print(f"  - Slot {slot}: {frame_count} frames")
+            else:
+                print(f"  - Warning: Could not determine length for slot {slot}")
 
         # Write markers file (auto-updates checksum)
         markers.to_file(markers_path)
 
         # === Create project.work ===
-        print(f"Creating project.work")
+        print(f"\nCreating project.work")
 
         project = ProjectFile()
 
         # Add sample slots
-        for track, slot, steps, sample_path in track_configs:
+        for slot, (relative_path, absolute_path) in sorted(all_samples.items()):
             project.add_sample_slot(
                 slot_number=slot,
-                path=sample_path,
+                path=relative_path,
                 slot_type="FLEX",
                 gain=48,
             )
-            print(f"  - Slot {slot}: {os.path.basename(sample_path)}")
+            print(f"  - Slot {slot}: {absolute_path.name}")
 
         # Add recorder slots (129-136)
         project.add_recorder_slots()
@@ -195,7 +300,7 @@ def create_project(name: str, output_dir: Path) -> Path:
         project.to_file(project_dir / "project.work")
 
         # === Zip the project ===
-        print(f"Zipping project to {zip_path}")
+        print(f"\nZipping project to {zip_path}")
         zip_project(project_dir, zip_path)
 
     print(f"\nProject created: {zip_path}")
@@ -207,7 +312,7 @@ def create_project(name: str, output_dir: Path) -> Path:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create an Octatrack project with Flex machines using octapy library"
+        description="Create an Octatrack project with randomized Flex machines"
     )
     parser.add_argument(
         "name",
