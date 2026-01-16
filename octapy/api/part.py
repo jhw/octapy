@@ -5,7 +5,7 @@ Part and PartTrack classes for sound configuration.
 from typing import TYPE_CHECKING, Dict
 
 from .._io import PartOffset, MachineSlotOffset, MACHINE_SLOT_SIZE
-from .base import MachineType
+from .enums import MachineType
 
 if TYPE_CHECKING:
     from .bank import Bank

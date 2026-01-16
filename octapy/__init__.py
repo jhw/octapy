@@ -32,7 +32,7 @@ Example:
 """
 
 # Enums and exceptions
-from .api.base import (
+from .api.enums import (
     MachineType,
     FX1Type,
     FX2Type,

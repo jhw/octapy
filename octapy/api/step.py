@@ -203,7 +203,7 @@ class Step:
 
         The condition determines when this step triggers (FILL, probability, etc.).
         """
-        from .base import TrigCondition
+        from .enums import TrigCondition
         data = self._pattern_track._pattern._bank._bank_file._data
         offset = self._condition_offset()
         # Condition is stored in lower 7 bits (0-64), bit 7 is micro-timing
@@ -215,7 +215,7 @@ class Step:
 
     @condition.setter
     def condition(self, value):
-        from .base import TrigCondition
+        from .enums import TrigCondition
         data = self._pattern_track._pattern._bank._bank_file._data
         offset = self._condition_offset()
         # Preserve micro-timing bit (bit 7), set condition in lower 7 bits
@@ -282,12 +282,12 @@ class Step:
         Setting a value sets the closest matching probability condition.
         Set to None or 1.0 to clear probability (always trigger).
         """
-        from .base import TrigCondition, PROBABILITY_MAP
+        from .enums import TrigCondition, PROBABILITY_MAP
         return PROBABILITY_MAP.get(self.condition)
 
     @probability.setter
     def probability(self, value: Optional[float]):
-        from .base import TrigCondition, PROBABILITY_MAP
+        from .enums import TrigCondition, PROBABILITY_MAP
 
         if value is None or value >= 1.0:
             self.condition = TrigCondition.NONE

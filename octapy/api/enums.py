@@ -1,5 +1,5 @@
 """
-octapy.api - Enums and types for Octatrack API.
+Enums, constants and exceptions for the Octatrack API.
 """
 
 from enum import IntEnum

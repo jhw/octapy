@@ -15,7 +15,7 @@ from .._io import (
     unzip_project,
 )
 from .bank import Bank
-from .base import (
+from .enums import (
     MAX_FLEX_SAMPLE_SLOTS,
     MAX_STATIC_SAMPLE_SLOTS,
     RECORDER_SLOTS_START,

@@ -9,7 +9,7 @@ Low-level file I/O (internal use):
     from octapy._io import BankFile, MarkersFile, ProjectFile
 """
 
-from .base import (
+from .enums import (
     MachineType,
     FX1Type,
     FX2Type,
