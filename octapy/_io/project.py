@@ -283,7 +283,7 @@ class ProjectFile:
         lines.append("############################")
         lines.append("")
 
-        for slot in self.sample_slots:
+        for slot in sorted(self.sample_slots, key=lambda s: s.slot_number):
             lines.append(slot.to_ini_block())
 
         lines.append("############################")
