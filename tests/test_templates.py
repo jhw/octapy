@@ -4,7 +4,7 @@ Tests for template and project zip utilities.
 
 import pytest
 
-from octapy import (
+from octapy._io import (
     BankFile,
     MarkersFile,
     extract_template,

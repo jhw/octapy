@@ -1,29 +1,28 @@
 """
-octapy.api - Buffer-based binary I/O for Octatrack files.
+octapy.api - Octatrack project API.
 
-Follows pym8-style pattern:
-- Classes maintain raw _data bytearray
-- Offsets defined as IntEnum
-- read()/write() methods for serialization
-- Properties for typed access
+High-level Pythonic API:
+    from octapy import Project, MachineType, TrigCondition
+    project = Project.from_template("MY PROJECT")
+
+Low-level file I/O (internal use):
+    from octapy._io import BankFile, MarkersFile, ProjectFile
 """
 
-# Re-export from base module
 from .base import (
-    OTBlock,
     MachineType,
     FX1Type,
     FX2Type,
     ScaleMode,
     PatternScale,
-    split_byte,
-    join_nibbles,
-    _read_fixed_string,
-    _write_fixed_string,
-    read_u16_le,
-    write_u16_le,
-    read_u16_be,
-    write_u16_be,
-    read_u32_be,
-    write_u32_be,
+    TrigCondition,
+    OctapyError,
+    SlotLimitExceeded,
+    InvalidSlotNumber,
 )
+
+from .project import Project
+from .bank import Bank
+from .part import Part, PartTrack
+from .pattern import Pattern, PatternTrack
+from .step import Step

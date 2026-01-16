@@ -4,7 +4,7 @@ Tests for ProjectFile.
 
 import pytest
 
-from octapy import ProjectFile, SampleSlot
+from octapy._io import ProjectFile, SampleSlot
 
 
 class TestProjectFileBasics:

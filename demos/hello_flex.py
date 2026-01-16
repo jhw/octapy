@@ -3,7 +3,7 @@
 Create an Octatrack project with Flex machines and randomized samples.
 
 This demo generates a project from scratch using the embedded template,
-using the octapy library (pym8-style, ported from ot-tools-io Rust).
+using the octapy library.
 
 Configuration:
 - 4 Parts, each with different randomly selected samples
@@ -166,10 +166,6 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Get bank 1 for pattern/part configuration
     bank = project.bank(1)
 
-    # Track all unique samples used across parts
-    all_samples: Dict[int, Tuple[str, Path]] = {}  # slot -> (relative_path, absolute_path)
-    slot_counter = 1
-
     # Configure 4 parts with different samples and patterns
     print(f"\nConfiguring patterns and parts")
     for part_num in range(1, 5):
@@ -181,8 +177,9 @@ def create_project(name: str, output_dir: Path) -> Path:
         # Generate hat pattern for this part
         open_hat_steps, closed_hat_steps = generate_hat_pattern()
 
-        # Get the Part object
-        part = bank.get_part(part_num)
+        # Get the Part and Pattern
+        part = bank.part(part_num)
+        pattern = bank.pattern(part_num)
 
         # Track configurations for this part: (track, category, steps)
         track_configs = [
@@ -195,58 +192,35 @@ def create_project(name: str, output_dir: Path) -> Path:
         print(f"    - Hat pattern: track 3 = {open_hat_steps}")
         print(f"                   track 4 = {closed_hat_steps}")
 
-        for track, category, steps in track_configs:
+        for track_num, category, steps in track_configs:
             sample_path = selected[category]
             relative_path = path_to_ot_relative(sample_path)
             sample_name = sample_path.name
 
-            # Assign slot for this sample (reuse if same sample already used)
-            existing_slot = None
-            for slot, (rel_path, _) in all_samples.items():
-                if rel_path == relative_path:
-                    existing_slot = slot
-                    break
+            # Add sample to project (auto-assigns slot, reuses if same path)
+            # flex_count is auto-updated in all banks
+            project.add_sample(
+                path=relative_path,
+                wav_path=sample_path,
+                slot_type="FLEX",
+            )
+            slot = project.get_slot(relative_path)
 
-            if existing_slot:
-                slot = existing_slot
-            else:
-                slot = slot_counter
-                all_samples[slot] = (relative_path, sample_path)
-                slot_counter += 1
+            print(f"    - Track {track_num}: {category} ({sample_name}) -> slot {slot}")
 
-            print(f"    - Track {track}: {category} ({sample_name}) -> slot {slot}")
+            # Configure the track in the Part
+            track = part.track(track_num)
+            track.machine_type = MachineType.FLEX
+            track.flex_slot = slot - 1  # 0-indexed
 
-            # Set trigger pattern for this track in the corresponding pattern
-            bank.set_trigs(pattern=part_num, track=track, steps=steps)
-
-            # Set machine type to Flex
-            part.set_machine_type(track=track, machine_type=MachineType.FLEX)
-
-            # Set flex sample slot assignment (0-indexed internally)
-            part.set_flex_slot(track=track, slot=slot - 1)
+            # Set trigger pattern for this track
+            pattern.track(track_num).active_steps = steps
 
         # Assign pattern to this part
-        pattern = bank.get_pattern(part_num)
-        pattern.part_assignment = part_num - 1  # 0-indexed
+        pattern.part = part_num
         print(f"    - Pattern {part_num} assigned to Part {part_num}")
 
-    # Set flex counter (number of active flex sample slots)
-    bank.flex_count = len(all_samples)
-    print(f"\n  Total flex slots used: {bank.flex_count}")
-
-    # Add samples to project (handles both project.work and markers.work)
-    print(f"\nAdding samples")
-    for slot, (relative_path, absolute_path) in sorted(all_samples.items()):
-        project.add_sample(
-            slot=slot,
-            path=relative_path,
-            wav_path=absolute_path,
-            slot_type="FLEX",
-        )
-        print(f"  - Slot {slot}: {absolute_path.name}")
-
-    # Add recorder slots
-    project.add_recorder_slots()
+    print(f"\n  Total flex slots used: {project.flex_slot_count}")
 
     # Save project as zip
     zip_path = output_dir / f"{name}.zip"

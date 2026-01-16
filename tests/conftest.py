@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from octapy import BankFile, MarkersFile, ProjectFile, extract_template
+# Import from internal modules for testing
+from octapy._io import BankFile, MarkersFile, ProjectFile, extract_template
 
 
 @pytest.fixture

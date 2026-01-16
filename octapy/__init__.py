@@ -1,63 +1,73 @@
 """
 octapy - Python library for Elektron Octatrack binary file I/O.
 
-Ported from ot-tools-io (Rust) by Mike Robeson [dijksterhuis].
-Uses pym8-style buffer-based serialization.
+High-level API for creating and manipulating Octatrack projects.
+
+Example:
+    from octapy import Project, MachineType, TrigCondition
+
+    # Create a project
+    project = Project.from_template("MY PROJECT")
+
+    # Configure a bank
+    bank = project.bank(1)
+
+    # Sound configuration via Part -> PartTrack
+    part = bank.part(1)
+    track = part.track(1)  # Returns PartTrack
+    track.machine_type = MachineType.FLEX
+    track.flex_slot = 0
+
+    # Sequence programming via Pattern -> PatternTrack -> Step
+    pattern = bank.pattern(1)
+    pattern.part = 1
+    pattern.track(1).active_steps = [1, 5, 9, 13]  # Returns PatternTrack
+    pattern.track(1).step(5).condition = TrigCondition.FILL  # Returns Step
+
+    # Add a sample (slot auto-assigned, flex_count auto-updated)
+    project.add_sample("../AUDIO/kick.wav")
+
+    # Save
+    project.to_zip("output.zip")
 """
 
-# Re-export main API classes
-from .api import (
-    OTBlock,
+# Enums and exceptions
+from .api.base import (
     MachineType,
     FX1Type,
     FX2Type,
-    ScaleMode,
-    PatternScale,
-)
-from .api.banks import BankFile, BankOffset
-from .api.patterns import Pattern, PatternArray, AudioTrack, TrigCondition, PlockOffset
-from .api.parts import Part, Parts, PartOffset
-from .api.markers import MarkersFile, SlotMarkers
-from .api.projects import (
-    Project,
-    ProjectFile,
-    SampleSlot,
-    zip_project,
-    unzip_project,
-    extract_template,
-    read_template_file,
+    TrigCondition,
+    OctapyError,
+    SlotLimitExceeded,
+    InvalidSlotNumber,
 )
 
+# High-level API classes
+from .api.project import Project
+from .api.bank import Bank
+from .api.part import Part, PartTrack
+from .api.pattern import Pattern, PatternTrack
+from .api.step import Step
+
 __version__ = "0.1.0"
+
 __all__ = [
-    # Core classes
+    # Core class
     "Project",
-    "BankFile",
-    "Pattern",
-    "PatternArray",
-    "AudioTrack",
+    # Wrapper classes
+    "Bank",
     "Part",
-    "Parts",
-    "MarkersFile",
-    "SlotMarkers",
-    "ProjectFile",
-    "SampleSlot",
-    # Project utilities
-    "zip_project",
-    "unzip_project",
-    "extract_template",
-    "read_template_file",
-    # Base class
-    "OTBlock",
+    "PartTrack",
+    "Pattern",
+    "PatternTrack",
+    "Step",
     # Enums
     "MachineType",
     "FX1Type",
     "FX2Type",
-    "ScaleMode",
-    "PatternScale",
     "TrigCondition",
-    # Offset enums
-    "BankOffset",
-    "PartOffset",
-    "PlockOffset",
+    # Exceptions
+    "OctapyError",
+    "SlotLimitExceeded",
+    "InvalidSlotNumber",
 ]

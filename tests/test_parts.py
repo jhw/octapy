@@ -1,51 +1,51 @@
 """
-Tests for Part.
+Tests for Part and PartTrack high-level API.
 """
 
 import pytest
 
-from octapy import Part, MachineType
-from octapy.api.parts import PART_HEADER
+from octapy import Project, MachineType
 
 
 class TestPartBasics:
-    """Basic Part tests."""
+    """Basic Part tests via high-level API."""
 
-    def test_create_part(self):
-        """Test creating a new Part."""
-        part = Part(part_id=0)
+    def test_get_part(self):
+        """Test getting a Part from a Bank."""
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
         assert part is not None
 
-    def test_part_id(self):
-        """Test part ID is set correctly."""
-        for i in range(4):
-            part = Part(part_id=i)
-            assert part.part_id == i
-
-    def test_part_header(self):
-        """Test part has correct header."""
-        part = Part()
-        assert part.check_header() is True
+    def test_get_all_parts(self):
+        """Test getting all 4 parts."""
+        project = Project.from_template("TEST")
+        for i in range(1, 5):
+            part = project.bank(1).part(i)
+            assert part is not None
 
 
-class TestPartMachineTypes:
-    """Part machine type tests."""
+class TestPartTrackMachineTypes:
+    """PartTrack machine type tests."""
 
     def test_default_machine_type(self):
         """Test default machine type is STATIC."""
-        part = Part()
-        for track in range(1, 9):
-            assert part.get_machine_type(track) == MachineType.STATIC
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            track = part.track(track_num)
+            assert track.machine_type == MachineType.STATIC
 
     def test_set_machine_type(self):
         """Test setting machine type."""
-        part = Part()
-        part.set_machine_type(1, MachineType.FLEX)
-        assert part.get_machine_type(1) == MachineType.FLEX
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.machine_type = MachineType.FLEX
+        assert track.machine_type == MachineType.FLEX
 
     def test_set_all_machine_types(self):
         """Test setting machine types on all tracks."""
-        part = Part()
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
         types = [
             MachineType.FLEX,
             MachineType.STATIC,
@@ -57,66 +57,73 @@ class TestPartMachineTypes:
             MachineType.THRU,
         ]
 
-        for track, machine_type in enumerate(types, 1):
-            part.set_machine_type(track, machine_type)
+        for track_num, machine_type in enumerate(types, 1):
+            part.track(track_num).machine_type = machine_type
 
-        for track, expected in enumerate(types, 1):
-            assert part.get_machine_type(track) == expected
+        for track_num, expected in enumerate(types, 1):
+            assert part.track(track_num).machine_type == expected
 
 
-class TestPartVolumes:
-    """Part volume tests."""
+class TestPartTrackVolumes:
+    """PartTrack volume tests."""
 
     def test_default_volume(self):
         """Test default volume is 108."""
-        part = Part()
-        for track in range(1, 9):
-            main, cue = part.get_volume(track)
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            track = part.track(track_num)
+            main, cue = track.volume
             assert main == 108
             assert cue == 108
 
     def test_set_volume(self):
         """Test setting volume."""
-        part = Part()
-        part.set_volume(track=1, main=100, cue=50)
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.set_volume(main=100, cue=50)
 
-        main, cue = part.get_volume(1)
+        main, cue = track.volume
         assert main == 100
         assert cue == 50
 
     def test_volume_clamping(self):
         """Test volume values are clamped to 7 bits."""
-        part = Part()
-        part.set_volume(track=1, main=200, cue=200)  # Over 127
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.set_volume(main=200, cue=200)  # Over 127
 
-        main, cue = part.get_volume(1)
+        main, cue = track.volume
         assert main <= 127
         assert cue <= 127
 
 
-class TestPartFX:
-    """Part FX tests."""
+class TestPartTrackFX:
+    """PartTrack FX tests."""
 
     def test_default_fx1(self):
         """Test default FX1 is Filter (4)."""
-        part = Part()
-        for track in range(1, 9):
-            assert part.get_fx1_type(track) == 4
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            assert part.track(track_num).fx1_type == 4
 
     def test_default_fx2(self):
         """Test default FX2 is Delay (8)."""
-        part = Part()
-        for track in range(1, 9):
-            assert part.get_fx2_type(track) == 8
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            assert part.track(track_num).fx2_type == 8
 
     def test_set_fx_types(self):
         """Test setting FX types."""
-        part = Part()
-        part.set_fx1_type(track=1, fx_type=12)  # EQ
-        part.set_fx2_type(track=1, fx_type=20)  # Plate Reverb
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.fx1_type = 12  # EQ
+        track.fx2_type = 20  # Plate Reverb
 
-        assert part.get_fx1_type(1) == 12
-        assert part.get_fx2_type(1) == 20
+        assert track.fx1_type == 12
+        assert track.fx2_type == 20
 
 
 class TestPartScenes:
@@ -124,13 +131,15 @@ class TestPartScenes:
 
     def test_default_scenes(self):
         """Test default active scenes."""
-        part = Part()
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
         assert part.active_scene_a == 0
         assert part.active_scene_b == 8
 
     def test_set_scenes(self):
         """Test setting active scenes."""
-        part = Part()
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
         part.active_scene_a = 5
         part.active_scene_b = 12
 
@@ -139,7 +148,8 @@ class TestPartScenes:
 
     def test_scene_clamping(self):
         """Test scene values are clamped to 4 bits."""
-        part = Part()
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
         part.active_scene_a = 20  # Over 15
         part.active_scene_b = 20
 
@@ -147,35 +157,39 @@ class TestPartScenes:
         assert part.active_scene_b <= 15
 
 
-class TestPartSlots:
-    """Part slot assignment tests."""
+class TestPartTrackSlots:
+    """PartTrack slot assignment tests."""
 
     def test_set_flex_slot(self):
         """Test setting flex slot."""
-        part = Part()
-        part.set_flex_slot(track=1, slot=5)
-        assert part.get_flex_slot(track=1) == 5
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.flex_slot = 5
+        assert track.flex_slot == 5
 
     def test_set_static_slot(self):
         """Test setting static slot."""
-        part = Part()
-        part.set_static_slot(track=1, slot=10)
-        assert part.get_static_slot(track=1) == 10
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.static_slot = 10
+        assert track.static_slot == 10
 
     def test_set_recorder_slot(self):
         """Test setting recorder slot."""
-        part = Part()
-        part.set_recorder_slot(track=1, slot=129)
-        assert part.get_recorder_slot(track=1) == 129
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.recorder_slot = 129
+        assert track.recorder_slot == 129
 
     def test_all_slot_types(self):
         """Test all slot types on one track."""
-        part = Part()
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
 
-        part.set_static_slot(track=1, slot=1)
-        part.set_flex_slot(track=1, slot=2)
-        part.set_recorder_slot(track=1, slot=129)
+        track.static_slot = 1
+        track.flex_slot = 2
+        track.recorder_slot = 129
 
-        assert part.get_static_slot(track=1) == 1
-        assert part.get_flex_slot(track=1) == 2
-        assert part.get_recorder_slot(track=1) == 129
+        assert track.static_slot == 1
+        assert track.flex_slot == 2
+        assert track.recorder_slot == 129

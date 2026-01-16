@@ -4,8 +4,8 @@ Tests for MarkersFile.
 
 import pytest
 
-from octapy import MarkersFile
-from octapy.api.markers import (
+from octapy._io import (
+    MarkersFile,
     MARKERS_HEADER,
     MARKERS_FILE_VERSION,
     NUM_FLEX_SLOTS,

@@ -1,118 +1,154 @@
 """
-Tests for Pattern and AudioTrack.
+Tests for Pattern, PatternTrack, and Step high-level API.
 """
 
 import pytest
 
-from octapy import BankFile, Pattern, AudioTrack
-from octapy.api.patterns import PATTERN_SIZE, AUDIO_TRACK_SIZE, PATTERN_HEADER
+from octapy import Project, MachineType, TrigCondition
+from octapy._io import BankFile
 
 
 class TestPatternBasics:
-    """Basic Pattern tests."""
+    """Basic Pattern tests via high-level API."""
 
-    def test_pattern_from_bank(self, bank_file):
+    def test_pattern_from_bank(self):
         """Test getting a pattern from a bank."""
-        pattern = bank_file.get_pattern(1)
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
         assert pattern is not None
 
-    def test_pattern_header(self, bank_file):
-        """Test pattern has correct header."""
-        pattern = bank_file.get_pattern(1)
-        assert pattern.check_header() is True
+    def test_pattern_part_assignment(self):
+        """Test pattern part assignment."""
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
 
-    def test_pattern_count(self, bank_file):
-        """Test bank has 16 patterns."""
-        patterns = bank_file.patterns
-        assert len(patterns) == 16
+        pattern.part = 2
+        assert pattern.part == 2
+
+        pattern.part = 4
+        assert pattern.part == 4
 
 
-class TestPatternTrigSteps:
-    """Pattern trigger step tests."""
+class TestPatternTrack:
+    """PatternTrack (sequence data) tests."""
 
-    def test_get_trigger_steps_empty(self, bank_file):
-        """Test getting trigger steps when none are set."""
-        pattern = bank_file.get_pattern(1)
-        steps = pattern.get_trigger_steps(track=1)
-        # Template may have empty trigs
+    def test_get_pattern_track(self):
+        """Test getting a PatternTrack."""
+        project = Project.from_template("TEST")
+        pattern_track = project.bank(1).pattern(1).track(1)
+        steps = pattern_track.active_steps
         assert isinstance(steps, list)
 
-    def test_set_trigger_steps(self, bank_file):
-        """Test setting trigger steps."""
-        pattern = bank_file.get_pattern(1)
+    def test_set_active_steps(self):
+        """Test setting active trigger steps."""
+        project = Project.from_template("TEST")
+        pattern_track = project.bank(1).pattern(1).track(1)
 
         steps = [1, 5, 9, 13]
-        pattern.set_trigger_steps(track=1, steps=steps)
+        pattern_track.active_steps = steps
 
-        result = pattern.get_trigger_steps(track=1)
-        assert result == steps
+        assert pattern_track.active_steps == steps
 
-    def test_set_trigger_steps_all(self, bank_file):
+    def test_set_active_steps_all_16(self):
         """Test setting all 16 trigger steps."""
-        pattern = bank_file.get_pattern(1)
+        project = Project.from_template("TEST")
+        pattern_track = project.bank(1).pattern(1).track(1)
 
         steps = list(range(1, 17))
-        pattern.set_trigger_steps(track=1, steps=steps)
+        pattern_track.active_steps = steps
 
-        result = pattern.get_trigger_steps(track=1)
-        assert result == steps
+        assert pattern_track.active_steps == steps
 
-    def test_set_trigger_steps_extended(self, bank_file):
+    def test_set_active_steps_extended(self):
         """Test setting extended trigger steps (17-64)."""
-        pattern = bank_file.get_pattern(1)
+        project = Project.from_template("TEST")
+        pattern_track = project.bank(1).pattern(1).track(1)
 
-        # Steps in pages 2-4
         steps = [17, 33, 49, 64]
-        pattern.set_trigger_steps(track=1, steps=steps)
+        pattern_track.active_steps = steps
 
-        result = pattern.get_trigger_steps(track=1)
-        assert result == steps
+        assert pattern_track.active_steps == steps
 
-    def test_clear_trigger_steps(self, bank_file):
+    def test_clear_active_steps(self):
         """Test clearing trigger steps."""
-        pattern = bank_file.get_pattern(1)
+        project = Project.from_template("TEST")
+        pattern_track = project.bank(1).pattern(1).track(1)
 
         # Set some steps
-        pattern.set_trigger_steps(track=1, steps=[1, 5, 9, 13])
+        pattern_track.active_steps = [1, 5, 9, 13]
 
         # Clear them
-        pattern.set_trigger_steps(track=1, steps=[])
+        pattern_track.active_steps = []
 
-        result = pattern.get_trigger_steps(track=1)
-        assert result == []
-
-
-class TestAudioTrack:
-    """AudioTrack tests."""
-
-    def test_get_audio_track(self, bank_file):
-        """Test getting an audio track from a pattern."""
-        pattern = bank_file.get_pattern(1)
-        track = pattern.get_audio_track(1)
-        assert track is not None
-
-    def test_audio_track_header(self, bank_file):
-        """Test audio track has correct header."""
-        pattern = bank_file.get_pattern(1)
-        track = pattern.get_audio_track(1)
-        assert track.check_header() is True
-
-    def test_all_audio_tracks(self, bank_file):
-        """Test all 8 audio tracks are accessible."""
-        pattern = bank_file.get_pattern(1)
-
-        for track_num in range(1, 9):
-            track = pattern.get_audio_track(track_num)
-            assert track is not None
-            assert track.check_header() is True
+        assert pattern_track.active_steps == []
 
 
-class TestPatternMultipleTracks:
+class TestStep:
+    """Step (individual step) tests."""
+
+    def test_get_step(self):
+        """Test getting a Step."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
+        assert step is not None
+
+    def test_step_active_property(self):
+        """Test step active property."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        # Initially not active
+        step.active = False
+        assert step.active is False
+
+        # Set active
+        step.active = True
+        assert step.active is True
+
+        # Verify appears in active_steps
+        assert 5 in project.bank(1).pattern(1).track(1).active_steps
+
+    def test_step_trigless_property(self):
+        """Test step trigless property."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.trigless = True
+        assert step.trigless is True
+
+        # Verify appears in trigless_steps
+        assert 5 in project.bank(1).pattern(1).track(1).trigless_steps
+
+    def test_step_matches_active_steps(self):
+        """Test that Step.active matches active_steps list."""
+        project = Project.from_template("TEST")
+        pattern_track = project.bank(1).pattern(1).track(1)
+
+        # Set via active_steps
+        pattern_track.active_steps = [1, 5, 9, 13]
+
+        # Verify via Step
+        assert pattern_track.step(1).active is True
+        assert pattern_track.step(5).active is True
+        assert pattern_track.step(9).active is True
+        assert pattern_track.step(13).active is True
+        assert pattern_track.step(2).active is False
+        assert pattern_track.step(6).active is False
+
+    def test_step_condition_default(self):
+        """Test step condition defaults to NONE."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
+        assert step.condition == TrigCondition.NONE
+
+
+class TestMultipleTracks:
     """Tests for multiple tracks in a pattern."""
 
-    def test_independent_track_trigs(self, bank_file):
+    def test_independent_track_data(self):
         """Test that tracks have independent trigger data."""
-        pattern = bank_file.get_pattern(1)
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
 
         # Set different steps on each track
         track_steps = {
@@ -122,29 +158,31 @@ class TestPatternMultipleTracks:
             4: [9, 10, 11, 12],
         }
 
-        for track, steps in track_steps.items():
-            pattern.set_trigger_steps(track=track, steps=steps)
+        for track_num, steps in track_steps.items():
+            pattern.track(track_num).active_steps = steps
 
         # Verify each track has its own steps
-        for track, expected in track_steps.items():
-            result = pattern.get_trigger_steps(track=track)
-            assert result == expected, f"Track {track} mismatch"
+        for track_num, expected in track_steps.items():
+            result = pattern.track(track_num).active_steps
+            assert result == expected, f"Track {track_num} mismatch"
 
 
 class TestPatternRoundTrip:
     """Pattern read/write round-trip tests."""
 
-    def test_pattern_survives_bank_save(self, bank_file, temp_dir):
-        """Test that pattern data survives bank save/load."""
+    def test_pattern_survives_save(self, temp_dir):
+        """Test that pattern data survives save/load."""
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
+
         # Set some pattern data
-        bank_file.set_trigs(pattern=1, track=1, steps=[1, 5, 9, 13])
-        bank_file.set_trigs(pattern=1, track=2, steps=[5, 13])
+        pattern.track(1).active_steps = [1, 5, 9, 13]
+        pattern.track(2).active_steps = [5, 13]
 
         # Save and reload
-        path = temp_dir / "bank01.work"
-        bank_file.to_file(path)
-        loaded = BankFile.from_file(path)
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
 
         # Verify
-        assert loaded.get_trigs(pattern=1, track=1) == [1, 5, 9, 13]
-        assert loaded.get_trigs(pattern=1, track=2) == [5, 13]
+        assert loaded.bank(1).pattern(1).track(1).active_steps == [1, 5, 9, 13]
+        assert loaded.bank(1).pattern(1).track(2).active_steps == [5, 13]
