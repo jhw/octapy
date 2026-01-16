@@ -22,6 +22,7 @@ from .bank import (
     PatternOffset,
     PartOffset,
     MachineSlotOffset,
+    PlockOffset,
     BANK_FILE_SIZE,
     BANK_HEADER,
     BANK_FILE_VERSION,
@@ -32,6 +33,9 @@ from .bank import (
     PART_HEADER,
     PART_BLOCK_SIZE,
     MACHINE_SLOT_SIZE,
+    PLOCK_SIZE,
+    NUM_STEPS,
+    PLOCK_DISABLED,
 )
 
 from .markers import (

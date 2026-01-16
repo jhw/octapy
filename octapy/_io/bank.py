@@ -85,6 +85,61 @@ class AudioTrackOffset(IntEnum):
     TRIG_MODE = 94              # 1 byte: trig mode
     TRIG_QUANT = 95             # 1 byte: trig quantization
     ONESHOT_TRK = 96            # 1 byte: oneshot track setting
+    UNKNOWN_2 = 97              # 1 byte
+    PLOCKS = 98                 # 64 × 32 bytes = 2048 bytes of p-lock data
+    UNKNOWN_3 = 2146            # 64 bytes
+    TRIG_CONDITIONS = 2210      # 64 × 2 bytes: micro timing + count + condition
+
+
+# P-lock data structure (32 bytes per step)
+PLOCK_SIZE = 32
+NUM_STEPS = 64
+
+
+class PlockOffset(IntEnum):
+    """Offsets within a single step's p-lock data (32 bytes per step)."""
+    # Machine/Playback page (6 bytes)
+    MACHINE_PARAM1 = 0          # PTCH for Flex/Static
+    MACHINE_PARAM2 = 1
+    MACHINE_PARAM3 = 2
+    MACHINE_PARAM4 = 3
+    MACHINE_PARAM5 = 4
+    MACHINE_PARAM6 = 5
+    # LFO page (6 bytes)
+    LFO_SPD1 = 6
+    LFO_SPD2 = 7
+    LFO_SPD3 = 8
+    LFO_DEP1 = 9
+    LFO_DEP2 = 10
+    LFO_DEP3 = 11
+    # AMP page (6 bytes)
+    AMP_ATK = 12
+    AMP_HOLD = 13
+    AMP_REL = 14
+    AMP_VOL = 15
+    AMP_BAL = 16
+    AMP_F = 17                  # <F> parameter for scenes/LFOs
+    # FX1 page (6 bytes)
+    FX1_PARAM1 = 18
+    FX1_PARAM2 = 19
+    FX1_PARAM3 = 20
+    FX1_PARAM4 = 21
+    FX1_PARAM5 = 22
+    FX1_PARAM6 = 23
+    # FX2 page (6 bytes)
+    FX2_PARAM1 = 24
+    FX2_PARAM2 = 25
+    FX2_PARAM3 = 26
+    FX2_PARAM4 = 27
+    FX2_PARAM5 = 28
+    FX2_PARAM6 = 29
+    # Sample locks
+    STATIC_SLOT_ID = 30
+    FLEX_SLOT_ID = 31
+
+
+# P-lock disabled value (255 = no p-lock set)
+PLOCK_DISABLED = 255
 
 
 class PatternOffset(IntEnum):
