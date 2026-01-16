@@ -15,13 +15,7 @@ from .._io import (
     unzip_project,
 )
 from .bank import Bank
-from .enums import (
-    MAX_FLEX_SAMPLE_SLOTS,
-    MAX_STATIC_SAMPLE_SLOTS,
-    RECORDER_SLOTS_START,
-    SlotLimitExceeded,
-    InvalidSlotNumber,
-)
+from .slot_manager import SlotManager
 
 
 class Project:
@@ -76,9 +70,8 @@ class Project:
         # Sample pool: filename -> local Path (for bundling samples with project)
         self._sample_pool: Dict[str, Path] = {}
 
-        # Slot tracking: OT path -> slot_number
-        self._flex_slots: Dict[str, int] = {}  # path -> slot (1-128)
-        self._static_slots: Dict[str, int] = {}  # path -> slot (1-128)
+        # Slot management
+        self._slot_manager = SlotManager()
 
         # Temp directory reference (kept alive when loading from zip)
         self._temp_dir = None
@@ -166,19 +159,7 @@ class Project:
 
     def _init_slots_from_project_file(self) -> None:
         """Initialize slot tracking from existing sample slots in project file."""
-        for sample_slot in self._project_file.sample_slots:
-            slot_num = sample_slot.slot_number
-            path = sample_slot.path
-            slot_type = sample_slot.slot_type.upper()
-
-            # Skip recorder slots (129-136)
-            if slot_num >= RECORDER_SLOTS_START:
-                continue
-
-            if slot_type == "FLEX":
-                self._flex_slots[path] = slot_num
-            elif slot_type == "STATIC":
-                self._static_slots[path] = slot_num
+        self._slot_manager.load_from_slots(self._project_file.sample_slots)
 
     @classmethod
     def from_zip(cls, zip_path: Path) -> "Project":
@@ -338,36 +319,10 @@ class Project:
 
     # === Sample management ===
 
-    def _next_available_slot(self, slot_type: str) -> int:
-        """
-        Find the next available slot for a sample type.
-
-        Args:
-            slot_type: "FLEX" or "STATIC"
-
-        Returns:
-            Next available slot number (1-128)
-
-        Raises:
-            SlotLimitExceeded: If all 128 slots are used
-        """
-        is_flex = slot_type.upper() == "FLEX"
-        used_slots = set(self._flex_slots.values()) if is_flex else set(self._static_slots.values())
-        max_slots = MAX_FLEX_SAMPLE_SLOTS if is_flex else MAX_STATIC_SAMPLE_SLOTS
-
-        for slot in range(1, max_slots + 1):
-            if slot not in used_slots:
-                return slot
-
-        raise SlotLimitExceeded(
-            f"All {max_slots} {slot_type.lower()} sample slots are in use"
-        )
-
     def _update_flex_count(self) -> None:
         """Update flex_count in all loaded banks."""
-        flex_count = len(self._flex_slots)
         for bank_file in self._bank_files.values():
-            bank_file.flex_count = flex_count
+            bank_file.flex_count = self._slot_manager.flex_count
 
     def add_sample(
         self,
@@ -406,36 +361,20 @@ class Project:
 
         filename = local_path.name
         ot_path = f"../AUDIO/{self.name}/{filename}"
-
         is_flex = slot_type.upper() == "FLEX"
-        slot_dict = self._flex_slots if is_flex else self._static_slots
-        max_slots = MAX_FLEX_SAMPLE_SLOTS if is_flex else MAX_STATIC_SAMPLE_SLOTS
 
-        # Check if this filename already has a slot assigned
-        if ot_path in slot_dict:
-            return slot_dict[ot_path]
+        # Check if already assigned (returns existing slot)
+        existing = self._slot_manager.get(ot_path, slot_type)
+        if existing is not None:
+            return existing
 
-        # Validate or auto-assign slot
-        if slot is None:
-            slot = self._next_available_slot(slot_type)
-        else:
-            if slot < 1 or slot > max_slots:
-                raise InvalidSlotNumber(
-                    f"Slot {slot} is out of range. Valid range is 1-{max_slots} for {slot_type.lower()} samples."
-                )
-            # Check if slot is already in use
-            used_slots = set(slot_dict.values())
-            if slot in used_slots:
-                for existing_path, existing_slot in slot_dict.items():
-                    if existing_slot == slot:
-                        raise InvalidSlotNumber(
-                            f"Slot {slot} is already in use by '{existing_path}'"
-                        )
+        # Assign slot (auto or explicit)
+        slot = self._slot_manager.assign(ot_path, slot_type, slot)
 
         # Add to sample pool
         self._sample_pool[filename] = local_path
 
-        # Add to project.work with OT path
+        # Add to project.work
         self._project_file.add_sample_slot(
             slot_number=slot,
             path=ot_path,
@@ -443,14 +382,10 @@ class Project:
             gain=gain,
         )
 
-        # Track the slot
-        slot_dict[ot_path] = slot
-
         # Update markers.work with sample length
         frame_count = _get_wav_frame_count(local_path)
         if frame_count > 0:
-            is_static = slot_type.upper() == "STATIC"
-            self.markers.set_sample_length(slot, frame_count, is_static)
+            self.markers.set_sample_length(slot, frame_count, is_static=not is_flex)
 
         # Auto-update flex_count in banks
         if is_flex:
@@ -470,23 +405,22 @@ class Project:
             Slot number if found, None otherwise
         """
         ot_path = f"../AUDIO/{self.name}/{filename}"
-        slot_dict = self._flex_slots if slot_type.upper() == "FLEX" else self._static_slots
-        return slot_dict.get(ot_path)
+        return self._slot_manager.get(ot_path, slot_type)
 
     @property
     def flex_slot_count(self) -> int:
         """Number of flex sample slots in use."""
-        return len(self._flex_slots)
+        return self._slot_manager.flex_count
 
     @property
     def static_slot_count(self) -> int:
         """Number of static sample slots in use."""
-        return len(self._static_slots)
+        return self._slot_manager.static_count
 
     @property
     def sample_paths(self) -> list:
         """List of all OT sample paths (flex and static) in the project."""
-        return list(self._flex_slots.keys()) + list(self._static_slots.keys())
+        return self._slot_manager.flex_paths + self._slot_manager.static_paths
 
     @property
     def sample_pool(self) -> Dict[str, Path]:
