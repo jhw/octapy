@@ -144,6 +144,19 @@ class ProjectFile:
             if os_match:
                 self.os_version = os_match.group(1).strip()
 
+        # Parse SETTINGS section
+        settings_match = re.search(r'\[SETTINGS\](.*?)\[/SETTINGS\]', content, re.DOTALL)
+        if settings_match:
+            settings_content = settings_match.group(1)
+
+            tempo_match = re.search(r'TEMPOx24=(\d+)', settings_content)
+            if tempo_match:
+                self.settings.tempo_x24 = int(tempo_match.group(1))
+
+            pattern_tempo_match = re.search(r'PATTERN_TEMPO_ENABLED=(\d+)', settings_content)
+            if pattern_tempo_match:
+                self.settings.pattern_tempo_enabled = int(pattern_tempo_match.group(1))
+
         # Parse SAMPLE sections
         sample_matches = re.findall(r'\[SAMPLE\](.*?)\[/SAMPLE\]', content, re.DOTALL)
         for sample_content in sample_matches:
