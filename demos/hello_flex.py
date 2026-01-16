@@ -3,11 +3,15 @@
 Create an Octatrack project with Flex machines using Acid Banger 909 patterns.
 
 Configuration:
-- Part 1 with up to 4 tracks
-- Track 1: Kick drum (acid_909 kick pattern)
-- Track 2: Snare/clap (acid_909 snare pattern)
-- Track 3: Hat (closed or open hat depending on pattern)
-- Track 4: Hat (only used for 'offbeats' pattern which needs open + closed)
+- Bank 1 with all 4 parts and all 16 patterns populated
+- Each part has unique random samples on tracks 1-4
+- Each pattern has random acid banger drum patterns with velocity/probability p-locks
+
+Track layout per part:
+- Track 1: Kick drum
+- Track 2: Snare/clap
+- Track 3: Hat (open or closed depending on pattern)
+- Track 4: Hat (only used for 'offbeats' pattern)
 
 Patterns from vitling's acid-banger: https://github.com/vitling/acid-banger
 
@@ -67,19 +71,9 @@ def pattern_to_steps(pattern: List[float]) -> List[Tuple[int, int]]:
     return steps
 
 
-def configure_track(project, part, pattern, track_num: int, pool: SamplePool,
-                    steps_with_volume: List[Tuple[int, int]], pattern_name: str):
-    """Configure a single track with sample, steps, and p-locks."""
-    sample_path = pool.random()
-    slot = project.add_sample(sample_path)
-
+def configure_pattern_track(pattern, track_num: int, steps_with_volume: List[Tuple[int, int]]):
+    """Configure a pattern track with steps and p-locks."""
     step_nums = [s[0] for s in steps_with_volume]
-
-    print(f"  - Track {track_num} ({pattern_name}): {sample_path.name} -> slot {slot}")
-    print(f"    Steps: {step_nums}")
-
-    part.track(track_num).machine_type = MachineType.FLEX
-    part.track(track_num).flex_slot = slot - 1
     pattern.track(track_num).active_steps = step_nums
 
     # Add p-locks for volume and probability
@@ -87,6 +81,8 @@ def configure_track(project, part, pattern, track_num: int, pool: SamplePool,
         step = pattern.track(track_num).step(step_num)
         step.volume = volume
         step.probability = DEFAULT_PROBABILITY
+
+    return step_nums
 
 
 def create_project(name: str, output_dir: Path) -> Path:
@@ -97,7 +93,7 @@ def create_project(name: str, output_dir: Path) -> Path:
         print(f"Error: Samples directory not found at {SAMPLES_DIR}")
         sys.exit(1)
 
-    # Create sample pools with pattern matching (match type suffix before .wav)
+    # Create sample pools with pattern matching
     kicks = SamplePool(SAMPLES_DIR, r"BD\d*\.wav$")
     snares = SamplePool(SAMPLES_DIR, r"(SD|CL|CP)\d*\.wav$")
     open_hats = SamplePool(SAMPLES_DIR, r"OH\d*\.wav$")
@@ -113,51 +109,78 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Create RNG for pattern generation
     rng = random.Random()
 
-    # Generate acid_909 patterns
-    kick_name, kick_pattern = get_random_kick_pattern(rng)
-    snare_name, snare_pattern = get_random_snare_pattern(rng)
-    hat_name, hat_patterns = get_random_hat_pattern(rng)
-
-    # Convert patterns to step/volume tuples
-    kick_steps = pattern_to_steps(kick_pattern)
-    snare_steps = pattern_to_steps(snare_pattern)
-
     # Create project
     print(f"\nCreating project '{name}'")
     project = Project.from_template(name)
     project.tempo = 124
     project.sample_duration = SampleDuration.SIXTEENTH
     bank = project.bank(1)
-    part = bank.part(1)
-    pattern = bank.pattern(1)
 
-    print(f"\nAcid Banger 909 patterns selected:")
-    print(f"  - Track 1 (kick): {kick_name}")
-    print(f"  - Track 2 (snare): {snare_name}")
-    print(f"  - Track 3 (hat): {hat_name}")
-    if hat_name == "offbeats":
-        print(f"  - Track 4 (hat): {hat_name} (closed hat complement)")
+    # Configure all 4 parts with unique samples
+    print(f"\nConfiguring Parts 1-4:")
+    for part_num in range(1, 5):
+        part = bank.part(part_num)
 
-    print(f"\nConfiguring Part 1:")
+        # Select random samples for this part
+        kick_sample = kicks.random()
+        snare_sample = snares.random()
+        open_hat_sample = open_hats.random()
+        closed_hat_sample = closed_hats.random()
 
-    # Configure kick and snare
-    configure_track(project, part, pattern, 1, kicks, kick_steps, f"kick_{kick_name}")
-    configure_track(project, part, pattern, 2, snares, snare_steps, f"snare_{snare_name}")
+        # Add samples and configure tracks
+        kick_slot = project.add_sample(kick_sample)
+        snare_slot = project.add_sample(snare_sample)
+        open_hat_slot = project.add_sample(open_hat_sample)
+        closed_hat_slot = project.add_sample(closed_hat_sample)
 
-    # Configure hats based on pattern type
-    if hat_name == "closed":
-        # Single track - closed hat only
-        hat_steps = pattern_to_steps(hat_patterns)
-        configure_track(project, part, pattern, 3, closed_hats, hat_steps, "hat_closed")
-    else:
-        # Dual track - offbeats mode with open and closed hats
-        oh_pattern, ch_pattern = hat_patterns
-        oh_steps = pattern_to_steps(oh_pattern)
-        ch_steps = pattern_to_steps(ch_pattern)
-        configure_track(project, part, pattern, 3, open_hats, oh_steps, "hat_open")
-        configure_track(project, part, pattern, 4, closed_hats, ch_steps, "hat_closed")
+        print(f"  Part {part_num}:")
+        print(f"    - Track 1 (kick): {kick_sample.name}")
+        print(f"    - Track 2 (snare): {snare_sample.name}")
+        print(f"    - Track 3 (open hat): {open_hat_sample.name}")
+        print(f"    - Track 4 (closed hat): {closed_hat_sample.name}")
 
-    pattern.part = 1
+        # Configure machine types and slots for tracks 1-4
+        for track_num, slot in [(1, kick_slot), (2, snare_slot),
+                                 (3, open_hat_slot), (4, closed_hat_slot)]:
+            part.track(track_num).machine_type = MachineType.FLEX
+            part.track(track_num).flex_slot = slot - 1
+
+    # Configure all 16 patterns with random acid banger patterns
+    print(f"\nConfiguring Patterns 1-16:")
+    for pattern_num in range(1, 17):
+        pattern = bank.pattern(pattern_num)
+
+        # Assign to a random part (1-4)
+        part_num = rng.randint(1, 4)
+        pattern.part = part_num
+
+        # Generate random acid banger patterns
+        kick_name, kick_pattern = get_random_kick_pattern(rng)
+        snare_name, snare_pattern = get_random_snare_pattern(rng)
+        hat_name, hat_patterns = get_random_hat_pattern(rng)
+
+        # Convert to steps
+        kick_steps = pattern_to_steps(kick_pattern)
+        snare_steps = pattern_to_steps(snare_pattern)
+
+        # Configure kick and snare tracks
+        configure_pattern_track(pattern, 1, kick_steps)
+        configure_pattern_track(pattern, 2, snare_steps)
+
+        # Configure hat tracks based on pattern type
+        if hat_name == "closed":
+            hat_steps = pattern_to_steps(hat_patterns)
+            configure_pattern_track(pattern, 4, hat_steps)  # closed hat on track 4
+            hat_desc = f"hat_closed (T4)"
+        else:
+            oh_pattern, ch_pattern = hat_patterns
+            oh_steps = pattern_to_steps(oh_pattern)
+            ch_steps = pattern_to_steps(ch_pattern)
+            configure_pattern_track(pattern, 3, oh_steps)   # open hat on track 3
+            configure_pattern_track(pattern, 4, ch_steps)   # closed hat on track 4
+            hat_desc = f"hat_offbeats (T3+T4)"
+
+        print(f"  Pattern {pattern_num:2d}: Part {part_num}, kick_{kick_name}, snare_{snare_name}, {hat_desc}")
 
     # Save (samples are bundled automatically)
     zip_path = output_dir / f"{name}.zip"
