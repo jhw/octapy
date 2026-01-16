@@ -3,7 +3,7 @@
 Create an Octatrack project with Flex machines using Acid Banger 909 patterns.
 
 Configuration:
-- Bank 1 with all 4 parts and all 16 patterns populated
+- Banks 1-2 with all 4 parts and all 16 patterns populated each
 - Each part has unique random samples on tracks 1-4
 - Each pattern has random acid banger drum patterns with velocity/probability p-locks
 
@@ -85,47 +85,28 @@ def configure_pattern_track(pattern, track_num: int, steps_with_volume: List[Tup
     return step_nums
 
 
-def create_project(name: str, output_dir: Path) -> Path:
-    """Create an Octatrack project with Flex machines."""
-    print(f"Scanning for samples in {SAMPLES_DIR}")
+def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random):
+    """Configure a bank with 4 parts and 16 patterns.
 
-    if not SAMPLES_DIR.exists():
-        print(f"Error: Samples directory not found at {SAMPLES_DIR}")
-        sys.exit(1)
-
-    # Create sample pools with pattern matching
-    kicks = SamplePool(SAMPLES_DIR, r"BD\d*\.wav$")
-    snares = SamplePool(SAMPLES_DIR, r"(SD|CL|CP)\d*\.wav$")
-    open_hats = SamplePool(SAMPLES_DIR, r"OH\d*\.wav$")
-    closed_hats = SamplePool(SAMPLES_DIR, r"(HH|CH)\d*\.wav$")
-
-    for pool_name, pool in [("kick", kicks), ("snare", snares),
-                            ("open hat", open_hats), ("closed hat", closed_hats)]:
-        print(f"  - Found {len(pool)} {pool_name} samples")
-        if not pool:
-            print(f"Error: No {pool_name} samples found.")
-            sys.exit(1)
-
-    # Create RNG for pattern generation
-    rng = random.Random()
-
-    # Create project
-    print(f"\nCreating project '{name}'")
-    project = Project.from_template(name)
-    project.tempo = 124
-    project.sample_duration = SampleDuration.SIXTEENTH
-    bank = project.bank(1)
+    Args:
+        project: Project instance
+        bank: Bank instance
+        bank_num: Bank number (1-16)
+        pools: Dict with 'kicks', 'snares', 'open_hats', 'closed_hats' SamplePools
+        rng: Random number generator
+    """
+    bank_letter = chr(ord('A') + bank_num - 1)
 
     # Configure all 4 parts with unique samples
-    print(f"\nConfiguring Parts 1-4:")
+    print(f"\n  Bank {bank_num} ({bank_letter}) Parts 1-4:")
     for part_num in range(1, 5):
         part = bank.part(part_num)
 
         # Select random samples for this part
-        kick_sample = kicks.random()
-        snare_sample = snares.random()
-        open_hat_sample = open_hats.random()
-        closed_hat_sample = closed_hats.random()
+        kick_sample = pools['kicks'].random()
+        snare_sample = pools['snares'].random()
+        open_hat_sample = pools['open_hats'].random()
+        closed_hat_sample = pools['closed_hats'].random()
 
         # Add samples and configure tracks
         kick_slot = project.add_sample(kick_sample)
@@ -133,11 +114,7 @@ def create_project(name: str, output_dir: Path) -> Path:
         open_hat_slot = project.add_sample(open_hat_sample)
         closed_hat_slot = project.add_sample(closed_hat_sample)
 
-        print(f"  Part {part_num}:")
-        print(f"    - Track 1 (kick): {kick_sample.name}")
-        print(f"    - Track 2 (snare): {snare_sample.name}")
-        print(f"    - Track 3 (open hat): {open_hat_sample.name}")
-        print(f"    - Track 4 (closed hat): {closed_hat_sample.name}")
+        print(f"    Part {part_num}: {kick_sample.name}, {snare_sample.name}, {open_hat_sample.name}, {closed_hat_sample.name}")
 
         # Configure machine types and slots for tracks 1-4
         for track_num, slot in [(1, kick_slot), (2, snare_slot),
@@ -146,7 +123,7 @@ def create_project(name: str, output_dir: Path) -> Path:
             part.track(track_num).flex_slot = slot - 1
 
     # Configure all 16 patterns with random acid banger patterns
-    print(f"\nConfiguring Patterns 1-16:")
+    print(f"\n  Bank {bank_num} ({bank_letter}) Patterns 1-16:")
     for pattern_num in range(1, 17):
         pattern = bank.pattern(pattern_num)
 
@@ -180,7 +157,46 @@ def create_project(name: str, output_dir: Path) -> Path:
             configure_pattern_track(pattern, 4, ch_steps)   # closed hat on track 4
             hat_desc = f"hat_offbeats (T3+T4)"
 
-        print(f"  Pattern {pattern_num:2d}: Part {part_num}, kick_{kick_name}, snare_{snare_name}, {hat_desc}")
+        print(f"    Pattern {pattern_num:2d}: Part {part_num}, kick_{kick_name}, snare_{snare_name}, {hat_desc}")
+
+
+def create_project(name: str, output_dir: Path) -> Path:
+    """Create an Octatrack project with Flex machines."""
+    print(f"Scanning for samples in {SAMPLES_DIR}")
+
+    if not SAMPLES_DIR.exists():
+        print(f"Error: Samples directory not found at {SAMPLES_DIR}")
+        sys.exit(1)
+
+    # Create sample pools with pattern matching
+    pools = {
+        'kicks': SamplePool(SAMPLES_DIR, r"BD\d*\.wav$"),
+        'snares': SamplePool(SAMPLES_DIR, r"(SD|CL|CP)\d*\.wav$"),
+        'open_hats': SamplePool(SAMPLES_DIR, r"OH\d*\.wav$"),
+        'closed_hats': SamplePool(SAMPLES_DIR, r"(HH|CH)\d*\.wav$"),
+    }
+
+    for pool_name, pool in [("kick", pools['kicks']), ("snare", pools['snares']),
+                            ("open hat", pools['open_hats']), ("closed hat", pools['closed_hats'])]:
+        print(f"  - Found {len(pool)} {pool_name} samples")
+        if not pool:
+            print(f"Error: No {pool_name} samples found.")
+            sys.exit(1)
+
+    # Create RNG for pattern generation
+    rng = random.Random()
+
+    # Create project
+    print(f"\nCreating project '{name}'")
+    project = Project.from_template(name)
+    project.tempo = 124
+    project.sample_duration = SampleDuration.SIXTEENTH
+
+    # Configure Banks 1 and 2
+    print(f"\nConfiguring Banks 1-2:")
+    for bank_num in [1, 2]:
+        bank = project.bank(bank_num)
+        configure_bank(project, bank, bank_num, pools, rng)
 
     # Save (samples are bundled automatically)
     zip_path = output_dir / f"{name}.zip"
