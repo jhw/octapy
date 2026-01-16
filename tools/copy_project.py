@@ -6,17 +6,60 @@ Accepts either:
 - A project name (looks in tmp/ directory, e.g., "HELLO FLEX")
 - A zip file path (e.g., /path/to/HELLO FLEX.zip)
 - A project directory path (e.g., /path/to/HELLO FLEX)
+
+Before copying, verifies that all sample paths referenced in project.work
+exist on the Octatrack device.
 """
 
 import argparse
 import os
 import shutil
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
+from typing import List, Tuple
+
+# Add parent to path so we can import octapy
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from octapy import ProjectFile
 
 OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
 TMP_DIR = Path(__file__).parent.parent / "tmp"
+
+
+def check_sample_paths(project_work_path: Path) -> Tuple[List[str], List[str]]:
+    """
+    Check that all sample paths in project.work exist on the Octatrack.
+
+    Args:
+        project_work_path: Path to project.work file
+
+    Returns:
+        Tuple of (found_paths, missing_paths)
+    """
+    project = ProjectFile.from_file(project_work_path)
+
+    found = []
+    missing = []
+
+    for slot in project.sample_slots:
+        if not slot.path:
+            continue  # Empty path (e.g., recorder slots)
+
+        # Convert relative path to absolute path on device
+        # Paths are like "../AUDIO/Erica Pico/sample.wav"
+        if slot.path.startswith("../"):
+            abs_path = Path(OCTATRACK_DEVICE) / slot.path[3:]
+        else:
+            abs_path = Path(OCTATRACK_DEVICE) / slot.path
+
+        if abs_path.exists():
+            found.append(slot.path)
+        else:
+            missing.append(slot.path)
+
+    return found, missing
 
 
 def copy_project(source: str):
@@ -48,23 +91,45 @@ def copy_project(source: str):
         name = source_path.stem.upper()
         dest_path = Path(OCTATRACK_DEVICE) / name
 
-        # Verify zip contains project.work
+        # Verify zip contains project.work and check sample paths
         with zipfile.ZipFile(source_path, 'r') as zf:
             if 'project.work' not in zf.namelist():
                 print(f"Error: '{source_path}' does not appear to be an Octatrack project zip")
                 print("(missing project.work file)")
                 sys.exit(1)
+
+            # Extract project.work to temp location to check sample paths
+            with tempfile.TemporaryDirectory() as tmp:
+                zf.extract('project.work', tmp)
+                project_work_path = Path(tmp) / 'project.work'
+                found, missing = check_sample_paths(project_work_path)
     else:
         # Source is a directory
         name = source_path.name.upper()
         dest_path = Path(OCTATRACK_DEVICE) / name
 
         # Verify it's a project directory
-        project_work = source_path / "project.work"
-        if not project_work.exists():
+        project_work_path = source_path / "project.work"
+        if not project_work_path.exists():
             print(f"Error: '{source_path}' does not appear to be an Octatrack project")
             print("(missing project.work file)")
             sys.exit(1)
+
+        # Check sample paths
+        found, missing = check_sample_paths(project_work_path)
+
+    # Report sample path status
+    if found:
+        print(f"Found {len(found)} sample(s) on device")
+    if missing:
+        print(f"\nWarning: {len(missing)} sample(s) not found on device:")
+        for path in missing:
+            print(f"  - {path}")
+        print()
+        response = input("Continue anyway? [y/N] ")
+        if response.lower() != 'y':
+            print("Aborted.")
+            sys.exit(0)
 
     # Check if destination already exists
     if dest_path.exists():
