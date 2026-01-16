@@ -22,7 +22,6 @@ Output is a zip file that can be copied to the Octatrack using copy_project.py.
 """
 
 import argparse
-import os
 import random
 import re
 import sys
@@ -34,9 +33,8 @@ from typing import Dict, List, Tuple
 from octapy import BankFile, MarkersFile, ProjectFile, MachineType, zip_project, extract_template
 
 # Constants
-OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
-PICO_SAMPLES_DIR = "AUDIO/Erica Pico"
+PICO_SAMPLES_DIR = OUTPUT_DIR / "Erica Pico"
 
 # Sample categorization patterns (case insensitive)
 KICK_PATTERNS = re.compile(r'(kk|kick|kik|bd|bass)', re.IGNORECASE)
@@ -76,13 +74,6 @@ def scan_samples(samples_dir: Path) -> Dict[str, List[Path]]:
     return categories
 
 
-def resolve_sample_path(sample_path: str) -> Path:
-    """Resolve a relative sample path to an absolute path on the Octatrack."""
-    if sample_path.startswith("../"):
-        return Path(OCTATRACK_DEVICE) / sample_path[3:]
-    return Path(OCTATRACK_DEVICE) / sample_path
-
-
 def get_wav_frame_count(wav_path: Path) -> int:
     """Get the number of audio frames in a WAV file."""
     try:
@@ -93,13 +84,18 @@ def get_wav_frame_count(wav_path: Path) -> int:
         return 0
 
 
-def path_to_relative(absolute_path: Path, base_dir: Path) -> str:
-    """Convert absolute path to relative path from project folder."""
+def path_to_ot_relative(sample_path: Path) -> str:
+    """
+    Convert local sample path to Octatrack-relative path.
+
+    Local: tmp/Erica Pico/subdir/sample.wav
+    OT:    ../AUDIO/Erica Pico/subdir/sample.wav
+    """
     try:
-        relative = absolute_path.relative_to(base_dir)
-        return f"../{relative}"
+        relative = sample_path.relative_to(PICO_SAMPLES_DIR)
+        return f"../AUDIO/Erica Pico/{relative}"
     except ValueError:
-        return str(absolute_path)
+        return str(sample_path)
 
 
 def generate_hat_pattern() -> Tuple[List[int], List[int]]:
@@ -156,16 +152,15 @@ def create_project(name: str, output_dir: Path) -> Path:
     Returns:
         Path to the created zip file
     """
-    # Scan for samples
-    pico_dir = Path(OCTATRACK_DEVICE) / PICO_SAMPLES_DIR
-    print(f"Scanning for samples in {pico_dir}")
+    # Scan for samples in local tmp directory
+    print(f"Scanning for samples in {PICO_SAMPLES_DIR}")
 
-    if not pico_dir.exists():
-        print(f"Error: Erica Pico samples directory not found at {pico_dir}")
-        print("Please ensure the Octatrack is mounted and contains the Erica Pico samples.")
+    if not PICO_SAMPLES_DIR.exists():
+        print(f"Error: Erica Pico samples directory not found at {PICO_SAMPLES_DIR}")
+        print("Please download the Erica Pico samples to tmp/Erica Pico/")
         sys.exit(1)
 
-    categories = scan_samples(pico_dir)
+    categories = scan_samples(PICO_SAMPLES_DIR)
 
     # Check we have samples in each category
     for cat_name, samples in categories.items():
@@ -222,7 +217,7 @@ def create_project(name: str, output_dir: Path) -> Path:
 
             for track, category, steps in track_configs:
                 sample_path = selected[category]
-                relative_path = path_to_relative(sample_path, Path(OCTATRACK_DEVICE))
+                relative_path = path_to_ot_relative(sample_path)
                 sample_name = sample_path.name
 
                 # Assign slot for this sample (reuse if same sample already used)
