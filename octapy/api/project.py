@@ -378,6 +378,11 @@ class Project:
         """Number of static sample slots in use."""
         return len(self._static_slots)
 
+    @property
+    def sample_paths(self) -> list:
+        """List of all sample paths (flex and static) in the project."""
+        return list(self._flex_slots.keys()) + list(self._static_slots.keys())
+
     def add_recorder_slots(self) -> None:
         """Add the 8 recorder buffer slots (129-136)."""
         self._project_file.add_recorder_slots()
