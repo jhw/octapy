@@ -92,6 +92,13 @@ def create_project(name: str, output_dir: Path) -> Path:
         part.track(track_num).flex_slot = slot - 1
         pattern.track(track_num).active_steps = steps
 
+        # Add p-locks for hi-hat tracks (3 and 4)
+        if track_num in (3, 4):
+            for step_num in steps:
+                step = pattern.track(track_num).step(step_num)
+                step.volume = random.randint(50, 100)
+                step.probability = 0.80  # Maps to PERCENT_81
+
     pattern.part = 1
 
     # Save (samples are bundled automatically)
