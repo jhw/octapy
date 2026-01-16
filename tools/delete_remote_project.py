@@ -19,6 +19,7 @@ def remove_project(name):
         sys.exit(1)
 
     project_path = os.path.join(OCTATRACK_DEVICE, name)
+    audio_path = os.path.join(OCTATRACK_DEVICE, "AUDIO", name)
 
     if not os.path.exists(project_path):
         print(f"Error: Project '{name}' not found on device")
@@ -38,6 +39,12 @@ def remove_project(name):
 
     print(f"Removing project '{name}' from {OCTATRACK_DEVICE}")
     shutil.rmtree(project_path)
+
+    # Also remove the project's audio folder if it exists
+    if os.path.exists(audio_path):
+        print(f"Removing audio folder: {audio_path}")
+        shutil.rmtree(audio_path)
+
     print("Done.")
 
 

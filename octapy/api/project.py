@@ -73,9 +73,15 @@ class Project:
         self._banks: Dict[int, Bank] = {}
         self._arr_files: Dict[int, bytes] = {}  # arr file raw data
 
-        # Slot tracking: path -> slot_number (for reuse when same sample added twice)
+        # Sample pool: filename -> local Path (for bundling samples with project)
+        self._sample_pool: Dict[str, Path] = {}
+
+        # Slot tracking: OT path -> slot_number
         self._flex_slots: Dict[str, int] = {}  # path -> slot (1-128)
         self._static_slots: Dict[str, int] = {}  # path -> slot (1-128)
+
+        # Temp directory reference (kept alive when loading from zip)
+        self._temp_dir = None
 
     @classmethod
     def from_template(cls, name: str) -> "Project":
@@ -147,6 +153,12 @@ class Project:
         # Initialize slot tracking from existing samples
         project._init_slots_from_project_file()
 
+        # Load bundled samples from samples/ subdirectory
+        samples_dir = path / "samples"
+        if samples_dir.exists():
+            for sample_file in samples_dir.glob("*.wav"):
+                project._sample_pool[sample_file.name] = sample_file
+
         return project
 
     def _init_slots_from_project_file(self) -> None:
@@ -178,12 +190,15 @@ class Project:
         """
         import tempfile
 
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            unzip_project(zip_path, tmp_path)
-            project = cls.from_directory(tmp_path)
-            project.name = Path(zip_path).stem.upper()
-            return project
+        # Create temp dir that persists for lifetime of Project object
+        # (needed to keep bundled sample paths valid)
+        tmp_dir = tempfile.TemporaryDirectory()
+        tmp_path = Path(tmp_dir.name)
+        unzip_project(zip_path, tmp_path)
+        project = cls.from_directory(tmp_path)
+        project.name = Path(zip_path).stem.upper()
+        project._temp_dir = tmp_dir  # Keep alive until Project is garbage collected
+        return project
 
     def to_directory(self, path: Path) -> None:
         """
@@ -211,6 +226,14 @@ class Project:
         # Save all arr files
         for arr_num, arr_data in self._arr_files.items():
             (path / f"arr{arr_num:02d}.work").write_bytes(arr_data)
+
+        # Save samples from pool
+        if self._sample_pool:
+            import shutil
+            samples_dir = path / "samples"
+            samples_dir.mkdir(exist_ok=True)
+            for filename, local_path in self._sample_pool.items():
+                shutil.copy2(local_path, samples_dir / filename)
 
     def to_zip(self, zip_path: Path) -> None:
         """
@@ -301,43 +324,49 @@ class Project:
 
     def add_sample(
         self,
-        path: str,
-        wav_path: Path = None,
+        local_path: Path,
         slot_type: str = "FLEX",
         slot: Optional[int] = None,
         gain: int = 48,
-    ) -> SampleSlot:
+    ) -> int:
         """
-        Add a sample to a slot.
+        Add a sample to the project from a local file.
 
-        If the same path has already been added, returns the existing slot.
+        The sample is added to the sample pool and will be bundled with the
+        project when saved. The OT path is auto-generated as:
+        ../AUDIO/{PROJECT_NAME}/{filename}.wav
+
+        If the same filename has already been added, returns the existing slot.
         If no slot is specified, automatically assigns the next available slot.
 
         Args:
-            path: Relative path for Octatrack (e.g., "../AUDIO/kick.wav")
-            wav_path: Optional local path to WAV file for reading frame count
+            local_path: Local path to WAV file
             slot_type: "FLEX" or "STATIC"
             slot: Slot number (1-128). If None, auto-assigns next available.
             gain: Gain value 0-127 (48 = 0dB)
 
         Returns:
-            The created (or existing) SampleSlot
+            The assigned slot number
 
         Raises:
             SlotLimitExceeded: If all 128 slots for this type are in use
             InvalidSlotNumber: If explicit slot number is out of range
+            FileNotFoundError: If local_path doesn't exist
         """
+        local_path = Path(local_path)
+        if not local_path.exists():
+            raise FileNotFoundError(f"Sample file not found: {local_path}")
+
+        filename = local_path.name
+        ot_path = f"../AUDIO/{self.name}/{filename}"
+
         is_flex = slot_type.upper() == "FLEX"
         slot_dict = self._flex_slots if is_flex else self._static_slots
         max_slots = MAX_FLEX_SAMPLE_SLOTS if is_flex else MAX_STATIC_SAMPLE_SLOTS
 
-        # Check if this path already has a slot assigned
-        if path in slot_dict:
-            existing_slot = slot_dict[path]
-            # Return the existing sample slot
-            for ss in self._project_file.sample_slots:
-                if ss.slot_number == existing_slot and ss.slot_type.upper() == slot_type.upper():
-                    return ss
+        # Check if this filename already has a slot assigned
+        if ot_path in slot_dict:
+            return slot_dict[ot_path]
 
         # Validate or auto-assign slot
         if slot is None:
@@ -347,53 +376,55 @@ class Project:
                 raise InvalidSlotNumber(
                     f"Slot {slot} is out of range. Valid range is 1-{max_slots} for {slot_type.lower()} samples."
                 )
-            # Check if slot is already in use (by a different path)
+            # Check if slot is already in use
             used_slots = set(slot_dict.values())
             if slot in used_slots:
-                # Find which path is using it
                 for existing_path, existing_slot in slot_dict.items():
                     if existing_slot == slot:
                         raise InvalidSlotNumber(
                             f"Slot {slot} is already in use by '{existing_path}'"
                         )
 
-        # Add to project.work
-        sample_slot = self._project_file.add_sample_slot(
+        # Add to sample pool
+        self._sample_pool[filename] = local_path
+
+        # Add to project.work with OT path
+        self._project_file.add_sample_slot(
             slot_number=slot,
-            path=path,
+            path=ot_path,
             slot_type=slot_type,
             gain=gain,
         )
 
         # Track the slot
-        slot_dict[path] = slot
+        slot_dict[ot_path] = slot
 
-        # Update markers.work with sample length if WAV path provided
-        if wav_path:
-            frame_count = _get_wav_frame_count(wav_path)
-            if frame_count > 0:
-                is_static = slot_type.upper() == "STATIC"
-                self.markers.set_sample_length(slot, frame_count, is_static)
+        # Update markers.work with sample length
+        frame_count = _get_wav_frame_count(local_path)
+        if frame_count > 0:
+            is_static = slot_type.upper() == "STATIC"
+            self.markers.set_sample_length(slot, frame_count, is_static)
 
         # Auto-update flex_count in banks
         if is_flex:
             self._update_flex_count()
 
-        return sample_slot
+        return slot
 
-    def get_slot(self, path: str, slot_type: str = "FLEX") -> Optional[int]:
+    def get_slot(self, filename: str, slot_type: str = "FLEX") -> Optional[int]:
         """
-        Get the slot number assigned to a sample path.
+        Get the slot number assigned to a sample by filename.
 
         Args:
-            path: The sample path
+            filename: The sample filename (e.g., "kick.wav")
             slot_type: "FLEX" or "STATIC"
 
         Returns:
             Slot number if found, None otherwise
         """
+        ot_path = f"../AUDIO/{self.name}/{filename}"
         slot_dict = self._flex_slots if slot_type.upper() == "FLEX" else self._static_slots
-        return slot_dict.get(path)
+        return slot_dict.get(ot_path)
 
     @property
     def flex_slot_count(self) -> int:
@@ -407,8 +438,13 @@ class Project:
 
     @property
     def sample_paths(self) -> list:
-        """List of all sample paths (flex and static) in the project."""
+        """List of all OT sample paths (flex and static) in the project."""
         return list(self._flex_slots.keys()) + list(self._static_slots.keys())
+
+    @property
+    def sample_pool(self) -> Dict[str, Path]:
+        """Sample pool: filename -> local path mapping."""
+        return self._sample_pool.copy()
 
     def add_recorder_slots(self) -> None:
         """Add the 8 recorder buffer slots (129-136)."""

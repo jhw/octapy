@@ -9,7 +9,7 @@ Configuration:
 - Track 3: Open hat
 - Track 4: Closed hat
 
-Samples are scanned from tmp/Erica Pico/default/ and categorized by filename.
+Samples are scanned from tmp/Erica Pico/default/ and bundled with the project.
 
 Output is a zip file that can be copied to the Octatrack using copy_project.py.
 """
@@ -50,12 +50,6 @@ def scan_samples(samples_dir: Path) -> Dict[str, List[Path]]:
             categories['hat'].append(wav_file)
 
     return categories
-
-
-def path_to_ot_relative(sample_path: Path) -> str:
-    """Convert local sample path to Octatrack-relative path."""
-    relative = sample_path.relative_to(OUTPUT_DIR / "Erica Pico")
-    return f"../AUDIO/Erica Pico/{relative}"
 
 
 def generate_hat_pattern() -> Tuple[List[int], List[int]]:
@@ -110,10 +104,9 @@ def create_project(name: str, output_dir: Path) -> Path:
 
     for track_num, category, steps in track_configs:
         sample_path = random.choice(categories[category])
-        relative_path = path_to_ot_relative(sample_path)
 
-        project.add_sample(path=relative_path, wav_path=sample_path, slot_type="FLEX")
-        slot = project.get_slot(relative_path)
+        # Add sample to project pool (auto-generates OT path)
+        slot = project.add_sample(sample_path)
 
         print(f"  - Track {track_num}: {category} ({sample_path.name}) -> slot {slot}")
 
@@ -123,9 +116,10 @@ def create_project(name: str, output_dir: Path) -> Path:
 
     pattern.part = 1
 
-    # Save
+    # Save (samples are bundled automatically)
     zip_path = output_dir / f"{name}.zip"
     print(f"\nSaving project to {zip_path}")
+    print(f"  - Bundling {len(project.sample_pool)} samples")
     project.to_zip(zip_path)
 
     print(f"\nTo copy to Octatrack, run:")

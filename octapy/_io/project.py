@@ -361,6 +361,12 @@ def zip_project(project_dir: Path, zip_path: Path) -> None:
             if file_path.is_file() and file_path.suffix == '.work':
                 zf.write(file_path, file_path.name)
 
+        # Include samples/ directory if present
+        samples_dir = project_dir / "samples"
+        if samples_dir.exists():
+            for sample_file in samples_dir.glob("*.wav"):
+                zf.write(sample_file, f"samples/{sample_file.name}")
+
 
 def unzip_project(zip_path: Path, dest_dir: Path) -> None:
     """Unzip a project archive to a directory."""
