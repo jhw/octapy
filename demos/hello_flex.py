@@ -33,7 +33,7 @@ from acid_909 import (
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
-SAMPLES_DIR = OUTPUT_DIR / "Erica Pico" / "default"
+SAMPLES_DIR = OUTPUT_DIR / "Erica Pico"
 
 # Default probability for all triggered steps
 DEFAULT_PROBABILITY = 0.80
