@@ -22,7 +22,7 @@ from typing import List, Tuple
 
 # Add parent to path so we can import octapy
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from octapy import ProjectFile
+from octapy._io import ProjectFile
 
 OCTATRACK_DEVICE = "/Volumes/OCTATRACK/Woldo"
 TMP_DIR = Path(__file__).parent.parent / "tmp"
