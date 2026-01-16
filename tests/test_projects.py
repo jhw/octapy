@@ -115,10 +115,22 @@ class TestProjectFileRoundTrip:
         # Read back
         loaded = ProjectFile.from_file(path)
 
-        # Verify - note: not all fields survive round-trip currently
+        # Verify
+        assert loaded.tempo == 130.0
         assert len(loaded.sample_slots) == 2
         assert loaded.sample_slots[0].slot_number == 1
         assert loaded.sample_slots[1].slot_number == 2
+
+    def test_tempo_survives_roundtrip(self, project_file, temp_dir):
+        """Test that tempo survives save/load."""
+        path = temp_dir / "project.work"
+
+        project_file.tempo = 124.0
+        project_file.to_file(path)
+
+        loaded = ProjectFile.from_file(path)
+        assert loaded.tempo == 124.0
+        assert loaded.tempo_x24 == 2976  # 124 * 24
 
     def test_crlf_line_endings(self, project_file, temp_dir):
         """Test that output uses CRLF line endings."""

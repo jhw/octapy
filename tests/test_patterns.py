@@ -432,3 +432,13 @@ class TestPlockRoundTrip:
         loaded = Project.from_directory(temp_dir / "TEST")
 
         assert loaded.bank(1).pattern(1).track(1).step(5).probability == 0.5
+
+    def test_tempo_survives_save(self, temp_dir):
+        """Test that tempo survives save/load."""
+        project = Project.from_template("TEST")
+        project.tempo = 124.0
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        assert loaded.tempo == 124.0
