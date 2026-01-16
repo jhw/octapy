@@ -83,6 +83,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Create project
     print(f"\nCreating project '{name}'")
     project = Project.from_template(name)
+    project.tempo = 124
     bank = project.bank(1)
     part = bank.part(1)
     pattern = bank.pattern(1)
