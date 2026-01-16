@@ -19,6 +19,7 @@ from .api.patterns import Pattern, PatternArray, AudioTrack, TrigCondition, Ploc
 from .api.parts import Part, Parts, PartOffset
 from .api.markers import MarkersFile, SlotMarkers
 from .api.projects import (
+    Project,
     ProjectFile,
     SampleSlot,
     zip_project,
@@ -30,6 +31,7 @@ from .api.projects import (
 __version__ = "0.1.0"
 __all__ = [
     # Core classes
+    "Project",
     "BankFile",
     "Pattern",
     "PatternArray",

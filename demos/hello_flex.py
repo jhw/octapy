@@ -25,12 +25,10 @@ import argparse
 import random
 import re
 import sys
-import tempfile
-import wave
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from octapy import BankFile, MarkersFile, ProjectFile, MachineType, zip_project, extract_template
+from octapy import Project, MachineType
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
@@ -72,16 +70,6 @@ def scan_samples(samples_dir: Path) -> Dict[str, List[Path]]:
             categories['hat'].append(wav_file)
 
     return categories
-
-
-def get_wav_frame_count(wav_path: Path) -> int:
-    """Get the number of audio frames in a WAV file."""
-    try:
-        with wave.open(str(wav_path), 'rb') as w:
-            return w.getnframes()
-    except Exception as e:
-        print(f"Warning: Could not read WAV file {wav_path}: {e}")
-        return 0
 
 
 def path_to_ot_relative(sample_path: Path) -> str:
@@ -170,133 +158,100 @@ def create_project(name: str, output_dir: Path) -> Path:
             print("Please ensure the Erica Pico folder contains properly named samples.")
             sys.exit(1)
 
-    zip_path = output_dir / f"{name}.zip"
+    # Create project from template
+    print(f"\nCreating project '{name}'")
+    print("  - Using embedded template (OS 1.40B)")
+    project = Project.from_template(name)
 
-    # Work in a temp directory
-    with tempfile.TemporaryDirectory() as tmp:
-        project_dir = Path(tmp) / name
+    # Get bank 1 for pattern/part configuration
+    bank = project.bank(1)
 
-        # Extract embedded template to create project
-        print(f"\nCreating project '{name}'")
-        print("  - Using embedded template (OS 1.40B)")
-        extract_template(project_dir)
+    # Track all unique samples used across parts
+    all_samples: Dict[int, Tuple[str, Path]] = {}  # slot -> (relative_path, absolute_path)
+    slot_counter = 1
 
-        # === Modify bank01.work ===
-        bank01_path = project_dir / "bank01.work"
-        print(f"\nConfiguring bank01.work")
+    # Configure 4 parts with different samples and patterns
+    print(f"\nConfiguring patterns and parts")
+    for part_num in range(1, 5):
+        print(f"\n  Part {part_num}:")
 
-        bank = BankFile.from_file(bank01_path)
+        # Select random samples for this part
+        selected = select_samples_for_part(categories)
 
-        # Track all unique samples used across parts (for markers and project.work)
-        all_samples: Dict[int, Tuple[str, Path]] = {}  # slot -> (relative_path, absolute_path)
-        slot_counter = 1
+        # Generate hat pattern for this part
+        open_hat_steps, closed_hat_steps = generate_hat_pattern()
 
-        # Configure 4 parts with different samples and patterns
-        for part_num in range(1, 5):
-            print(f"\n  Part {part_num}:")
+        # Get the Part object
+        part = bank.get_part(part_num)
 
-            # Select random samples for this part
-            selected = select_samples_for_part(categories)
+        # Track configurations for this part: (track, category, steps)
+        track_configs = [
+            (1, 'kick', [1, 5, 9, 13]),           # Kick on beats
+            (2, 'snare', [5, 13]),                # Snare on backbeats
+            (3, 'hat', open_hat_steps),           # Open hat (randomized)
+            (4, 'hat', closed_hat_steps),         # Closed hat (randomized)
+        ]
 
-            # Generate hat pattern for this part
-            open_hat_steps, closed_hat_steps = generate_hat_pattern()
+        print(f"    - Hat pattern: track 3 = {open_hat_steps}")
+        print(f"                   track 4 = {closed_hat_steps}")
 
-            # Get the Part object
-            part = bank.get_part(part_num)
+        for track, category, steps in track_configs:
+            sample_path = selected[category]
+            relative_path = path_to_ot_relative(sample_path)
+            sample_name = sample_path.name
 
-            # Track configurations for this part: (track, category, steps)
-            track_configs = [
-                (1, 'kick', [1, 5, 9, 13]),           # Kick on beats
-                (2, 'snare', [5, 13]),                # Snare on backbeats
-                (3, 'hat', open_hat_steps),           # Open hat (randomized)
-                (4, 'hat', closed_hat_steps),         # Closed hat (randomized)
-            ]
+            # Assign slot for this sample (reuse if same sample already used)
+            existing_slot = None
+            for slot, (rel_path, _) in all_samples.items():
+                if rel_path == relative_path:
+                    existing_slot = slot
+                    break
 
-            print(f"    - Hat pattern: track 3 = {open_hat_steps}")
-            print(f"                   track 4 = {closed_hat_steps}")
-
-            for track, category, steps in track_configs:
-                sample_path = selected[category]
-                relative_path = path_to_ot_relative(sample_path)
-                sample_name = sample_path.name
-
-                # Assign slot for this sample (reuse if same sample already used)
-                existing_slot = None
-                for slot, (rel_path, _) in all_samples.items():
-                    if rel_path == relative_path:
-                        existing_slot = slot
-                        break
-
-                if existing_slot:
-                    slot = existing_slot
-                else:
-                    slot = slot_counter
-                    all_samples[slot] = (relative_path, sample_path)
-                    slot_counter += 1
-
-                print(f"    - Track {track}: {category} ({sample_name}) -> slot {slot}")
-
-                # Set trigger pattern for this track in the corresponding pattern
-                bank.set_trigs(pattern=part_num, track=track, steps=steps)
-
-                # Set machine type to Flex
-                part.set_machine_type(track=track, machine_type=MachineType.FLEX)
-
-                # Set flex sample slot assignment (0-indexed internally)
-                part.set_flex_slot(track=track, slot=slot - 1)
-
-            # Assign pattern to this part
-            pattern = bank.get_pattern(part_num)
-            pattern.part_assignment = part_num - 1  # 0-indexed
-            print(f"    - Pattern {part_num} assigned to Part {part_num}")
-
-        # Set flex counter (number of active flex sample slots)
-        bank.flex_count = len(all_samples)
-        print(f"\n  Total flex slots used: {bank.flex_count}")
-
-        # Write bank file (auto-updates checksum)
-        bank.to_file(bank01_path)
-
-        # === Modify markers.work ===
-        markers_path = project_dir / "markers.work"
-        print(f"\nConfiguring markers.work")
-
-        markers = MarkersFile.from_file(markers_path)
-
-        for slot, (relative_path, absolute_path) in all_samples.items():
-            frame_count = get_wav_frame_count(absolute_path)
-            if frame_count > 0:
-                markers.set_sample_length(slot=slot, length=frame_count)
-                print(f"  - Slot {slot}: {frame_count} frames")
+            if existing_slot:
+                slot = existing_slot
             else:
-                print(f"  - Warning: Could not determine length for slot {slot}")
+                slot = slot_counter
+                all_samples[slot] = (relative_path, sample_path)
+                slot_counter += 1
 
-        # Write markers file (auto-updates checksum)
-        markers.to_file(markers_path)
+            print(f"    - Track {track}: {category} ({sample_name}) -> slot {slot}")
 
-        # === Create project.work ===
-        print(f"\nCreating project.work")
+            # Set trigger pattern for this track in the corresponding pattern
+            bank.set_trigs(pattern=part_num, track=track, steps=steps)
 
-        project = ProjectFile()
+            # Set machine type to Flex
+            part.set_machine_type(track=track, machine_type=MachineType.FLEX)
 
-        # Add sample slots
-        for slot, (relative_path, absolute_path) in sorted(all_samples.items()):
-            project.add_sample_slot(
-                slot_number=slot,
-                path=relative_path,
-                slot_type="FLEX",
-                gain=48,
-            )
-            print(f"  - Slot {slot}: {absolute_path.name}")
+            # Set flex sample slot assignment (0-indexed internally)
+            part.set_flex_slot(track=track, slot=slot - 1)
 
-        # Add recorder slots (129-136)
-        project.add_recorder_slots()
+        # Assign pattern to this part
+        pattern = bank.get_pattern(part_num)
+        pattern.part_assignment = part_num - 1  # 0-indexed
+        print(f"    - Pattern {part_num} assigned to Part {part_num}")
 
-        project.to_file(project_dir / "project.work")
+    # Set flex counter (number of active flex sample slots)
+    bank.flex_count = len(all_samples)
+    print(f"\n  Total flex slots used: {bank.flex_count}")
 
-        # === Zip the project ===
-        print(f"\nZipping project to {zip_path}")
-        zip_project(project_dir, zip_path)
+    # Add samples to project (handles both project.work and markers.work)
+    print(f"\nAdding samples")
+    for slot, (relative_path, absolute_path) in sorted(all_samples.items()):
+        project.add_sample(
+            slot=slot,
+            path=relative_path,
+            wav_path=absolute_path,
+            slot_type="FLEX",
+        )
+        print(f"  - Slot {slot}: {absolute_path.name}")
+
+    # Add recorder slots
+    project.add_recorder_slots()
+
+    # Save project as zip
+    zip_path = output_dir / f"{name}.zip"
+    print(f"\nSaving project to {zip_path}")
+    project.to_zip(zip_path)
 
     print(f"\nProject created: {zip_path}")
     print("\nTo copy to Octatrack, run:")

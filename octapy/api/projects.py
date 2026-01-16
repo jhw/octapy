@@ -374,6 +374,259 @@ class ProjectFile:
         self.settings.tempo_x24 = value
 
 
+# === Unified Project class ===
+
+class Project:
+    """
+    High-level representation of an Octatrack project.
+
+    Combines all .work files (banks, project.work, markers.work) into a single
+    abstraction. Handles loading/saving from directories or zip files.
+
+    Usage:
+        # Create from template
+        project = Project.from_template("MY PROJECT")
+
+        # Add a sample (automatically updates markers.work)
+        project.add_sample(slot=1, path="../AUDIO/kick.wav", wav_path="/path/to/kick.wav")
+
+        # Configure patterns/parts via banks
+        bank = project.bank(1)
+        part = bank.get_part(1)
+        part.set_machine_type(1, MachineType.FLEX)
+
+        # Save as zip
+        project.to_zip("/path/to/output.zip")
+    """
+
+    def __init__(self, name: str):
+        """
+        Create an empty project.
+
+        Use from_template(), from_directory(), or from_zip() instead.
+        """
+        self.name = name.upper()
+        self._project_file = ProjectFile()
+        self._markers = None  # Lazy loaded
+        self._banks: Dict[int, Any] = {}  # bank_num -> BankFile
+
+    @classmethod
+    def from_template(cls, name: str) -> "Project":
+        """
+        Create a new project from the embedded template.
+
+        Args:
+            name: Project name (will be uppercased)
+
+        Returns:
+            New Project instance with default template data
+        """
+        from .banks import BankFile
+        from .markers import MarkersFile
+
+        project = cls(name)
+        project._project_file = ProjectFile()
+        project._markers = MarkersFile.new()
+
+        # Load bank01 from template
+        project._banks[1] = BankFile.new(1)
+
+        return project
+
+    @classmethod
+    def from_directory(cls, path: Path) -> "Project":
+        """
+        Load a project from a directory.
+
+        Args:
+            path: Path to project directory containing .work files
+
+        Returns:
+            Project instance
+        """
+        from .banks import BankFile
+        from .markers import MarkersFile
+
+        path = Path(path)
+        name = path.name
+
+        project = cls(name)
+
+        # Load project.work
+        project_work = path / "project.work"
+        if project_work.exists():
+            project._project_file = ProjectFile.from_file(project_work)
+
+        # Load markers.work
+        markers_work = path / "markers.work"
+        if markers_work.exists():
+            project._markers = MarkersFile.from_file(markers_work)
+
+        # Load bank files
+        for i in range(1, 17):
+            bank_path = path / f"bank{i:02d}.work"
+            if bank_path.exists():
+                project._banks[i] = BankFile.from_file(bank_path)
+
+        return project
+
+    @classmethod
+    def from_zip(cls, zip_path: Path) -> "Project":
+        """
+        Load a project from a zip file.
+
+        Args:
+            zip_path: Path to project zip file
+
+        Returns:
+            Project instance
+        """
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            unzip_project(zip_path, tmp_path)
+            project = cls.from_directory(tmp_path)
+            # Override name from zip filename
+            project.name = Path(zip_path).stem.upper()
+            return project
+
+    def to_directory(self, path: Path) -> None:
+        """
+        Save the project to a directory.
+
+        Args:
+            path: Destination directory (will be created if needed)
+        """
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+
+        # Save project.work
+        self._project_file.to_file(path / "project.work")
+
+        # Save markers.work
+        if self._markers:
+            self._markers.to_file(path / "markers.work")
+
+        # Save bank files
+        for bank_num, bank in self._banks.items():
+            bank.to_file(path / f"bank{bank_num:02d}.work")
+
+    def to_zip(self, zip_path: Path) -> None:
+        """
+        Save the project to a zip file.
+
+        Args:
+            zip_path: Path for output zip file
+        """
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp) / self.name
+            self.to_directory(tmp_path)
+            zip_project(tmp_path, zip_path)
+
+    # === Bank access ===
+
+    def bank(self, bank_num: int = 1) -> "BankFile":
+        """
+        Get a bank file (lazy loaded from template if not present).
+
+        Args:
+            bank_num: Bank number (1-16)
+
+        Returns:
+            BankFile instance
+        """
+        from .banks import BankFile
+
+        if bank_num not in self._banks:
+            self._banks[bank_num] = BankFile.new(bank_num)
+        return self._banks[bank_num]
+
+    @property
+    def markers(self) -> "MarkersFile":
+        """Get the markers file (lazy loaded from template if not present)."""
+        from .markers import MarkersFile
+
+        if self._markers is None:
+            self._markers = MarkersFile.new()
+        return self._markers
+
+    @property
+    def settings(self) -> ProjectSettings:
+        """Get project settings."""
+        return self._project_file.settings
+
+    @property
+    def tempo(self) -> float:
+        """Get the project tempo in BPM."""
+        return self._project_file.tempo
+
+    @tempo.setter
+    def tempo(self, bpm: float):
+        """Set the project tempo in BPM."""
+        self._project_file.tempo = bpm
+
+    # === Sample management ===
+
+    def add_sample(
+        self,
+        slot: int,
+        path: str,
+        wav_path: Path = None,
+        slot_type: str = "FLEX",
+        gain: int = 48,
+    ) -> SampleSlot:
+        """
+        Add a sample to a slot.
+
+        This method handles both project.work (slot assignment) and markers.work
+        (sample length) automatically.
+
+        Args:
+            slot: Slot number (1-128 for samples, 129-136 for recorders)
+            path: Relative path for Octatrack (e.g., "../AUDIO/kick.wav")
+            wav_path: Optional local path to WAV file for reading frame count
+            slot_type: "FLEX" or "STATIC"
+            gain: Gain value 0-127 (48 = 0dB)
+
+        Returns:
+            The created SampleSlot
+        """
+        # Add to project.work
+        sample_slot = self._project_file.add_sample_slot(
+            slot_number=slot,
+            path=path,
+            slot_type=slot_type,
+            gain=gain,
+        )
+
+        # Update markers.work with sample length if WAV path provided
+        if wav_path:
+            frame_count = _get_wav_frame_count(wav_path)
+            if frame_count > 0:
+                is_static = slot_type.upper() == "STATIC"
+                self.markers.set_sample_length(slot, frame_count, is_static)
+
+        return sample_slot
+
+    def add_recorder_slots(self) -> None:
+        """Add the 8 recorder buffer slots (129-136)."""
+        self._project_file.add_recorder_slots()
+
+
+def _get_wav_frame_count(wav_path: Path) -> int:
+    """Get the number of audio frames in a WAV file."""
+    import wave
+
+    try:
+        with wave.open(str(wav_path), 'rb') as w:
+            return w.getnframes()
+    except Exception:
+        return 0
+
+
 # === Project zip/unzip utilities ===
 
 def zip_project(project_dir: Path, zip_path: Path) -> None:
