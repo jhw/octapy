@@ -57,12 +57,15 @@ class Project:
         project.to_zip("/path/to/output.zip")
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, _internal: bool = False):
         """
-        Create an empty project.
-
-        Use from_template(), from_directory(), or from_zip() instead.
+        Internal constructor. Use from_template(), from_directory(), or from_zip().
         """
+        if not _internal:
+            raise TypeError(
+                "Project cannot be instantiated directly. "
+                "Use Project.from_template(), Project.from_directory(), or Project.from_zip()."
+            )
         self.name = name.upper()
         self._project_file = ProjectFile()
         self._markers = None
@@ -89,7 +92,7 @@ class Project:
         """
         from .._io.project import read_template_file
 
-        project = cls(name)
+        project = cls(name, _internal=True)
         project._project_file = ProjectFile.new()
         project._markers = MarkersFile.new()
 
@@ -117,7 +120,7 @@ class Project:
         path = Path(path)
         name = path.name
 
-        project = cls(name)
+        project = cls(name, _internal=True)
 
         # Load project.work
         project_work = path / "project.work"
