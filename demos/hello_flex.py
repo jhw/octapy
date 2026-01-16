@@ -16,7 +16,7 @@ Configuration:
 Samples are scanned from the Erica Pico folder and categorized by filename:
 - Kicks: kk, kick, kik, BD, bass
 - Snares: sn, RM, SD, cl
-- Hats: HH, oh, ch
+- Hats: HH, oh, ch, perc
 
 Output is a zip file that can be copied to the Octatrack using copy_project.py.
 """
@@ -41,7 +41,7 @@ PICO_SAMPLES_DIR = "AUDIO/Erica Pico"
 # Sample categorization patterns (case insensitive)
 KICK_PATTERNS = re.compile(r'(kk|kick|kik|bd|bass)', re.IGNORECASE)
 SNARE_PATTERNS = re.compile(r'(sn|rm|sd|cl)', re.IGNORECASE)
-HAT_PATTERNS = re.compile(r'(hh|oh|ch)', re.IGNORECASE)
+HAT_PATTERNS = re.compile(r'(hh|oh|ch|perc)', re.IGNORECASE)
 
 
 def scan_samples(samples_dir: Path) -> Dict[str, List[Path]]:
