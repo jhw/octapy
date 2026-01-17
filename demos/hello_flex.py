@@ -15,7 +15,7 @@ Track layout per part:
 
 Pattern source: Bjorklund algorithm, Toussaint's Euclidean rhythm research
 
-Samples are scanned from tmp/Erica Pico/default/ and bundled with the project.
+Samples are scanned from tmp/Erica Pico/ and bundled with the project.
 Output is a zip file that can be copied to the Octatrack using copy_project.py.
 """
 
@@ -31,7 +31,7 @@ from patterns.euclid import get_random_euclidean_pattern
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
-SAMPLES_DIR = OUTPUT_DIR / "Erica Pico" / "default"
+SAMPLES_DIR = OUTPUT_DIR / "Erica Pico"
 
 # Probability for kick and hat tracks
 DEFAULT_PROBABILITY = 0.85
@@ -166,9 +166,9 @@ def create_project(name: str, output_dir: Path) -> Path:
 
     # Create sample pools with pattern matching
     pools = {
-        'kicks': SamplePool(SAMPLES_DIR, r"BD\d*\.wav$"),
+        'kicks': SamplePool(SAMPLES_DIR, r"BD|KK|KIK|BASS\d*\.wav$"),
         'snares': SamplePool(SAMPLES_DIR, r"(SD|CL|CP)\d*\.wav$"),
-        'hats': SamplePool(SAMPLES_DIR, r"(OH|HH|CH)\d*\.wav$"),
+        'hats': SamplePool(SAMPLES_DIR, r"(OH|HH|CY|PL|RM)\d*\.wav$"),
     }
 
     for pool_name, pool in [("kick", pools['kicks']), ("snare", pools['snares']),
