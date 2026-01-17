@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, SampleDuration
+from octapy import Project, MachineType, SamplePool, NoteLength
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -195,7 +195,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     print(f"\nCreating project '{name}'")
     project = Project.from_template(name)
     project.tempo = 124
-    project.sample_duration = SampleDuration.SIXTEENTH
+    project.sample_duration = NoteLength.SIXTEENTH
 
     # Configure Banks 1 and 2
     print(f"\nConfiguring Banks 1-2:")

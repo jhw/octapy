@@ -26,7 +26,7 @@ from .._io import (
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
 )
-from .enums import MachineType, ThruInput
+from .enums import MachineType, ThruInput, quantize_note_length
 
 
 # =============================================================================
@@ -850,12 +850,19 @@ class MidiPartTrack(BasePartTrack):
 
     @property
     def default_length(self) -> int:
-        """Get/set the default note length (6 = 1/16)."""
-        return self._data[self._values_offset() + MidiTrackValuesOffset.LENGTH]
+        """
+        Get/set the default note length.
+
+        Values are quantized to valid NoteLength values:
+        3 (1/32), 6 (1/16), 12 (1/8), 24 (1/4), 48 (1/2)
+        """
+        raw = self._data[self._values_offset() + MidiTrackValuesOffset.LENGTH]
+        return quantize_note_length(raw)
 
     @default_length.setter
     def default_length(self, value: int):
-        self._data[self._values_offset() + MidiTrackValuesOffset.LENGTH] = value & 0xFF
+        quantized = quantize_note_length(value)
+        self._data[self._values_offset() + MidiTrackValuesOffset.LENGTH] = quantized
 
     @property
     def default_note2(self) -> int:
@@ -1019,12 +1026,19 @@ class MidiPartTrack(BasePartTrack):
 
     @property
     def arp_note_length(self) -> int:
-        """Get/set arpeggiator note length (0-127)."""
-        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN]
+        """
+        Get/set arpeggiator note length.
+
+        Values are quantized to valid NoteLength values:
+        3 (1/32), 6 (1/16), 12 (1/8), 24 (1/4), 48 (1/2)
+        """
+        raw = self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN]
+        return quantize_note_length(raw)
 
     @arp_note_length.setter
     def arp_note_length(self, value: int):
-        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN] = value & 0x7F
+        quantized = quantize_note_length(value)
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN] = quantized
 
 
 # =============================================================================

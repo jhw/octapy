@@ -38,7 +38,7 @@ from .api.enums import (
     FX1Type,
     FX2Type,
     TrigCondition,
-    SampleDuration,
+    NoteLength,
 )
 
 # Exceptions
@@ -76,7 +76,7 @@ __all__ = [
     "FX1Type",
     "FX2Type",
     "TrigCondition",
-    "SampleDuration",
+    "NoteLength",
     # Exceptions
     "OctapyError",
     "SlotLimitExceeded",

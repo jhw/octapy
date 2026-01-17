@@ -4,7 +4,8 @@ Tests for Part and AudioPartTrack high-level API.
 
 import pytest
 
-from octapy import Project, MachineType
+from octapy import Project, MachineType, NoteLength
+from octapy.api.enums import quantize_note_length
 
 
 class TestPartBasics:
@@ -309,6 +310,100 @@ class TestMidiPartTrackDefaults:
         midi_track = project.bank(1).part(1).midi_track(1)
         midi_track.default_length = 12
         assert midi_track.default_length == 12
+
+
+class TestNoteLengthEnum:
+    """NoteLength enum tests."""
+
+    def test_enum_values(self):
+        """Test NoteLength enum has correct MIDI tick values."""
+        assert NoteLength.THIRTY_SECOND == 3
+        assert NoteLength.SIXTEENTH == 6
+        assert NoteLength.EIGHTH == 12
+        assert NoteLength.QUARTER == 24
+        assert NoteLength.HALF == 48
+
+    def test_enum_as_int(self):
+        """Test NoteLength values work as integers."""
+        assert int(NoteLength.SIXTEENTH) == 6
+        assert NoteLength.QUARTER * 2 == 48
+
+
+class TestNoteLengthQuantization:
+    """Note length quantization tests."""
+
+    def test_quantize_exact_values(self):
+        """Test that exact NoteLength values remain unchanged."""
+        assert quantize_note_length(3) == 3
+        assert quantize_note_length(6) == 6
+        assert quantize_note_length(12) == 12
+        assert quantize_note_length(24) == 24
+        assert quantize_note_length(48) == 48
+
+    def test_quantize_to_nearest(self):
+        """Test that intermediate values snap to nearest."""
+        # Between 3 and 6, midpoint is 4.5
+        assert quantize_note_length(4) == 3  # closer to 3
+        assert quantize_note_length(5) == 6  # closer to 6
+
+        # Between 6 and 12, midpoint is 9
+        assert quantize_note_length(8) == 6  # closer to 6
+        assert quantize_note_length(10) == 12  # closer to 12
+
+        # Between 12 and 24, midpoint is 18
+        assert quantize_note_length(15) == 12  # closer to 12
+        assert quantize_note_length(20) == 24  # closer to 24
+
+        # Between 24 and 48, midpoint is 36
+        assert quantize_note_length(30) == 24  # closer to 24
+        assert quantize_note_length(40) == 48  # closer to 48
+
+    def test_quantize_edge_cases(self):
+        """Test boundary values."""
+        assert quantize_note_length(0) == 3  # minimum clamps to THIRTY_SECOND
+        assert quantize_note_length(1) == 3
+        assert quantize_note_length(2) == 3
+        assert quantize_note_length(100) == 48  # max clamps to HALF
+        assert quantize_note_length(127) == 48
+
+
+class TestNoteLengthPropertyQuantization:
+    """Test that MIDI note length properties apply quantization."""
+
+    def test_default_length_quantizes_on_write(self):
+        """Test that writing a non-standard value gets quantized."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        midi_track.default_length = 10  # Should quantize to 12
+        assert midi_track.default_length == 12
+
+    def test_default_length_quantizes_on_read(self):
+        """Test that reading quantizes to nearest valid value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        # Default is 6 (SIXTEENTH), should read back as 6
+        assert midi_track.default_length == 6
+
+    def test_arp_note_length_quantizes_on_write(self):
+        """Test that arp_note_length writing quantizes."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        midi_track.arp_note_length = 30  # Should quantize to 24
+        assert midi_track.arp_note_length == 24
+
+    def test_note_length_enum_usage(self):
+        """Test using NoteLength enum values directly."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        midi_track.default_length = NoteLength.QUARTER
+        assert midi_track.default_length == 24
+
+        midi_track.arp_note_length = NoteLength.EIGHTH
+        assert midi_track.arp_note_length == 12
 
 
 class TestMidiPartTrackCCNumbers:

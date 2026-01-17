@@ -17,7 +17,7 @@ from .enums import (
     ScaleMode,
     PatternScale,
     TrigCondition,
-    SampleDuration,
+    NoteLength,
 )
 from .slot_manager import (
     OctapyError,

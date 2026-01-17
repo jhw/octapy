@@ -5,21 +5,61 @@ Enums for the Octatrack API.
 from enum import IntEnum
 
 
-# === Sample duration ===
+# === Note length ===
 
-class SampleDuration(IntEnum):
+# Valid note length values (MIDI ticks at 24 PPQN)
+_NOTE_LENGTH_VALUES = (3, 6, 12, 24, 48)
+
+
+class NoteLength(IntEnum):
     """
-    Sample duration in musical subdivisions.
+    Note length in musical subdivisions.
 
-    Used to normalize sample lengths based on BPM.
+    Values are MIDI ticks at 24 PPQN (pulses per quarter note).
+    These are the only values that map to clean musical fractions.
+
+    Used for:
+    - MIDI note length (default_length, arp_note_length)
+    - Sample duration normalization (converted to ms based on BPM)
+
     At 120 BPM:
-      - SIXTEENTH (1 step) = 125ms
-      - EIGHTH (2 steps) = 250ms
-      - THIRTY_SECOND (0.5 steps) = 62.5ms
+      - THIRTY_SECOND = 62.5ms (0.5 steps)
+      - SIXTEENTH = 125ms (1 step)
+      - EIGHTH = 250ms (2 steps)
+      - QUARTER = 500ms (4 steps)
+      - HALF = 1000ms (8 steps)
     """
-    THIRTY_SECOND = 8   # divisor: 60/bpm/8
-    SIXTEENTH = 4       # divisor: 60/bpm/4
-    EIGHTH = 2          # divisor: 60/bpm/2
+    THIRTY_SECOND = 3   # 1/32 note
+    SIXTEENTH = 6       # 1/16 note
+    EIGHTH = 12         # 1/8 note
+    QUARTER = 24        # 1/4 note
+    HALF = 48           # 1/2 note
+
+
+def quantize_note_length(value: int) -> int:
+    """
+    Quantize a raw value to the nearest valid NoteLength.
+
+    Args:
+        value: Raw note length value (0-127)
+
+    Returns:
+        Nearest valid NoteLength value (3, 6, 12, 24, or 48)
+    """
+    if value <= 0:
+        return NoteLength.THIRTY_SECOND
+    if value >= 48:
+        return NoteLength.HALF
+
+    # Find nearest valid value
+    best = _NOTE_LENGTH_VALUES[0]
+    best_dist = abs(value - best)
+    for v in _NOTE_LENGTH_VALUES[1:]:
+        dist = abs(value - v)
+        if dist < best_dist:
+            best = v
+            best_dist = dist
+    return best
 
 
 # Machine types (for audio tracks in Parts)

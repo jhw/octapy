@@ -310,8 +310,9 @@ class Project:
         When set, samples are normalized (trimmed/padded) to this duration
         based on BPM when saving the project.
 
-        Values: SampleDuration.SIXTEENTH (1 step), EIGHTH (2 steps),
-                THIRTY_SECOND (0.5 steps), or None (no normalization)
+        Values: NoteLength.SIXTEENTH (1 step), EIGHTH (2 steps),
+                THIRTY_SECOND (0.5 steps), QUARTER (4 steps),
+                HALF (8 steps), or None (no normalization)
         """
         return self._sample_duration
 
@@ -519,20 +520,20 @@ def _get_wav_frame_count(wav_path: Path) -> int:
         return 0
 
 
-def _calculate_duration_ms(bpm: float, sample_duration) -> int:
+def _calculate_duration_ms(bpm: float, note_length) -> int:
     """
     Calculate target sample duration in milliseconds.
 
     Args:
         bpm: Project tempo in BPM
-        sample_duration: SampleDuration enum value (divisor for beat)
+        note_length: NoteLength enum value (MIDI ticks at 24 PPQN)
 
     Returns:
         Duration in milliseconds
     """
-    # duration = (60 / bpm) / divisor seconds
-    # SampleDuration values are the divisors (2, 4, 8)
-    seconds = (60.0 / bpm) / int(sample_duration)
+    # NoteLength values are ticks at 24 PPQN (24 ticks per quarter note)
+    # duration = (60 / bpm) * (ticks / 24) seconds
+    seconds = (60.0 / bpm) * (int(note_length) / 24.0)
     return int(seconds * 1000)
 
 
