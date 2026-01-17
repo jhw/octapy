@@ -170,6 +170,7 @@ class TestMultipleTracks:
 class TestPatternRoundTrip:
     """Pattern read/write round-trip tests."""
 
+    @pytest.mark.slow
     def test_pattern_survives_save(self, temp_dir):
         """Test that pattern data survives save/load."""
         project = Project.from_template("TEST")
@@ -400,6 +401,7 @@ class TestStepProbability:
 class TestPlockRoundTrip:
     """P-lock read/write round-trip tests."""
 
+    @pytest.mark.slow
     def test_plocks_survive_save(self, temp_dir):
         """Test that p-lock data survives save/load."""
         project = Project.from_template("TEST")
@@ -420,6 +422,7 @@ class TestPlockRoundTrip:
         assert loaded_track.step(5).pitch == 76
         assert loaded_track.step(9).condition == TrigCondition.FILL
 
+    @pytest.mark.slow
     def test_probability_survives_save(self, temp_dir):
         """Test that probability survives save/load."""
         project = Project.from_template("TEST")
@@ -433,6 +436,7 @@ class TestPlockRoundTrip:
 
         assert loaded.bank(1).pattern(1).track(1).step(5).probability == 0.5
 
+    @pytest.mark.slow
     def test_tempo_survives_save(self, temp_dir):
         """Test that tempo survives save/load."""
         project = Project.from_template("TEST")
@@ -754,6 +758,7 @@ class TestMidiStepCondition:
 class TestMidiPatternRoundTrip:
     """MIDI pattern read/write round-trip tests."""
 
+    @pytest.mark.slow
     def test_active_steps_survive_save(self, temp_dir):
         """Test that MIDI active steps survive save/load."""
         project = Project.from_template("TEST")
@@ -766,6 +771,7 @@ class TestMidiPatternRoundTrip:
 
         assert loaded.bank(1).pattern(1).midi_track(1).active_steps == [1, 5, 9, 13]
 
+    @pytest.mark.slow
     def test_plocks_survive_save(self, temp_dir):
         """Test that MIDI p-locks survive save/load."""
         project = Project.from_template("TEST")
@@ -783,6 +789,7 @@ class TestMidiPatternRoundTrip:
         assert loaded_track.step(5).velocity == 100
         assert loaded_track.step(9).length == 12
 
+    @pytest.mark.slow
     def test_condition_survives_save(self, temp_dir):
         """Test that MIDI conditions survive save/load."""
         project = Project.from_template("TEST")
@@ -795,6 +802,7 @@ class TestMidiPatternRoundTrip:
 
         assert loaded.bank(1).pattern(1).midi_track(1).step(5).condition == TrigCondition.FILL
 
+    @pytest.mark.slow
     def test_all_tracks_survive_save(self, temp_dir):
         """Test all 8 MIDI tracks survive save/load."""
         project = Project.from_template("TEST")
@@ -810,6 +818,7 @@ class TestMidiPatternRoundTrip:
             expected = [track_num, track_num + 8]
             assert loaded.bank(1).pattern(1).midi_track(track_num).active_steps == expected
 
+    @pytest.mark.slow
     def test_cc_plocks_survive_save(self, temp_dir):
         """Test that CC p-locks survive save/load."""
         project = Project.from_template("TEST")
