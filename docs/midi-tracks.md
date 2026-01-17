@@ -141,6 +141,38 @@ MidiTrackCc2ParamsSetup
 └── cc10: u8    (default 76)
 ```
 
+## Note Length
+
+Unlike audio samples (which have a fixed duration), MIDI notes require explicit length control.
+
+### Default Note Length (Part)
+
+The default note length for a MIDI track is stored in the Part:
+
+```
+MidiTrackMidiParamsValues.len  (default: 6)
+```
+
+This is the base note length used when no p-lock overrides it.
+
+### P-Locked Note Length (Pattern)
+
+Individual steps can override the note length via p-locks:
+
+```
+MidiTrackParameterLocks.midi.len  (255 = use Part default)
+```
+
+### Note Length Values
+
+**TODO: Value mapping needs verification on device.**
+
+The Rust library shows the default `len` value is `6`. The Octatrack UI shows note length on the SRC page, dial C, with options like 1/128, 1/64, 1/32, 1/16, 1/8, etc.
+
+Based on device observation, the default appears to be 1/16. The exact mapping between byte values and musical durations needs to be reverse-engineered by testing on the device.
+
+For consistency with sample duration nomenclature, we should use fractional notation (1/16, 1/8, 1/32) rather than "16ths", "8ths", etc.
+
 ## Setup vs Values
 
 The Octatrack separates configuration from current state:
@@ -181,7 +213,7 @@ MidiTrackTrigMasks
 
 ### P-Locks (Per-Step Parameter Locks)
 
-Each step can override MIDI parameters:
+Each step can override MIDI parameters. P-lock data is stored per-step (64 steps per track):
 
 ```
 MidiTrackParameterLocks
@@ -191,6 +223,33 @@ MidiTrackParameterLocks
 ├── ctrl1: MidiTrackCc1ParamsValues   (PB, AT, CC1-4)
 └── ctrl2: MidiTrackCc2ParamsValues   (CC5-10)
 ```
+
+**Key P-Lockable MIDI Parameters:**
+
+| Parameter | Field | P-Lock Default | Description |
+|-----------|-------|----------------|-------------|
+| **Note/Pitch** | `midi.note` | 255 (disabled) | MIDI note number (0-127) |
+| **Velocity** | `midi.vel` | 255 (disabled) | Note velocity (0-127) |
+| **Note Length** | `midi.len` | 255 (disabled) | Duration of note |
+| **Chord Notes** | `midi.not2/3/4` | 255 (disabled) | Additional chord tones |
+
+A value of `255` means "no p-lock" — use the base Part value instead.
+
+### Trig Conditions (Probability)
+
+MIDI tracks support the same trig condition system as audio tracks:
+
+```
+MidiTrackTrigs
+└── trig_offsets_repeats_conditions: [[u8; 2]; 64]
+```
+
+Each step has 2 bytes encoding:
+- Micro-timing offset
+- Trig repeat count
+- Trig condition (including probability)
+
+Probability conditions work identically to audio tracks (see audio documentation for condition values).
 
 Note: The Rust library comments indicate Elektron reused their audio track p-lock structure for MIDI tracks, even though some fields don't apply.
 
@@ -223,6 +282,18 @@ Project
             └── arp_seqs[8]        ← custom arp patterns
 ```
 
+## Comparison: Audio vs MIDI P-Locks
+
+| Parameter | Audio Tracks | MIDI Tracks |
+|-----------|--------------|-------------|
+| **Volume/Velocity** | `PlockOffset` byte | `midi.vel` |
+| **Pitch/Note** | `PlockOffset` byte (transpose) | `midi.note` (absolute) |
+| **Length** | Fixed by sample | `midi.len` (must be set) |
+| **Probability** | `trig_conditions` | `trig_conditions` (same) |
+| **P-Lock Disabled** | 255 | 255 |
+
+Key difference: Audio samples have inherent duration; MIDI notes require explicit length.
+
 ## Current octapy Support
 
 | Feature | Status |
@@ -230,7 +301,9 @@ Project
 | MIDI track structure | Documented, not yet exposed in API |
 | MIDI channel/program | Documented, not yet exposed |
 | CC assignments | Documented, not yet exposed |
-| MIDI p-locks | Documented, not yet exposed |
+| MIDI p-locks (note/vel/len) | Documented, not yet exposed |
+| MIDI probability/conditions | Documented, not yet exposed |
+| Note length values | **Needs device verification** |
 | Arp sequences | Documented, not yet exposed |
 
 ## References
