@@ -1,22 +1,22 @@
 """
-Pattern and PatternTrack classes for sequence programming.
+Pattern and AudioPatternTrack classes for sequence programming.
 """
 
 from typing import TYPE_CHECKING, Dict, List
 
 from .._io import AudioTrackOffset, PatternOffset
-from .step import Step, _trig_mask_to_steps, _steps_to_trig_mask
+from .step import AudioStep, _trig_mask_to_steps, _steps_to_trig_mask
 
 if TYPE_CHECKING:
     from .bank import Bank
 
 
-class PatternTrack:
+class AudioPatternTrack:
     """
-    Sequence data for a track within a Pattern.
+    Audio sequence data for a track within a Pattern.
 
     Provides access to 64 steps and their trigger states.
-    This is separate from PartTrack which handles sound configuration.
+    This is separate from AudioPartTrack which handles sound configuration.
 
     Usage:
         track = pattern.track(1)
@@ -27,7 +27,7 @@ class PatternTrack:
     def __init__(self, pattern: "Pattern", track_num: int):
         self._pattern = pattern
         self._track_num = track_num
-        self._steps: Dict[int, Step] = {}
+        self._steps: Dict[int, AudioStep] = {}
 
     def _track_offset(self) -> int:
         """Get the byte offset for this track in the bank file."""
@@ -35,7 +35,7 @@ class PatternTrack:
             self._pattern._pattern_num, self._track_num
         )
 
-    def step(self, step_num: int) -> Step:
+    def step(self, step_num: int) -> AudioStep:
         """
         Get a specific step (1-64).
 
@@ -43,10 +43,10 @@ class PatternTrack:
             step_num: Step number (1-64)
 
         Returns:
-            Step instance for this position
+            AudioStep instance for this position
         """
         if step_num not in self._steps:
-            self._steps[step_num] = Step(self, step_num)
+            self._steps[step_num] = AudioStep(self, step_num)
         return self._steps[step_num]
 
     @property
@@ -93,7 +93,7 @@ class Pattern:
     def __init__(self, bank: "Bank", pattern_num: int):
         self._bank = bank
         self._pattern_num = pattern_num
-        self._tracks: Dict[int, PatternTrack] = {}
+        self._tracks: Dict[int, AudioPatternTrack] = {}
 
     def _pattern_offset(self) -> int:
         """Get the byte offset for this pattern in the bank file."""
@@ -112,7 +112,7 @@ class Pattern:
         offset = self._pattern_offset() + PatternOffset.PART_ASSIGNMENT
         data[offset] = (value - 1) & 0x03  # Convert to 0-indexed
 
-    def track(self, track_num: int) -> PatternTrack:
+    def track(self, track_num: int) -> AudioPatternTrack:
         """
         Get sequence data for a track (1-8).
 
@@ -120,8 +120,8 @@ class Pattern:
             track_num: Track number (1-8)
 
         Returns:
-            PatternTrack instance for configuring steps
+            AudioPatternTrack instance for configuring steps
         """
         if track_num not in self._tracks:
-            self._tracks[track_num] = PatternTrack(self, track_num)
+            self._tracks[track_num] = AudioPatternTrack(self, track_num)
         return self._tracks[track_num]

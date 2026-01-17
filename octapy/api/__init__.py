@@ -24,7 +24,7 @@ from .enums import (
 
 from .project import Project
 from .bank import Bank
-from .part import Part, PartTrack
-from .pattern import Pattern, PatternTrack
-from .step import Step
+from .part import Part, AudioPartTrack
+from .pattern import Pattern, AudioPatternTrack
+from .step import AudioStep
 from .sample_pool import SamplePool

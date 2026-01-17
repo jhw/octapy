@@ -1,5 +1,5 @@
 """
-Step class for individual steps within a PatternTrack.
+AudioStep class for individual steps within an AudioPatternTrack.
 """
 
 from typing import List, Optional
@@ -79,12 +79,12 @@ def _steps_to_trig_mask(data: bytearray, offset: int, steps: List[int]):
 
 
 # =============================================================================
-# Step Class
+# AudioStep Class
 # =============================================================================
 
-class Step:
+class AudioStep:
     """
-    Individual step within a pattern track.
+    Individual step within an audio pattern track.
 
     Provides access to step properties including active state, trigless state,
     condition, and p-locks (per-step parameter values).

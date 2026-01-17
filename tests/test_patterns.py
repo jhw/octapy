@@ -1,5 +1,5 @@
 """
-Tests for Pattern, PatternTrack, and Step high-level API.
+Tests for Pattern, AudioPatternTrack, and AudioStep high-level API.
 """
 
 import pytest
@@ -29,11 +29,11 @@ class TestPatternBasics:
         assert pattern.part == 4
 
 
-class TestPatternTrack:
-    """PatternTrack (sequence data) tests."""
+class TestAudioPatternTrack:
+    """AudioPatternTrack (sequence data) tests."""
 
     def test_get_pattern_track(self):
-        """Test getting a PatternTrack."""
+        """Test getting an AudioPatternTrack."""
         project = Project.from_template("TEST")
         pattern_track = project.bank(1).pattern(1).track(1)
         steps = pattern_track.active_steps
@@ -83,11 +83,11 @@ class TestPatternTrack:
         assert pattern_track.active_steps == []
 
 
-class TestStep:
-    """Step (individual step) tests."""
+class TestAudioStep:
+    """AudioStep (individual step) tests."""
 
     def test_get_step(self):
-        """Test getting a Step."""
+        """Test getting an AudioStep."""
         project = Project.from_template("TEST")
         step = project.bank(1).pattern(1).track(1).step(1)
         assert step is not None
@@ -120,7 +120,7 @@ class TestStep:
         assert 5 in project.bank(1).pattern(1).track(1).trigless_steps
 
     def test_step_matches_active_steps(self):
-        """Test that Step.active matches active_steps list."""
+        """Test that AudioStep.active matches active_steps list."""
         project = Project.from_template("TEST")
         pattern_track = project.bank(1).pattern(1).track(1)
 

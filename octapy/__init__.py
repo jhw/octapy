@@ -12,17 +12,17 @@ Example:
     # Configure a bank
     bank = project.bank(1)
 
-    # Sound configuration via Part -> PartTrack
+    # Sound configuration via Part -> AudioPartTrack
     part = bank.part(1)
-    track = part.track(1)  # Returns PartTrack
+    track = part.track(1)  # Returns AudioPartTrack
     track.machine_type = MachineType.FLEX
     track.flex_slot = 0
 
-    # Sequence programming via Pattern -> PatternTrack -> Step
+    # Sequence programming via Pattern -> AudioPatternTrack -> AudioStep
     pattern = bank.pattern(1)
     pattern.part = 1
-    pattern.track(1).active_steps = [1, 5, 9, 13]  # Returns PatternTrack
-    pattern.track(1).step(5).condition = TrigCondition.FILL  # Returns Step
+    pattern.track(1).active_steps = [1, 5, 9, 13]  # Returns AudioPatternTrack
+    pattern.track(1).step(5).condition = TrigCondition.FILL  # Returns AudioStep
 
     # Add a sample (slot auto-assigned, flex_count auto-updated)
     project.add_sample("../AUDIO/kick.wav")
@@ -46,9 +46,9 @@ from .api.enums import (
 # High-level API classes
 from .api.project import Project
 from .api.bank import Bank
-from .api.part import Part, PartTrack
-from .api.pattern import Pattern, PatternTrack
-from .api.step import Step
+from .api.part import Part, AudioPartTrack
+from .api.pattern import Pattern, AudioPatternTrack
+from .api.step import AudioStep
 from .api.sample_pool import SamplePool
 
 __version__ = "0.1.0"
@@ -59,10 +59,10 @@ __all__ = [
     # Wrapper classes
     "Bank",
     "Part",
-    "PartTrack",
+    "AudioPartTrack",
     "Pattern",
-    "PatternTrack",
-    "Step",
+    "AudioPatternTrack",
+    "AudioStep",
     # Utilities
     "SamplePool",
     # Enums

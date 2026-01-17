@@ -1,5 +1,5 @@
 """
-Part and PartTrack classes for sound configuration.
+Part and AudioPartTrack classes for sound configuration.
 """
 
 from typing import TYPE_CHECKING, Dict
@@ -11,12 +11,12 @@ if TYPE_CHECKING:
     from .bank import Bank
 
 
-class PartTrack:
+class AudioPartTrack:
     """
-    Sound configuration for a track within a Part.
+    Audio track configuration within a Part.
 
     Provides access to machine type, sample slots, and track settings.
-    This is separate from PatternTrack which handles sequencing.
+    This is separate from AudioPatternTrack which handles sequencing.
 
     Usage:
         track = part.track(1)
@@ -141,13 +141,13 @@ class Part:
     def __init__(self, bank: "Bank", part_num: int):
         self._bank = bank
         self._part_num = part_num
-        self._tracks: Dict[int, PartTrack] = {}
+        self._tracks: Dict[int, AudioPartTrack] = {}
 
     def _part_offset(self) -> int:
         """Get the byte offset for this part in the bank file."""
         return self._bank._bank_file.part_offset(self._part_num)
 
-    def track(self, track_num: int) -> PartTrack:
+    def track(self, track_num: int) -> AudioPartTrack:
         """
         Get a track (1-8).
 
@@ -155,10 +155,10 @@ class Part:
             track_num: Track number (1-8)
 
         Returns:
-            PartTrack instance for configuring machine settings
+            AudioPartTrack instance for configuring machine settings
         """
         if track_num not in self._tracks:
-            self._tracks[track_num] = PartTrack(self, track_num)
+            self._tracks[track_num] = AudioPartTrack(self, track_num)
         return self._tracks[track_num]
 
     @property

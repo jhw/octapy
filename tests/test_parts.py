@@ -1,5 +1,5 @@
 """
-Tests for Part and PartTrack high-level API.
+Tests for Part and AudioPartTrack high-level API.
 """
 
 import pytest
@@ -24,8 +24,8 @@ class TestPartBasics:
             assert part is not None
 
 
-class TestPartTrackMachineTypes:
-    """PartTrack machine type tests."""
+class TestAudioPartTrackMachineTypes:
+    """AudioPartTrack machine type tests."""
 
     def test_default_machine_type(self):
         """Test default machine type is STATIC."""
@@ -64,8 +64,8 @@ class TestPartTrackMachineTypes:
             assert part.track(track_num).machine_type == expected
 
 
-class TestPartTrackVolumes:
-    """PartTrack volume tests."""
+class TestAudioPartTrackVolumes:
+    """AudioPartTrack volume tests."""
 
     def test_default_volume(self):
         """Test default volume is 108."""
@@ -98,8 +98,8 @@ class TestPartTrackVolumes:
         assert cue <= 127
 
 
-class TestPartTrackFX:
-    """PartTrack FX tests."""
+class TestAudioPartTrackFX:
+    """AudioPartTrack FX tests."""
 
     def test_default_fx1(self):
         """Test default FX1 is Filter (4)."""
@@ -157,8 +157,8 @@ class TestPartScenes:
         assert part.active_scene_b <= 15
 
 
-class TestPartTrackSlots:
-    """PartTrack slot assignment tests."""
+class TestAudioPartTrackSlots:
+    """AudioPartTrack slot assignment tests."""
 
     def test_set_flex_slot(self):
         """Test setting flex slot."""
