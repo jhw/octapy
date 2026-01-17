@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 """
-Create an Octatrack project with Flex machines using mixed pattern sources.
+Create an Octatrack project with Flex machines using Euclidean rhythm patterns.
 
 Configuration:
 - Banks 1-2 with all 4 parts and all 16 patterns populated each
-- Each part has unique random samples on tracks 1-4
-- Even patterns (0,2,4,...) use Euclidean rhythms with velocity p-locks
-- Odd patterns (1,3,5,...) use Acid Banger 909 patterns with velocity+probability p-locks
+- Each part has unique random samples on tracks 1-3
+- All patterns use Euclidean rhythms with velocity p-locks
+- Kick and hat tracks have 85% probability p-locks
 
 Track layout per part:
-- Track 1: Kick drum
-- Track 2: Snare/clap
-- Track 3: Hat (open or closed depending on pattern)
-- Track 4: Hat (only used for 'offbeats' pattern in Acid Banger)
+- Track 1: Kick drum (with probability)
+- Track 2: Snare/clap (no probability)
+- Track 3: Hat (with probability)
 
-Pattern sources:
-- Acid Banger 909: https://github.com/vitling/acid-banger
-- Euclidean rhythms: Bjorklund algorithm, Toussaint's research
+Pattern source: Bjorklund algorithm, Toussaint's Euclidean rhythm research
 
 Samples are scanned from tmp/Erica Pico/default/ and bundled with the project.
 Output is a zip file that can be copied to the Octatrack using copy_project.py.
@@ -30,20 +27,14 @@ from typing import List, Tuple
 
 from octapy import Project, MachineType, SamplePool, SampleDuration
 
-# Import pattern generators
-from patterns.acid_909 import (
-    get_random_kick_pattern,
-    get_random_snare_pattern,
-    get_random_hat_pattern,
-)
 from patterns.euclid import get_random_euclidean_pattern
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
 SAMPLES_DIR = OUTPUT_DIR / "Erica Pico" / "default"
 
-# Default probability for all triggered steps
-DEFAULT_PROBABILITY = 0.80
+# Probability for kick and hat tracks
+DEFAULT_PROBABILITY = 0.85
 
 
 def velocity_to_volume(velocity: float) -> int:
@@ -58,7 +49,7 @@ def velocity_to_volume(velocity: float) -> int:
 
 
 def pattern_to_steps(pattern: List[float]) -> List[Tuple[int, int]]:
-    """Convert acid_909 pattern to list of (step_num, volume) tuples.
+    """Convert pattern to list of (step_num, volume) tuples.
 
     Args:
         pattern: List of 16 velocity values (0.0-1.0), 0.0 = no hit
@@ -76,14 +67,14 @@ def pattern_to_steps(pattern: List[float]) -> List[Tuple[int, int]]:
 
 
 def configure_pattern_track(pattern, track_num: int, steps_with_volume: List[Tuple[int, int]],
-                            use_probability: bool = True):
+                            use_probability: bool = False):
     """Configure a pattern track with steps and p-locks.
 
     Args:
         pattern: Pattern instance
         track_num: Track number (1-8)
         steps_with_volume: List of (step_num, volume) tuples
-        use_probability: If True, also set probability p-locks (for Acid Banger)
+        use_probability: If True, also set probability p-locks
     """
     step_nums = [s[0] for s in steps_with_volume]
     pattern.track(track_num).active_steps = step_nums
@@ -105,7 +96,7 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
         project: Project instance
         bank: Bank instance
         bank_num: Bank number (1-16)
-        pools: Dict with 'kicks', 'snares', 'open_hats', 'closed_hats' SamplePools
+        pools: Dict with 'kicks', 'snares', 'hats' SamplePools
         rng: Random number generator
     """
     bank_letter = chr(ord('A') + bank_num - 1)
@@ -118,25 +109,21 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
         # Select random samples for this part
         kick_sample = pools['kicks'].random()
         snare_sample = pools['snares'].random()
-        open_hat_sample = pools['open_hats'].random()
-        closed_hat_sample = pools['closed_hats'].random()
+        hat_sample = pools['hats'].random()
 
         # Add samples and configure tracks
         kick_slot = project.add_sample(kick_sample)
         snare_slot = project.add_sample(snare_sample)
-        open_hat_slot = project.add_sample(open_hat_sample)
-        closed_hat_slot = project.add_sample(closed_hat_sample)
+        hat_slot = project.add_sample(hat_sample)
 
-        print(f"    Part {part_num}: {kick_sample.name}, {snare_sample.name}, {open_hat_sample.name}, {closed_hat_sample.name}")
+        print(f"    Part {part_num}: {kick_sample.name}, {snare_sample.name}, {hat_sample.name}")
 
-        # Configure machine types and slots for tracks 1-4
-        for track_num, slot in [(1, kick_slot), (2, snare_slot),
-                                 (3, open_hat_slot), (4, closed_hat_slot)]:
+        # Configure machine types and slots for tracks 1-3
+        for track_num, slot in [(1, kick_slot), (2, snare_slot), (3, hat_slot)]:
             part.track(track_num).machine_type = MachineType.FLEX
             part.track(track_num).flex_slot = slot - 1
 
-    # Configure all 16 patterns
-    # Even 0-indexed (1,3,5,... in UI) = Euclid, Odd 0-indexed (2,4,6,... in UI) = Acid Banger
+    # Configure all 16 patterns with Euclidean rhythms
     print(f"\n  Bank {bank_num} ({bank_letter}) Patterns 1-16:")
     for pattern_num in range(1, 17):
         pattern = bank.pattern(pattern_num)
@@ -145,56 +132,25 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
         part_num = rng.randint(1, 4)
         pattern.part = part_num
 
-        # 0-indexed pattern number for even/odd check
-        pattern_idx = pattern_num - 1
-        use_euclid = (pattern_idx % 2 == 0)  # 0,2,4,... = Euclid
+        # Generate Euclidean patterns
+        kick_name, kick_pattern = get_random_euclidean_pattern('kick', rng)
+        snare_name, snare_pattern = get_random_euclidean_pattern('snare', rng)
+        hat_name, hat_pattern = get_random_euclidean_pattern('hat', rng)
 
-        if use_euclid:
-            # Euclidean patterns - velocity p-locks only (no probability)
-            kick_name, kick_pattern = get_random_euclidean_pattern('kick', rng)
-            snare_name, snare_pattern = get_random_euclidean_pattern('snare', rng)
-            hat_name, hat_pattern = get_random_euclidean_pattern('hat', rng)
+        # Convert to steps
+        kick_steps = pattern_to_steps(kick_pattern)
+        snare_steps = pattern_to_steps(snare_pattern)
+        hat_steps = pattern_to_steps(hat_pattern)
 
-            # Convert to steps
-            kick_steps = pattern_to_steps(kick_pattern)
-            snare_steps = pattern_to_steps(snare_pattern)
-            hat_steps = pattern_to_steps(hat_pattern)
+        # Configure tracks:
+        # - Kick (track 1): volume + probability
+        # - Snare (track 2): volume only
+        # - Hat (track 3): volume + probability
+        configure_pattern_track(pattern, 1, kick_steps, use_probability=True)
+        configure_pattern_track(pattern, 2, snare_steps, use_probability=False)
+        configure_pattern_track(pattern, 3, hat_steps, use_probability=True)
 
-            # Configure tracks (no probability for Euclid)
-            configure_pattern_track(pattern, 1, kick_steps, use_probability=False)
-            configure_pattern_track(pattern, 2, snare_steps, use_probability=False)
-            configure_pattern_track(pattern, 4, hat_steps, use_probability=False)
-
-            print(f"    Pattern {pattern_num:2d}: Part {part_num}, [Euclid] kick={kick_name}, snare={snare_name}, hat={hat_name}")
-
-        else:
-            # Acid Banger patterns - velocity + probability p-locks
-            kick_name, kick_pattern = get_random_kick_pattern(rng)
-            snare_name, snare_pattern = get_random_snare_pattern(rng)
-            hat_name, hat_patterns = get_random_hat_pattern(rng)
-
-            # Convert to steps
-            kick_steps = pattern_to_steps(kick_pattern)
-            snare_steps = pattern_to_steps(snare_pattern)
-
-            # Configure kick and snare tracks
-            configure_pattern_track(pattern, 1, kick_steps, use_probability=True)
-            configure_pattern_track(pattern, 2, snare_steps, use_probability=True)
-
-            # Configure hat tracks based on pattern type
-            if hat_name == "closed":
-                hat_steps = pattern_to_steps(hat_patterns)
-                configure_pattern_track(pattern, 4, hat_steps, use_probability=True)
-                hat_desc = f"hat_closed (T4)"
-            else:
-                oh_pattern, ch_pattern = hat_patterns
-                oh_steps = pattern_to_steps(oh_pattern)
-                ch_steps = pattern_to_steps(ch_pattern)
-                configure_pattern_track(pattern, 3, oh_steps, use_probability=True)
-                configure_pattern_track(pattern, 4, ch_steps, use_probability=True)
-                hat_desc = f"hat_offbeats (T3+T4)"
-
-            print(f"    Pattern {pattern_num:2d}: Part {part_num}, [Acid] kick_{kick_name}, snare_{snare_name}, {hat_desc}")
+        print(f"    Pattern {pattern_num:2d}: Part {part_num}, kick={kick_name}, snare={snare_name}, hat={hat_name}")
 
 
 def create_project(name: str, output_dir: Path) -> Path:
@@ -209,12 +165,11 @@ def create_project(name: str, output_dir: Path) -> Path:
     pools = {
         'kicks': SamplePool(SAMPLES_DIR, r"BD\d*\.wav$"),
         'snares': SamplePool(SAMPLES_DIR, r"(SD|CL|CP)\d*\.wav$"),
-        'open_hats': SamplePool(SAMPLES_DIR, r"OH\d*\.wav$"),
-        'closed_hats': SamplePool(SAMPLES_DIR, r"(HH|CH)\d*\.wav$"),
+        'hats': SamplePool(SAMPLES_DIR, r"(OH|HH|CH)\d*\.wav$"),
     }
 
     for pool_name, pool in [("kick", pools['kicks']), ("snare", pools['snares']),
-                            ("open hat", pools['open_hats']), ("closed hat", pools['closed_hats'])]:
+                            ("hat", pools['hats'])]:
         print(f"  - Found {len(pool)} {pool_name} samples")
         if not pool:
             print(f"Error: No {pool_name} samples found.")
@@ -248,7 +203,7 @@ def create_project(name: str, output_dir: Path) -> Path:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create an Octatrack project with Acid Banger 909 patterns")
+    parser = argparse.ArgumentParser(description="Create an Octatrack project with Euclidean rhythm patterns")
     parser.add_argument("name", nargs="?", default="HELLO FLEX", help="Project name")
     parser.add_argument("-o", "--output", default=str(OUTPUT_DIR), help="Output directory")
     args = parser.parse_args()
