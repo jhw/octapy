@@ -496,6 +496,64 @@ class MidiStep:
     def length(self, value: Optional[int]):
         self._set_plock(MidiPlockOffset.LENGTH, value)
 
+    # === MIDI CC P-lock properties ===
+
+    @property
+    def pitch_bend(self) -> Optional[int]:
+        """
+        Get/set p-locked MIDI pitch bend for this step.
+
+        Value range: 0-127 (64 = center, no bend)
+        Returns None if no p-lock is set (uses Part default).
+        Set to None to clear the p-lock.
+        """
+        return self._get_plock(MidiPlockOffset.PITCH_BEND)
+
+    @pitch_bend.setter
+    def pitch_bend(self, value: Optional[int]):
+        self._set_plock(MidiPlockOffset.PITCH_BEND, value)
+
+    @property
+    def aftertouch(self) -> Optional[int]:
+        """
+        Get/set p-locked MIDI aftertouch for this step.
+
+        Value range: 0-127
+        Returns None if no p-lock is set (uses Part default).
+        Set to None to clear the p-lock.
+        """
+        return self._get_plock(MidiPlockOffset.AFTERTOUCH)
+
+    @aftertouch.setter
+    def aftertouch(self, value: Optional[int]):
+        self._set_plock(MidiPlockOffset.AFTERTOUCH, value)
+
+    def cc(self, n: int) -> Optional[int]:
+        """
+        Get p-locked CC value for slot n (1-10).
+
+        Args:
+            n: CC slot number (1-10)
+
+        Returns:
+            CC value (0-127), or None if no p-lock is set
+        """
+        if n < 1 or n > 10:
+            raise ValueError(f"CC slot must be 1-10, got {n}")
+        return self._get_plock(19 + n)  # CC1 is at offset 20
+
+    def set_cc(self, n: int, value: Optional[int]):
+        """
+        Set p-locked CC value for slot n (1-10).
+
+        Args:
+            n: CC slot number (1-10)
+            value: CC value (0-127), or None to clear p-lock
+        """
+        if n < 1 or n > 10:
+            raise ValueError(f"CC slot must be 1-10, got {n}")
+        self._set_plock(19 + n, value)  # CC1 is at offset 20
+
     @property
     def probability(self) -> Optional[float]:
         """

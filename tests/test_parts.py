@@ -311,6 +311,99 @@ class TestMidiPartTrackDefaults:
         assert midi_track.default_length == 12
 
 
+class TestMidiPartTrackCCNumbers:
+    """MidiPartTrack CC number assignment tests."""
+
+    def test_default_cc_numbers(self):
+        """Test default CC numbers from template."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        # Template defaults: 7(Vol), 1(Mod), 2(Breath), 10(Pan), 71-76(Sound)
+        expected = [7, 1, 2, 10, 71, 72, 73, 74, 75, 76]
+        for i, exp in enumerate(expected, 1):
+            assert midi_track.cc_number(i) == exp, f"CC{i} number mismatch"
+
+    def test_set_cc_number(self):
+        """Test setting CC number."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.set_cc_number(1, 74)  # Filter cutoff
+        assert midi_track.cc_number(1) == 74
+
+    def test_set_all_cc_numbers(self):
+        """Test setting all 10 CC numbers."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        # Set different CC numbers
+        cc_values = [1, 7, 10, 11, 71, 74, 91, 93, 16, 17]
+        for i, val in enumerate(cc_values, 1):
+            midi_track.set_cc_number(i, val)
+
+        # Verify
+        for i, expected in enumerate(cc_values, 1):
+            assert midi_track.cc_number(i) == expected, f"CC{i} mismatch"
+
+    def test_cc_number_invalid_slot(self):
+        """Test invalid CC slot raises ValueError."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        with pytest.raises(ValueError):
+            midi_track.cc_number(0)
+        with pytest.raises(ValueError):
+            midi_track.cc_number(11)
+
+
+class TestMidiPartTrackCCValues:
+    """MidiPartTrack CC default value tests."""
+
+    def test_default_pitch_bend(self):
+        """Test default pitch bend is 64 (center)."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.pitch_bend == 64
+
+    def test_default_aftertouch(self):
+        """Test default aftertouch is 0."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.aftertouch == 0
+
+    def test_default_cc_values(self):
+        """Test default CC values from template."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        # Template defaults: cc1(127)=Vol max, cc4(64)=Pan center, rest 0
+        expected = [127, 0, 0, 64, 0, 0, 0, 0, 0, 0]
+        for i, exp in enumerate(expected, 1):
+            assert midi_track.cc_value(i) == exp, f"CC{i} value mismatch"
+
+    def test_set_pitch_bend(self):
+        """Test setting pitch bend."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.pitch_bend = 127  # Max up
+        assert midi_track.pitch_bend == 127
+
+    def test_set_aftertouch(self):
+        """Test setting aftertouch."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.aftertouch = 100
+        assert midi_track.aftertouch == 100
+
+    def test_set_cc_values(self):
+        """Test setting CC values."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        for i in range(1, 11):
+            midi_track.set_cc_value(i, i * 10)
+
+        for i in range(1, 11):
+            assert midi_track.cc_value(i) == i * 10
+
+
 class TestMidiPartTrackRoundTrip:
     """MidiPartTrack roundtrip tests."""
 
@@ -361,3 +454,33 @@ class TestMidiPartTrackRoundTrip:
             midi_track = loaded.bank(1).part(1).midi_track(track_num)
             assert midi_track.channel == track_num - 1
             assert midi_track.default_note == 48 + track_num
+
+    def test_cc_numbers_roundtrip(self, temp_dir):
+        """Test CC numbers survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.set_cc_number(1, 74)
+        midi_track.set_cc_number(2, 71)
+        midi_track.set_cc_number(3, 91)
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_midi = loaded.bank(1).part(1).midi_track(1)
+        assert loaded_midi.cc_number(1) == 74
+        assert loaded_midi.cc_number(2) == 71
+        assert loaded_midi.cc_number(3) == 91
+
+    def test_cc_values_roundtrip(self, temp_dir):
+        """Test CC values survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.pitch_bend = 100
+        midi_track.aftertouch = 50
+        midi_track.set_cc_value(1, 64)
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_midi = loaded.bank(1).part(1).midi_track(1)
+        assert loaded_midi.pitch_bend == 100
+        assert loaded_midi.aftertouch == 50
+        assert loaded_midi.cc_value(1) == 64

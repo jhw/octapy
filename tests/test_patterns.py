@@ -636,6 +636,95 @@ class TestMidiStepPlocks:
         assert pattern.midi_track(2).step(1).note == 60
 
 
+class TestMidiStepCCPlocks:
+    """MidiStep CC p-lock tests."""
+
+    def test_pitch_bend_default_none(self):
+        """Test pitch_bend p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.pitch_bend is None
+
+    def test_set_pitch_bend(self):
+        """Test setting pitch_bend p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.pitch_bend = 100
+        assert step.pitch_bend == 100
+
+    def test_clear_pitch_bend(self):
+        """Test clearing pitch_bend p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.pitch_bend = 100
+        step.pitch_bend = None
+        assert step.pitch_bend is None
+
+    def test_aftertouch_default_none(self):
+        """Test aftertouch p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.aftertouch is None
+
+    def test_set_aftertouch(self):
+        """Test setting aftertouch p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.aftertouch = 80
+        assert step.aftertouch == 80
+
+    def test_cc_default_none(self):
+        """Test cc p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.cc(1) is None
+
+    def test_set_cc(self):
+        """Test setting cc p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.set_cc(1, 64)
+        assert step.cc(1) == 64
+
+    def test_set_all_cc_plocks(self):
+        """Test setting all CC p-locks (1-10)."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        for i in range(1, 11):
+            step.set_cc(i, i * 10)
+
+        for i in range(1, 11):
+            assert step.cc(i) == i * 10, f"CC{i} mismatch"
+
+    def test_cc_plocks_independent_per_step(self):
+        """Test that CC p-locks are independent per step."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.step(1).set_cc(1, 20)
+        midi_track.step(5).set_cc(1, 64)
+        midi_track.step(9).set_cc(1, 100)
+
+        assert midi_track.step(1).cc(1) == 20
+        assert midi_track.step(5).cc(1) == 64
+        assert midi_track.step(9).cc(1) == 100
+        assert midi_track.step(2).cc(1) is None
+
+    def test_cc_invalid_slot(self):
+        """Test invalid CC slot raises ValueError."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        with pytest.raises(ValueError):
+            step.cc(0)
+        with pytest.raises(ValueError):
+            step.cc(11)
+
+
 class TestMidiStepCondition:
     """MidiStep condition tests."""
 
@@ -720,3 +809,22 @@ class TestMidiPatternRoundTrip:
         for track_num in range(1, 9):
             expected = [track_num, track_num + 8]
             assert loaded.bank(1).pattern(1).midi_track(track_num).active_steps == expected
+
+    def test_cc_plocks_survive_save(self, temp_dir):
+        """Test that CC p-locks survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.step(1).pitch_bend = 100
+        midi_track.step(5).aftertouch = 80
+        midi_track.step(9).set_cc(1, 64)
+        midi_track.step(13).set_cc(5, 127)
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        loaded_track = loaded.bank(1).pattern(1).midi_track(1)
+        assert loaded_track.step(1).pitch_bend == 100
+        assert loaded_track.step(5).aftertouch == 80
+        assert loaded_track.step(9).cc(1) == 64
+        assert loaded_track.step(13).cc(5) == 127

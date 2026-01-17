@@ -238,6 +238,92 @@ class MidiPartTrack:
         data = self._part._bank._bank_file._data
         data[self._values_offset() + MidiTrackValuesOffset.LENGTH] = value & 0xFF
 
+    # === CC Number Assignments (Setup) ===
+
+    def cc_number(self, n: int) -> int:
+        """
+        Get the MIDI CC number assigned to slot n (1-10).
+
+        Args:
+            n: CC slot number (1-10)
+
+        Returns:
+            MIDI CC number (0-127)
+        """
+        if n < 1 or n > 10:
+            raise ValueError(f"CC slot must be 1-10, got {n}")
+        data = self._part._bank._bank_file._data
+        offset = self._setup_offset() + 19 + n  # CC1 is at offset 20
+        return data[offset]
+
+    def set_cc_number(self, n: int, value: int):
+        """
+        Set the MIDI CC number assigned to slot n (1-10).
+
+        Args:
+            n: CC slot number (1-10)
+            value: MIDI CC number (0-127)
+        """
+        if n < 1 or n > 10:
+            raise ValueError(f"CC slot must be 1-10, got {n}")
+        data = self._part._bank._bank_file._data
+        offset = self._setup_offset() + 19 + n  # CC1 is at offset 20
+        data[offset] = value & 0x7F
+
+    # === CC Default Values ===
+
+    @property
+    def pitch_bend(self) -> int:
+        """Get/set default pitch bend (0-127, 64 = center)."""
+        data = self._part._bank._bank_file._data
+        return data[self._values_offset() + MidiTrackValuesOffset.PITCH_BEND]
+
+    @pitch_bend.setter
+    def pitch_bend(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._values_offset() + MidiTrackValuesOffset.PITCH_BEND] = value & 0x7F
+
+    @property
+    def aftertouch(self) -> int:
+        """Get/set default aftertouch (0-127)."""
+        data = self._part._bank._bank_file._data
+        return data[self._values_offset() + MidiTrackValuesOffset.AFTERTOUCH]
+
+    @aftertouch.setter
+    def aftertouch(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._values_offset() + MidiTrackValuesOffset.AFTERTOUCH] = value & 0x7F
+
+    def cc_value(self, n: int) -> int:
+        """
+        Get the default value for CC slot n (1-10).
+
+        Args:
+            n: CC slot number (1-10)
+
+        Returns:
+            Default CC value (0-127)
+        """
+        if n < 1 or n > 10:
+            raise ValueError(f"CC slot must be 1-10, got {n}")
+        data = self._part._bank._bank_file._data
+        offset = self._values_offset() + 19 + n  # CC1 is at offset 20
+        return data[offset]
+
+    def set_cc_value(self, n: int, value: int):
+        """
+        Set the default value for CC slot n (1-10).
+
+        Args:
+            n: CC slot number (1-10)
+            value: Default CC value (0-127)
+        """
+        if n < 1 or n > 10:
+            raise ValueError(f"CC slot must be 1-10, got {n}")
+        data = self._part._bank._bank_file._data
+        offset = self._values_offset() + 19 + n  # CC1 is at offset 20
+        data[offset] = value & 0x7F
+
 
 class Part:
     """
