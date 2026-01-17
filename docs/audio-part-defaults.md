@@ -19,7 +19,7 @@ Only FLEX and STATIC machines have traditional pitch/transpose control. THRU pas
 
 ## Comparison with MIDI
 
-| Concept | MIDI (MidiPartTrack) | Audio (PartTrack) | Status |
+| Concept | MIDI (MidiAudioPartTrack) | Audio (AudioPartTrack) | Status |
 |---------|---------------------|-------------------|--------|
 | **Pitch** | `default_note` (0-127) | `pitch` (64 = center) | Missing (FLEX/STATIC only) |
 | **Amplitude** | `default_velocity` (0-127) | `volume` (0-127) | Implemented |
@@ -31,7 +31,7 @@ Pitch only applies to sample-based machines (FLEX, STATIC). For THRU/NEIGHBOR, t
 
 ## Current Implementation
 
-`PartTrack` currently exposes:
+`AudioPartTrack` currently exposes:
 
 ```python
 track = part.track(1)
@@ -46,7 +46,7 @@ track.fx2_type      # Effect type
 
 ### pitch (transpose) — FLEX/STATIC only
 
-Add a `pitch` property to `PartTrack` for the Part-level transpose default.
+Add a `pitch` property to `AudioPartTrack` for the Part-level transpose default.
 
 | Property | Field | Default | Description |
 |----------|-------|---------|-------------|
@@ -62,7 +62,7 @@ This is the Src page, dial A value stored in `AudioTrackParamsValues`.
 
 2. **Validate machine type**: Raise error if accessing `pitch` on non-sample machines. Safer but requires checking machine_type on every access.
 
-3. **Machine-specific subclasses**: Have `FlexPartTrack`, `ThruPartTrack`, etc. with appropriate properties. Most correct but complex.
+3. **Machine-specific subclasses**: Have `FlexAudioPartTrack`, `ThruAudioPartTrack`, etc. with appropriate properties. Most correct but complex.
 
 **Recommendation:** Option 1 for now (document limitation), since the current `volume` property also applies universally without machine validation.
 
@@ -71,7 +71,7 @@ This is the Src page, dial A value stored in `AudioTrackParamsValues`.
 Location: `octapy/api/part.py`
 
 ```python
-class PartTrack:
+class AudioPartTrack:
     # ... existing properties ...
 
     @property
@@ -110,7 +110,7 @@ Reference: ot-tools-io `parts.rs` AudioTrackParamsValues structure.
 Location: `tests/test_parts.py`
 
 ```python
-class TestPartTrackPitch:
+class TestAudioPartTrackPitch:
     def test_pitch_default_center(self):
         project = Project.from_template("TEST")
         track = project.bank(1).part(1).track(1)
@@ -162,5 +162,5 @@ These are lower priority as they're less commonly set programmatically compared 
 | File | Changes |
 |------|---------|
 | `octapy/_io/bank.py` | Add `AudioParamsOffset` constants |
-| `octapy/api/part.py` | Add `pitch` property to `PartTrack` |
+| `octapy/api/part.py` | Add `pitch` property to `AudioPartTrack` |
 | `tests/test_parts.py` | Add pitch roundtrip tests |

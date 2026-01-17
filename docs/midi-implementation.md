@@ -2,6 +2,98 @@
 
 This document outlines the phased implementation of MIDI support in octapy.
 
+## Phase 0: Rename Audio Classes
+
+### Overview
+
+Rename existing Part/Pattern track classes to use `Audio` prefix for consistency with upcoming `Midi` prefixed classes.
+
+### Renames
+
+| Current Name | New Name |
+|--------------|----------|
+| `PartTrack` | `AudioPartTrack` |
+| `PatternTrack` | `AudioPatternTrack` |
+| `Step` | `AudioStep` |
+
+Container classes (`Part`, `Pattern`, `Bank`, `Project`) remain unchanged — they hold both audio and MIDI data.
+
+### Implementation Tasks
+
+#### 1. Rename classes
+
+Location: `octapy/api/part.py`
+
+```python
+# Before
+class PartTrack:
+    ...
+
+# After
+class AudioPartTrack:
+    ...
+```
+
+Location: `octapy/api/pattern.py`
+
+```python
+# Before
+class PatternTrack:
+    ...
+
+class Step:
+    ...
+
+# After
+class AudioPatternTrack:
+    ...
+
+class AudioStep:
+    ...
+```
+
+#### 2. Update internal references
+
+- `Part.track()` returns `AudioPartTrack`
+- `Pattern.track()` returns `AudioPatternTrack`
+- `AudioPatternTrack.step()` returns `AudioStep`
+
+#### 3. Update exports
+
+Location: `octapy/__init__.py`
+
+```python
+from .api.part import AudioPartTrack
+from .api.pattern import AudioPatternTrack, AudioStep
+```
+
+#### 4. Update tests
+
+Rename all test references from `PartTrack` → `AudioPartTrack`, etc.
+
+#### 5. Update demos
+
+Update `hello_flex.py` and any other demos using the old names.
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `octapy/api/part.py` | Rename `PartTrack` → `AudioPartTrack` |
+| `octapy/api/pattern.py` | Rename `PatternTrack` → `AudioPatternTrack`, `Step` → `AudioStep` |
+| `octapy/__init__.py` | Update exports |
+| `tests/test_parts.py` | Update references |
+| `tests/test_patterns.py` | Update references |
+| `demos/hello_flex.py` | Update if needed |
+
+### Verification
+
+1. Run all tests
+2. Run `hello_flex.py` demo
+3. Verify no import errors
+
+---
+
 ## Phase 1: Global MIDI Settings
 
 ### Overview
