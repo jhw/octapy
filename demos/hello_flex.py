@@ -67,24 +67,27 @@ def pattern_to_steps(pattern: List[float]) -> List[Tuple[int, int]]:
 
 
 def configure_pattern_track(pattern, track_num: int, steps_with_volume: List[Tuple[int, int]],
-                            use_probability: bool = False):
+                            use_volume: bool = True, use_probability: bool = False):
     """Configure a pattern track with steps and p-locks.
 
     Args:
         pattern: Pattern instance
         track_num: Track number (1-8)
         steps_with_volume: List of (step_num, volume) tuples
-        use_probability: If True, also set probability p-locks
+        use_volume: If True, set volume p-locks
+        use_probability: If True, set probability p-locks
     """
     step_nums = [s[0] for s in steps_with_volume]
     pattern.track(track_num).active_steps = step_nums
 
-    # Add p-locks for volume (and optionally probability)
-    for step_num, volume in steps_with_volume:
-        step = pattern.track(track_num).step(step_num)
-        step.volume = volume
-        if use_probability:
-            step.probability = DEFAULT_PROBABILITY
+    # Add p-locks for volume and/or probability
+    if use_volume or use_probability:
+        for step_num, volume in steps_with_volume:
+            step = pattern.track(track_num).step(step_num)
+            if use_volume:
+                step.volume = volume
+            if use_probability:
+                step.probability = DEFAULT_PROBABILITY
 
     return step_nums
 
@@ -144,11 +147,11 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
 
         # Configure tracks:
         # - Kick (track 1): volume + probability
-        # - Snare (track 2): volume only
+        # - Snare (track 2): no p-locks
         # - Hat (track 3): volume + probability
-        configure_pattern_track(pattern, 1, kick_steps, use_probability=True)
-        configure_pattern_track(pattern, 2, snare_steps, use_probability=False)
-        configure_pattern_track(pattern, 3, hat_steps, use_probability=True)
+        configure_pattern_track(pattern, 1, kick_steps, use_volume=True, use_probability=True)
+        configure_pattern_track(pattern, 2, snare_steps, use_volume=False, use_probability=False)
+        configure_pattern_track(pattern, 3, hat_steps, use_volume=True, use_probability=True)
 
         print(f"    Pattern {pattern_num:2d}: Part {part_num}, kick={kick_name}, snare={snare_name}, hat={hat_name}")
 
