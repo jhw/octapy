@@ -165,6 +165,7 @@ class TestSlotExceptions:
 class TestSlotLoadFromDirectory:
     """Tests for slot tracking initialization from existing projects."""
 
+    @pytest.mark.slow
     def test_slots_loaded_from_directory(self, temp_dir, sample_files):
         """Test that slots are tracked when loading from directory."""
         # Create and save a project with samples
@@ -179,6 +180,7 @@ class TestSlotLoadFromDirectory:
         # Slots should be tracked
         assert loaded.flex_slot_count == 2
 
+    @pytest.mark.slow
     def test_new_samples_get_next_slot_after_load(self, temp_dir, sample_files):
         """Test that new samples get sequential slots after load."""
         # Create and save a project with samples
