@@ -100,6 +100,7 @@ class TestProjectFileSampleSlots:
 class TestProjectFileRoundTrip:
     """ProjectFile read/write round-trip tests."""
 
+    @pytest.mark.slow
     def test_write_read_roundtrip(self, project_file, temp_dir):
         """Test that write then read preserves data."""
         path = temp_dir / "project.work"
@@ -121,6 +122,7 @@ class TestProjectFileRoundTrip:
         assert loaded.sample_slots[0].slot_number == 1
         assert loaded.sample_slots[1].slot_number == 2
 
+    @pytest.mark.slow
     def test_tempo_survives_roundtrip(self, project_file, temp_dir):
         """Test that tempo survives save/load."""
         path = temp_dir / "project.work"
@@ -184,6 +186,7 @@ class TestProjectFileMidiSettings:
         """Test default MIDI program change receive channel is -1."""
         assert project_file.settings.midi_program_change_receive_ch == -1
 
+    @pytest.mark.slow
     def test_midi_settings_roundtrip(self, project_file, temp_dir):
         """Test MIDI settings survive save/load."""
         path = temp_dir / "project.work"
@@ -304,6 +307,7 @@ class TestProjectMidiSettings:
         project = Project.from_template("TEST")
         assert project.midi_program_change_receive_ch == -1
 
+    @pytest.mark.slow
     def test_midi_settings_roundtrip(self, temp_dir):
         """Test that MIDI settings survive save/load via high-level API."""
         from octapy import Project

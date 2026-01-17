@@ -11,6 +11,26 @@ import pytest
 from octapy._io import BankFile, MarkersFile, ProjectFile, extract_template
 
 
+def pytest_addoption(parser):
+    """Add --slow option to run slow tests."""
+    parser.addoption(
+        "--slow",
+        action="store_true",
+        default=False,
+        help="Run slow tests (roundtrips, etc.)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip slow tests unless --slow is passed."""
+    if config.getoption("--slow"):
+        return
+    skip_slow = pytest.mark.skip(reason="use --slow to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
+
+
 @pytest.fixture
 def temp_dir():
     """Provide a temporary directory that's cleaned up after the test."""

@@ -407,6 +407,7 @@ class TestMidiPartTrackCCValues:
 class TestMidiPartTrackRoundTrip:
     """MidiPartTrack roundtrip tests."""
 
+    @pytest.mark.slow
     def test_channel_roundtrip(self, temp_dir):
         """Test channel survives save/load."""
         project = Project.from_template("TEST")
@@ -416,6 +417,7 @@ class TestMidiPartTrackRoundTrip:
         loaded = Project.from_directory(temp_dir / "TEST")
         assert loaded.bank(1).part(1).midi_track(1).channel == 5
 
+    @pytest.mark.slow
     def test_program_roundtrip(self, temp_dir):
         """Test program survives save/load."""
         project = Project.from_template("TEST")
@@ -425,6 +427,7 @@ class TestMidiPartTrackRoundTrip:
         loaded = Project.from_directory(temp_dir / "TEST")
         assert loaded.bank(1).part(1).midi_track(1).program == 64
 
+    @pytest.mark.slow
     def test_defaults_roundtrip(self, temp_dir):
         """Test default note/velocity/length survive save/load."""
         project = Project.from_template("TEST")
@@ -440,6 +443,7 @@ class TestMidiPartTrackRoundTrip:
         assert loaded_midi.default_velocity == 110
         assert loaded_midi.default_length == 12
 
+    @pytest.mark.slow
     def test_all_tracks_roundtrip(self, temp_dir):
         """Test all 8 MIDI tracks survive save/load."""
         project = Project.from_template("TEST")
@@ -455,6 +459,7 @@ class TestMidiPartTrackRoundTrip:
             assert midi_track.channel == track_num - 1
             assert midi_track.default_note == 48 + track_num
 
+    @pytest.mark.slow
     def test_cc_numbers_roundtrip(self, temp_dir):
         """Test CC numbers survive save/load."""
         project = Project.from_template("TEST")
@@ -470,6 +475,7 @@ class TestMidiPartTrackRoundTrip:
         assert loaded_midi.cc_number(2) == 71
         assert loaded_midi.cc_number(3) == 91
 
+    @pytest.mark.slow
     def test_cc_values_roundtrip(self, temp_dir):
         """Test CC values survive save/load."""
         project = Project.from_template("TEST")
@@ -686,6 +692,7 @@ class TestPickupPartTrack:
 class TestMachinePartTrackRoundTrip:
     """Test machine-specific part tracks survive save/load."""
 
+    @pytest.mark.slow
     def test_flex_track_roundtrip(self, temp_dir):
         """Test FlexPartTrack values survive save/load."""
         project = Project.from_template("TEST")
@@ -701,6 +708,7 @@ class TestMachinePartTrackRoundTrip:
         assert loaded_flex.start == 32
         assert loaded_flex.timestretch == 64
 
+    @pytest.mark.slow
     def test_thru_track_roundtrip(self, temp_dir):
         """Test ThruPartTrack values survive save/load."""
         project = Project.from_template("TEST")
@@ -714,6 +722,7 @@ class TestMachinePartTrackRoundTrip:
         assert loaded_thru.in_ab == 1
         assert loaded_thru.vol_ab == 80
 
+    @pytest.mark.slow
     def test_pickup_track_roundtrip(self, temp_dir):
         """Test PickupPartTrack values survive save/load."""
         project = Project.from_template("TEST")
@@ -833,6 +842,7 @@ class TestMidiPartTrackChordNotes:
         assert midi_track.default_note3 == 71
         assert midi_track.default_note4 == 76
 
+    @pytest.mark.slow
     def test_chord_notes_roundtrip(self, temp_dir):
         """Test chord notes survive save/load."""
         project = Project.from_template("TEST")
@@ -930,6 +940,7 @@ class TestAudioPartTrackAmpPage:
             track.attack = track_num * 10
             assert track.attack == track_num * 10
 
+    @pytest.mark.slow
     def test_amp_roundtrip(self, temp_dir):
         """Test AMP parameters survive save/load."""
         project = Project.from_template("TEST")
@@ -1044,6 +1055,7 @@ class TestMidiPartTrackArpPage:
             midi_track.arp_transpose = 64 + track_num
             assert midi_track.arp_transpose == 64 + track_num
 
+    @pytest.mark.slow
     def test_arp_roundtrip(self, temp_dir):
         """Test ARP parameters survive save/load."""
         project = Project.from_template("TEST")
@@ -1162,6 +1174,7 @@ class TestAudioPartTrackLfoPage:
             assert track.lfo_speed1 == track_num * 10
             assert track.lfo_depth1 == track_num * 5
 
+    @pytest.mark.slow
     def test_lfo_roundtrip(self, temp_dir):
         """Test LFO parameters survive save/load."""
         project = Project.from_template("TEST")
@@ -1228,6 +1241,7 @@ class TestMidiPartTrackLfoPage:
             assert midi_track.lfo_speed1 == track_num * 10
             assert midi_track.lfo_depth1 == track_num * 5
 
+    @pytest.mark.slow
     def test_midi_lfo_roundtrip(self, temp_dir):
         """Test MIDI LFO parameters survive save/load."""
         project = Project.from_template("TEST")
