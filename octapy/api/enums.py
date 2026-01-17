@@ -55,6 +55,21 @@ class MachineType(IntEnum):
     PICKUP = 4
 
 
+# Thru machine input selection
+class ThruInput(IntEnum):
+    """
+    Input selection for Thru machine.
+
+    Used with ThruPartTrack.in_ab and ThruPartTrack.in_cd to select
+    which physical input(s) to route.
+    """
+    OFF = 0
+    A_PLUS_B = 1  # A+B combined (stereo pair)
+    A = 2         # Input A only (left)
+    B = 3         # Input B only (right)
+    A_B = 4       # A/B (both separate)
+
+
 # FX types for audio tracks
 class FX1Type(IntEnum):
     """FX1 slot effect types."""

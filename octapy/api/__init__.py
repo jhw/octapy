@@ -11,6 +11,7 @@ Low-level file I/O (internal use):
 
 from .enums import (
     MachineType,
+    ThruInput,
     FX1Type,
     FX2Type,
     ScaleMode,
@@ -24,7 +25,16 @@ from .enums import (
 
 from .project import Project
 from .bank import Bank
-from .part import Part, AudioPartTrack, MidiPartTrack
+from .part import (
+    Part,
+    AudioPartTrack,
+    FlexPartTrack,
+    StaticPartTrack,
+    ThruPartTrack,
+    NeighborPartTrack,
+    PickupPartTrack,
+    MidiPartTrack,
+)
 from .pattern import Pattern, AudioPatternTrack, MidiPatternTrack
 from .step import AudioStep, MidiStep
 from .sample_pool import SamplePool

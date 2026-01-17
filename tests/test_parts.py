@@ -484,3 +484,366 @@ class TestMidiPartTrackRoundTrip:
         assert loaded_midi.pitch_bend == 100
         assert loaded_midi.aftertouch == 50
         assert loaded_midi.cc_value(1) == 64
+
+
+# =============================================================================
+# Machine-Specific Part Track Tests
+# =============================================================================
+
+class TestFlexPartTrack:
+    """FlexPartTrack machine-specific parameter tests."""
+
+    def test_flex_track_factory(self):
+        """Test getting a FlexPartTrack from Part."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        assert flex is not None
+
+    def test_flex_pitch_default(self):
+        """Test default pitch value."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        # Template default is 64 (no transpose)
+        assert flex.pitch == 64
+
+    def test_flex_set_pitch(self):
+        """Test setting pitch."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        flex.pitch = 72
+        assert flex.pitch == 72
+
+    def test_flex_start_default(self):
+        """Test default start value."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        assert flex.start == 0
+
+    def test_flex_set_start(self):
+        """Test setting start."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        flex.start = 32
+        assert flex.start == 32
+
+    def test_flex_length_default(self):
+        """Test default length value."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        assert flex.length == 0  # Template default
+
+    def test_flex_rate_default(self):
+        """Test default rate value."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        assert flex.rate == 127  # Template default (max)
+
+    def test_flex_timestretch_default(self):
+        """Test default timestretch value."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        assert flex.timestretch == 1  # Template default
+
+    def test_flex_set_timestretch(self):
+        """Test setting timestretch."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        flex.timestretch = 64
+        assert flex.timestretch == 64
+
+    def test_flex_all_tracks(self):
+        """Test FlexPartTrack for all 8 tracks."""
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            flex = part.flex_track(track_num)
+            flex.pitch = 64 + track_num
+            assert flex.pitch == 64 + track_num
+
+    def test_flex_tracks_independent(self):
+        """Test that different tracks have independent data."""
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        flex1 = part.flex_track(1)
+        flex2 = part.flex_track(2)
+        flex1.pitch = 50
+        flex2.pitch = 70
+        assert flex1.pitch == 50
+        assert flex2.pitch == 70
+
+
+class TestStaticPartTrack:
+    """StaticPartTrack machine-specific parameter tests."""
+
+    def test_static_track_factory(self):
+        """Test getting a StaticPartTrack from Part."""
+        project = Project.from_template("TEST")
+        static = project.bank(1).part(1).static_track(1)
+        assert static is not None
+
+    def test_static_pitch_default(self):
+        """Test default pitch value."""
+        project = Project.from_template("TEST")
+        static = project.bank(1).part(1).static_track(1)
+        assert static.pitch == 64
+
+    def test_static_set_pitch(self):
+        """Test setting pitch."""
+        project = Project.from_template("TEST")
+        static = project.bank(1).part(1).static_track(1)
+        static.pitch = 56
+        assert static.pitch == 56
+
+
+class TestThruPartTrack:
+    """ThruPartTrack machine-specific parameter tests."""
+
+    def test_thru_track_factory(self):
+        """Test getting a ThruPartTrack from Part."""
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        assert thru is not None
+
+    def test_thru_in_ab_default(self):
+        """Test default in_ab value."""
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        assert thru.in_ab == 0
+
+    def test_thru_set_in_ab(self):
+        """Test setting in_ab."""
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        thru.in_ab = 1
+        assert thru.in_ab == 1
+
+    def test_thru_vol_ab_default(self):
+        """Test default vol_ab value."""
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        assert thru.vol_ab == 64  # Template default
+
+    def test_thru_set_vol_ab(self):
+        """Test setting vol_ab."""
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        thru.vol_ab = 64
+        assert thru.vol_ab == 64
+
+
+class TestNeighborPartTrack:
+    """NeighborPartTrack tests."""
+
+    def test_neighbor_track_factory(self):
+        """Test getting a NeighborPartTrack from Part."""
+        project = Project.from_template("TEST")
+        neighbor = project.bank(1).part(1).neighbor_track(1)
+        assert neighbor is not None
+
+
+class TestPickupPartTrack:
+    """PickupPartTrack machine-specific parameter tests."""
+
+    def test_pickup_track_factory(self):
+        """Test getting a PickupPartTrack from Part."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        assert pickup is not None
+
+    def test_pickup_pitch_default(self):
+        """Test default pitch value."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        assert pickup.pitch == 64
+
+    def test_pickup_set_pitch(self):
+        """Test setting pitch."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        pickup.pitch = 72
+        assert pickup.pitch == 72
+
+    def test_pickup_direction_default(self):
+        """Test default direction value."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        assert pickup.direction == 2  # Template default
+
+    def test_pickup_gain_default(self):
+        """Test default gain value."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        assert pickup.gain == 64  # Template default
+
+    def test_pickup_set_gain(self):
+        """Test setting gain."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        pickup.gain = 80
+        assert pickup.gain == 80
+
+
+class TestMachinePartTrackRoundTrip:
+    """Test machine-specific part tracks survive save/load."""
+
+    def test_flex_track_roundtrip(self, temp_dir):
+        """Test FlexPartTrack values survive save/load."""
+        project = Project.from_template("TEST")
+        flex = project.bank(1).part(1).flex_track(1)
+        flex.pitch = 72
+        flex.start = 32
+        flex.timestretch = 64
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_flex = loaded.bank(1).part(1).flex_track(1)
+        assert loaded_flex.pitch == 72
+        assert loaded_flex.start == 32
+        assert loaded_flex.timestretch == 64
+
+    def test_thru_track_roundtrip(self, temp_dir):
+        """Test ThruPartTrack values survive save/load."""
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        thru.in_ab = 1
+        thru.vol_ab = 80
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_thru = loaded.bank(1).part(1).thru_track(1)
+        assert loaded_thru.in_ab == 1
+        assert loaded_thru.vol_ab == 80
+
+    def test_pickup_track_roundtrip(self, temp_dir):
+        """Test PickupPartTrack values survive save/load."""
+        project = Project.from_template("TEST")
+        pickup = project.bank(1).part(1).pickup_track(1)
+        pickup.pitch = 60
+        pickup.gain = 90
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_pickup = loaded.bank(1).part(1).pickup_track(1)
+        assert loaded_pickup.pitch == 60
+        assert loaded_pickup.gain == 90
+
+
+# =============================================================================
+# ThruInput Enum Tests
+# =============================================================================
+
+class TestThruInputEnum:
+    """ThruInput enum tests for Thru machine input selection."""
+
+    def test_thru_in_ab_returns_enum(self):
+        """Test that in_ab returns ThruInput enum."""
+        from octapy import ThruInput
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        assert isinstance(thru.in_ab, ThruInput)
+
+    def test_thru_set_in_ab_with_enum(self):
+        """Test setting in_ab with ThruInput enum."""
+        from octapy import ThruInput
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        thru.in_ab = ThruInput.A_PLUS_B
+        assert thru.in_ab == ThruInput.A_PLUS_B
+
+    def test_thru_set_in_ab_with_int(self):
+        """Test setting in_ab with integer."""
+        from octapy import ThruInput
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        thru.in_ab = 2  # ThruInput.A
+        assert thru.in_ab == ThruInput.A
+
+    def test_thru_in_cd_returns_enum(self):
+        """Test that in_cd returns ThruInput enum."""
+        from octapy import ThruInput
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+        assert isinstance(thru.in_cd, ThruInput)
+
+    def test_thru_all_input_values(self):
+        """Test all ThruInput enum values."""
+        from octapy import ThruInput
+        project = Project.from_template("TEST")
+        thru = project.bank(1).part(1).thru_track(1)
+
+        for input_val in [ThruInput.OFF, ThruInput.A_PLUS_B, ThruInput.A, ThruInput.B, ThruInput.A_B]:
+            thru.in_ab = input_val
+            assert thru.in_ab == input_val
+
+
+# =============================================================================
+# MIDI Part Track Note2/3/4 Tests
+# =============================================================================
+
+class TestMidiPartTrackChordNotes:
+    """MidiPartTrack chord note (note2/3/4) tests."""
+
+    def test_default_note2_default(self):
+        """Test default note2 value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.default_note2 == 64  # Template default (no offset)
+
+    def test_set_default_note2(self):
+        """Test setting default_note2."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.default_note2 = 71  # +7 semitones
+        assert midi_track.default_note2 == 71
+
+    def test_default_note3_default(self):
+        """Test default note3 value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.default_note3 == 64  # Template default (no offset)
+
+    def test_set_default_note3(self):
+        """Test setting default_note3."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.default_note3 = 76  # +12 semitones (octave)
+        assert midi_track.default_note3 == 76
+
+    def test_default_note4_default(self):
+        """Test default note4 value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.default_note4 == 64  # Template default (no offset)
+
+    def test_set_default_note4(self):
+        """Test setting default_note4."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.default_note4 = 52  # -12 semitones (octave down)
+        assert midi_track.default_note4 == 52
+
+    def test_chord_notes_independent(self):
+        """Test that chord notes are independent."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.default_note2 = 67
+        midi_track.default_note3 = 71
+        midi_track.default_note4 = 76
+        assert midi_track.default_note2 == 67
+        assert midi_track.default_note3 == 71
+        assert midi_track.default_note4 == 76
+
+    def test_chord_notes_roundtrip(self, temp_dir):
+        """Test chord notes survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.default_note2 = 67  # Perfect 5th
+        midi_track.default_note3 = 71  # Major 7th
+        midi_track.default_note4 = 76  # Octave
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_midi = loaded.bank(1).part(1).midi_track(1)
+        assert loaded_midi.default_note2 == 67
+        assert loaded_midi.default_note3 == 71
+        assert loaded_midi.default_note4 == 76

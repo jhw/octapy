@@ -249,7 +249,80 @@ class PartOffset(IntEnum):
     ACTIVE_SCENE_B = 26             # 1 byte: scene B (0-15)
     AUDIO_TRACK_VOLUMES = 27        # 16 bytes: main/cue volume per track
     AUDIO_TRACK_MACHINE_TYPES = 43  # 8 bytes: machine type per track
+    # Machine params values (Playback page): 8 tracks * 30 bytes = 240 bytes
+    AUDIO_TRACK_MACHINE_PARAMS_VALUES = 51
+    # Track params values (LFO/Amp/FX): 8 tracks * 24 bytes = 192 bytes
+    AUDIO_TRACK_PARAMS_VALUES = 291
+    # Machine params setup: 8 tracks * 30 bytes = 240 bytes
+    AUDIO_TRACK_MACHINE_PARAMS_SETUP = 483
     AUDIO_TRACK_MACHINE_SLOTS = 723 # 40 bytes: 8 tracks * 5 bytes
+
+
+# Machine params sizes
+MACHINE_PARAMS_SIZE = 30  # 5 machines * 6 bytes per track
+
+
+class MachineParamsOffset(IntEnum):
+    """Offsets within AudioTrackMachinesParams (30 bytes per track).
+
+    Each machine has 6 parameter bytes for the Playback page (Values)
+    and 6 bytes for the Setup page.
+    """
+    STATIC = 0   # 6 bytes
+    FLEX = 6     # 6 bytes
+    THRU = 12    # 6 bytes
+    NEIGHBOR = 18  # 6 bytes
+    PICKUP = 24  # 6 bytes
+
+
+class FlexStaticParamsOffset(IntEnum):
+    """Playback page params for Flex/Static machines (6 bytes)."""
+    PTCH = 0  # Pitch (64 = no transpose)
+    STRT = 1  # Start point
+    LEN = 2   # Length
+    RATE = 3  # Playback rate
+    RTRG = 4  # Retrig
+    RTIM = 5  # Retrig time
+
+
+class FlexStaticSetupOffset(IntEnum):
+    """Setup page params for Flex/Static machines (6 bytes)."""
+    LOOP = 0  # Loop mode
+    SLIC = 1  # Slice mode
+    LEN = 2   # Length mode
+    RATE = 3  # Rate mode
+    TSTR = 4  # Timestretch
+    TSNS = 5  # Timestretch sensitivity
+
+
+class ThruParamsOffset(IntEnum):
+    """Playback page params for Thru machine (6 bytes)."""
+    IN_AB = 0    # Input A/B select
+    VOL_AB = 1   # Volume A/B
+    UNUSED_1 = 2
+    IN_CD = 3    # Input C/D select
+    VOL_CD = 4   # Volume C/D
+    UNUSED_2 = 5
+
+
+class PickupParamsOffset(IntEnum):
+    """Playback page params for Pickup machine (6 bytes)."""
+    PTCH = 0   # Pitch
+    DIR = 1    # Direction
+    LEN = 2    # Length
+    UNUSED = 3
+    GAIN = 4   # Gain
+    OP = 5     # Operation mode
+
+
+class PickupSetupOffset(IntEnum):
+    """Setup page params for Pickup machine (6 bytes)."""
+    UNUSED_1 = 0
+    UNUSED_2 = 1
+    UNUSED_3 = 2
+    UNUSED_4 = 3
+    TSTR = 4   # Timestretch
+    TSNS = 5   # Timestretch sensitivity
 
 
 class MachineSlotOffset(IntEnum):

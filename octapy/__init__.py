@@ -34,6 +34,7 @@ Example:
 # Enums and exceptions
 from .api.enums import (
     MachineType,
+    ThruInput,
     FX1Type,
     FX2Type,
     TrigCondition,
@@ -67,6 +68,7 @@ __all__ = [
     "SamplePool",
     # Enums
     "MachineType",
+    "ThruInput",
     "FX1Type",
     "FX2Type",
     "TrigCondition",
