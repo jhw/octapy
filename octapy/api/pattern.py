@@ -4,8 +4,13 @@ Pattern and AudioPatternTrack classes for sequence programming.
 
 from typing import TYPE_CHECKING, Dict, List
 
-from .._io import AudioTrackOffset, PatternOffset
-from .step import AudioStep, _trig_mask_to_steps, _steps_to_trig_mask
+from .._io import (
+    AudioTrackOffset,
+    PatternOffset,
+    MidiTrackTrigsOffset,
+    MIDI_TRACK_PATTERN_SIZE,
+)
+from .step import AudioStep, MidiStep, _trig_mask_to_steps, _steps_to_trig_mask
 
 if TYPE_CHECKING:
     from .bank import Bank
@@ -76,6 +81,75 @@ class AudioPatternTrack:
         _steps_to_trig_mask(data, offset, value)
 
 
+class MidiPatternTrack:
+    """
+    MIDI sequence data for a track within a Pattern.
+
+    Provides access to 64 steps and their trigger states for MIDI sequencing.
+    This is separate from MidiPartTrack which handles sound/channel configuration.
+
+    Usage:
+        midi_track = pattern.midi_track(1)
+        midi_track.active_steps = [1, 5, 9, 13]
+        midi_track.step(5).note = 60  # Middle C
+        midi_track.step(5).velocity = 100
+    """
+
+    def __init__(self, pattern: "Pattern", track_num: int):
+        self._pattern = pattern
+        self._track_num = track_num
+        self._steps: Dict[int, MidiStep] = {}
+
+    def _track_offset(self) -> int:
+        """Get the byte offset for this MIDI track in the bank file."""
+        pattern_offset = self._pattern._bank._bank_file.pattern_offset(
+            self._pattern._pattern_num
+        )
+        return (pattern_offset +
+                PatternOffset.MIDI_TRACKS +
+                (self._track_num - 1) * MIDI_TRACK_PATTERN_SIZE)
+
+    def step(self, step_num: int) -> MidiStep:
+        """
+        Get a specific step (1-64).
+
+        Args:
+            step_num: Step number (1-64)
+
+        Returns:
+            MidiStep instance for this position
+        """
+        if step_num not in self._steps:
+            self._steps[step_num] = MidiStep(self, step_num)
+        return self._steps[step_num]
+
+    @property
+    def active_steps(self) -> List[int]:
+        """Get/set active trigger steps (1-indexed list)."""
+        data = self._pattern._bank._bank_file._data
+        offset = self._track_offset() + MidiTrackTrigsOffset.TRIG_TRIGGER
+        return _trig_mask_to_steps(data, offset)
+
+    @active_steps.setter
+    def active_steps(self, value: List[int]):
+        data = self._pattern._bank._bank_file._data
+        offset = self._track_offset() + MidiTrackTrigsOffset.TRIG_TRIGGER
+        _steps_to_trig_mask(data, offset, value)
+
+    @property
+    def trigless_steps(self) -> List[int]:
+        """Get/set trigless (envelope) steps (1-indexed list)."""
+        data = self._pattern._bank._bank_file._data
+        offset = self._track_offset() + MidiTrackTrigsOffset.TRIG_TRIGLESS
+        return _trig_mask_to_steps(data, offset)
+
+    @trigless_steps.setter
+    def trigless_steps(self, value: List[int]):
+        data = self._pattern._bank._bank_file._data
+        offset = self._track_offset() + MidiTrackTrigsOffset.TRIG_TRIGLESS
+        _steps_to_trig_mask(data, offset, value)
+
+
 class Pattern:
     """
     Pythonic interface for an Octatrack Pattern.
@@ -94,6 +168,7 @@ class Pattern:
         self._bank = bank
         self._pattern_num = pattern_num
         self._tracks: Dict[int, AudioPatternTrack] = {}
+        self._midi_tracks: Dict[int, MidiPatternTrack] = {}
 
     def _pattern_offset(self) -> int:
         """Get the byte offset for this pattern in the bank file."""
@@ -125,3 +200,17 @@ class Pattern:
         if track_num not in self._tracks:
             self._tracks[track_num] = AudioPatternTrack(self, track_num)
         return self._tracks[track_num]
+
+    def midi_track(self, track_num: int) -> MidiPatternTrack:
+        """
+        Get MIDI sequence data for a track (1-8).
+
+        Args:
+            track_num: Track number (1-8)
+
+        Returns:
+            MidiPatternTrack instance for configuring MIDI steps
+        """
+        if track_num not in self._midi_tracks:
+            self._midi_tracks[track_num] = MidiPatternTrack(self, track_num)
+        return self._midi_tracks[track_num]

@@ -26,6 +26,8 @@ from .bank import (
     MidiPartOffset,
     MidiTrackValuesOffset,
     MidiTrackSetupOffset,
+    MidiTrackTrigsOffset,
+    MidiPlockOffset,
     BANK_FILE_SIZE,
     BANK_HEADER,
     BANK_FILE_VERSION,
@@ -41,6 +43,8 @@ from .bank import (
     PLOCK_DISABLED,
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
+    MIDI_TRACK_PATTERN_SIZE,
+    MIDI_PLOCK_SIZE,
 )
 
 from .markers import (

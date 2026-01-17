@@ -442,3 +442,281 @@ class TestPlockRoundTrip:
         loaded = Project.from_directory(temp_dir / "TEST")
 
         assert loaded.tempo == 124.0
+
+
+# =============================================================================
+# MIDI Pattern Track Tests
+# =============================================================================
+
+class TestMidiPatternTrackBasics:
+    """MidiPatternTrack basic tests."""
+
+    def test_get_midi_pattern_track(self):
+        """Test getting a MidiPatternTrack."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+        assert midi_track is not None
+
+    def test_get_all_midi_tracks(self):
+        """Test getting all 8 MIDI tracks."""
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
+        for i in range(1, 9):
+            midi_track = pattern.midi_track(i)
+            assert midi_track is not None
+
+    def test_midi_active_steps_default_empty(self):
+        """Test MIDI active steps default to empty."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+        assert midi_track.active_steps == []
+
+
+class TestMidiPatternTrackSteps:
+    """MidiPatternTrack step operations tests."""
+
+    def test_set_active_steps(self):
+        """Test setting active trigger steps."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        steps = [1, 5, 9, 13]
+        midi_track.active_steps = steps
+
+        assert midi_track.active_steps == steps
+
+    def test_set_active_steps_extended(self):
+        """Test setting extended trigger steps (17-64)."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        steps = [17, 33, 49, 64]
+        midi_track.active_steps = steps
+
+        assert midi_track.active_steps == steps
+
+    def test_clear_active_steps(self):
+        """Test clearing trigger steps."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.active_steps = [1, 5, 9, 13]
+        midi_track.active_steps = []
+
+        assert midi_track.active_steps == []
+
+    def test_trigless_steps(self):
+        """Test setting trigless steps."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.trigless_steps = [2, 6, 10, 14]
+        assert midi_track.trigless_steps == [2, 6, 10, 14]
+
+
+class TestMidiStep:
+    """MidiStep (individual step) tests."""
+
+    def test_get_step(self):
+        """Test getting a MidiStep."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step is not None
+
+    def test_step_active_property(self):
+        """Test step active property."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.active = True
+        assert step.active is True
+
+        # Verify appears in active_steps
+        assert 5 in project.bank(1).pattern(1).midi_track(1).active_steps
+
+    def test_step_trigless_property(self):
+        """Test step trigless property."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.trigless = True
+        assert step.trigless is True
+
+    def test_step_matches_active_steps(self):
+        """Test that MidiStep.active matches active_steps list."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.active_steps = [1, 5, 9, 13]
+
+        assert midi_track.step(1).active is True
+        assert midi_track.step(5).active is True
+        assert midi_track.step(9).active is True
+        assert midi_track.step(13).active is True
+        assert midi_track.step(2).active is False
+
+
+class TestMidiStepPlocks:
+    """MidiStep p-lock (parameter lock) tests."""
+
+    def test_note_default_none(self):
+        """Test note p-lock defaults to None (disabled)."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.note is None
+
+    def test_set_note(self):
+        """Test setting note p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.note = 60  # Middle C
+        assert step.note == 60
+
+    def test_clear_note(self):
+        """Test clearing note p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.note = 60
+        step.note = None
+        assert step.note is None
+
+    def test_velocity_default_none(self):
+        """Test velocity p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.velocity is None
+
+    def test_set_velocity(self):
+        """Test setting velocity p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.velocity = 100
+        assert step.velocity == 100
+
+    def test_length_default_none(self):
+        """Test length p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.length is None
+
+    def test_set_length(self):
+        """Test setting length p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.length = 12  # 1/8 note
+        assert step.length == 12
+
+    def test_plocks_independent_per_step(self):
+        """Test that p-locks are independent per step."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.step(1).note = 48  # C3
+        midi_track.step(5).note = 60  # C4
+        midi_track.step(9).note = 72  # C5
+
+        assert midi_track.step(1).note == 48
+        assert midi_track.step(5).note == 60
+        assert midi_track.step(9).note == 72
+        assert midi_track.step(2).note is None
+
+    def test_plocks_independent_per_track(self):
+        """Test that p-locks are independent per track."""
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
+
+        pattern.midi_track(1).step(1).note = 48
+        pattern.midi_track(2).step(1).note = 60
+
+        assert pattern.midi_track(1).step(1).note == 48
+        assert pattern.midi_track(2).step(1).note == 60
+
+
+class TestMidiStepCondition:
+    """MidiStep condition tests."""
+
+    def test_condition_default_none(self):
+        """Test condition defaults to NONE."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(1)
+        assert step.condition == TrigCondition.NONE
+
+    def test_set_condition_fill(self):
+        """Test setting FILL condition."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.condition = TrigCondition.FILL
+        assert step.condition == TrigCondition.FILL
+
+    def test_set_probability(self):
+        """Test setting probability."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.probability = 0.5
+        assert step.probability == 0.5
+
+
+class TestMidiPatternRoundTrip:
+    """MIDI pattern read/write round-trip tests."""
+
+    def test_active_steps_survive_save(self, temp_dir):
+        """Test that MIDI active steps survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.active_steps = [1, 5, 9, 13]
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        assert loaded.bank(1).pattern(1).midi_track(1).active_steps == [1, 5, 9, 13]
+
+    def test_plocks_survive_save(self, temp_dir):
+        """Test that MIDI p-locks survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.step(1).note = 48
+        midi_track.step(5).velocity = 100
+        midi_track.step(9).length = 12
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        loaded_track = loaded.bank(1).pattern(1).midi_track(1)
+        assert loaded_track.step(1).note == 48
+        assert loaded_track.step(5).velocity == 100
+        assert loaded_track.step(9).length == 12
+
+    def test_condition_survives_save(self, temp_dir):
+        """Test that MIDI conditions survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).pattern(1).midi_track(1)
+
+        midi_track.step(5).condition = TrigCondition.FILL
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        assert loaded.bank(1).pattern(1).midi_track(1).step(5).condition == TrigCondition.FILL
+
+    def test_all_tracks_survive_save(self, temp_dir):
+        """Test all 8 MIDI tracks survive save/load."""
+        project = Project.from_template("TEST")
+        pattern = project.bank(1).pattern(1)
+
+        for track_num in range(1, 9):
+            pattern.midi_track(track_num).active_steps = [track_num, track_num + 8]
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        for track_num in range(1, 9):
+            expected = [track_num, track_num + 8]
+            assert loaded.bank(1).pattern(1).midi_track(track_num).active_steps == expected

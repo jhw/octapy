@@ -146,9 +146,96 @@ class PatternOffset(IntEnum):
     """Offsets within a pattern block (relative to pattern start)."""
     HEADER = 0                  # 8 bytes: "PTRN...."
     AUDIO_TRACKS = 8            # 8 audio tracks, each AUDIO_TRACK_SIZE bytes
+    MIDI_TRACKS = 18712         # 8 MIDI tracks start here (0x4918)
     SCALE_LENGTH = 36577        # 1 byte: pattern length (16 = 16 steps)
     SCALE_MULT = 36578          # 1 byte: scale multiplier
     PART_ASSIGNMENT = 36581     # 1 byte: assigned part (0-3 = Part 1-4)
+
+
+# MIDI track pattern size (MidiTrackTrigs structure)
+MIDI_TRACK_PATTERN_SIZE = 2233  # bytes per MIDI track in pattern
+
+
+class MidiTrackTrigsOffset(IntEnum):
+    """Offsets within MidiTrackTrigs (2233 bytes per track).
+
+    Structure:
+    - header (4 bytes): "MTRA"
+    - unknown_1 (4 bytes)
+    - track_id (1 byte)
+    - trig_masks (40 bytes): trigger, trigless, plock, swing, unknown
+    - scale_per_track_mode (2 bytes)
+    - swing_amount (1 byte)
+    - pattern_settings (5 bytes)
+    - plocks (2048 bytes): 64 steps * 32 bytes
+    - trig_conditions (128 bytes): 64 steps * 2 bytes
+    """
+    HEADER = 0              # 4 bytes: "MTRA"
+    UNKNOWN_1 = 4           # 4 bytes
+    TRACK_ID = 8            # 1 byte
+    TRIG_TRIGGER = 9        # 8 bytes: trigger trig masks
+    TRIG_TRIGLESS = 17      # 8 bytes: trigless trig masks
+    TRIG_PLOCK = 25         # 8 bytes: p-lock trig masks
+    TRIG_SWING = 33         # 8 bytes: swing trig masks
+    TRIG_UNKNOWN = 41       # 8 bytes: unknown masks
+    PER_TRACK_LEN = 49      # 1 byte
+    PER_TRACK_SCALE = 50    # 1 byte
+    SWING_AMOUNT = 51       # 1 byte
+    PATTERN_SETTINGS = 52   # 5 bytes: start_silent, plays_free, trig_mode, trig_quant, oneshot_trk
+    PLOCKS = 57             # 2048 bytes: 64 steps * 32 bytes
+    TRIG_CONDITIONS = 2105  # 128 bytes: 64 steps * 2 bytes
+
+
+# MIDI p-lock size per step
+MIDI_PLOCK_SIZE = 32
+
+
+class MidiPlockOffset(IntEnum):
+    """Offsets within MidiTrackParameterLocks (32 bytes per step).
+
+    Structure:
+    - midi (6 bytes): note, vel, len, not2, not3, not4
+    - lfo (6 bytes): spd1, spd2, spd3, dep1, dep2, dep3
+    - arp (6 bytes): tran, leg, mode, spd, rnge, nlen
+    - ctrl1 (6 bytes): pb, at, cc1, cc2, cc3, cc4
+    - ctrl2 (6 bytes): cc5, cc6, cc7, cc8, cc9, cc10
+    - unknown (2 bytes)
+    """
+    # MIDI/Note page (offset 0-5)
+    NOTE = 0
+    VELOCITY = 1
+    LENGTH = 2
+    NOTE2 = 3
+    NOTE3 = 4
+    NOTE4 = 5
+    # LFO page (offset 6-11)
+    LFO_SPD1 = 6
+    LFO_SPD2 = 7
+    LFO_SPD3 = 8
+    LFO_DEP1 = 9
+    LFO_DEP2 = 10
+    LFO_DEP3 = 11
+    # Arp page (offset 12-17)
+    ARP_TRAN = 12
+    ARP_LEG = 13
+    ARP_MODE = 14
+    ARP_SPD = 15
+    ARP_RNGE = 16
+    ARP_NLEN = 17
+    # CC1 page (offset 18-23)
+    PITCH_BEND = 18
+    AFTERTOUCH = 19
+    CC1 = 20
+    CC2 = 21
+    CC3 = 22
+    CC4 = 23
+    # CC2 page (offset 24-29)
+    CC5 = 24
+    CC6 = 25
+    CC7 = 26
+    CC8 = 27
+    CC9 = 28
+    CC10 = 29
 
 
 class PartOffset(IntEnum):

@@ -1,10 +1,18 @@
 """
-AudioStep class for individual steps within an AudioPatternTrack.
+AudioStep and MidiStep classes for individual steps within pattern tracks.
 """
 
 from typing import List, Optional
 
-from .._io import AudioTrackOffset, PlockOffset, PLOCK_SIZE, PLOCK_DISABLED
+from .._io import (
+    AudioTrackOffset,
+    PlockOffset,
+    MidiTrackTrigsOffset,
+    MidiPlockOffset,
+    PLOCK_SIZE,
+    PLOCK_DISABLED,
+    MIDI_PLOCK_SIZE,
+)
 
 
 # =============================================================================
@@ -270,6 +278,223 @@ class AudioStep:
     @sample_lock.setter
     def sample_lock(self, value: Optional[int]):
         self._set_plock(PlockOffset.FLEX_SLOT_ID, value)
+
+    @property
+    def probability(self) -> Optional[float]:
+        """
+        Get/set probability for this step as a float (0.0-1.0).
+
+        Returns the probability if a probability condition is set,
+        or None if no probability condition is active.
+
+        Setting a value sets the closest matching probability condition.
+        Set to None or 1.0 to clear probability (always trigger).
+        """
+        from .enums import TrigCondition, PROBABILITY_MAP
+        return PROBABILITY_MAP.get(self.condition)
+
+    @probability.setter
+    def probability(self, value: Optional[float]):
+        from .enums import TrigCondition, PROBABILITY_MAP
+
+        if value is None or value >= 1.0:
+            self.condition = TrigCondition.NONE
+            return
+
+        # Find closest match
+        closest = min(PROBABILITY_MAP.items(), key=lambda x: abs(x[1] - value))
+        self.condition = closest[0]
+
+
+# =============================================================================
+# MidiStep Class
+# =============================================================================
+
+class MidiStep:
+    """
+    Individual step within a MIDI pattern track.
+
+    Provides access to step properties including active state, trigless state,
+    condition, and MIDI-specific p-locks (note, velocity, length).
+
+    Usage:
+        step = pattern.midi_track(1).step(5)
+        step.active = True
+        step.note = 60       # Middle C
+        step.velocity = 100  # Note velocity
+        step.length = 6      # 1/16 note length
+    """
+
+    def __init__(self, pattern_track, step_num: int):
+        self._pattern_track = pattern_track
+        self._step_num = step_num  # 1-64
+
+    def _get_trig_bit_location(self) -> tuple:
+        """Get (byte_offset, bit_position) for this step in the trig mask."""
+        step = self._step_num
+        base_offset = self._pattern_track._track_offset()
+
+        # Calculate byte and bit position based on step number
+        # Same layout as audio: reversed byte order within pages
+        if step <= 8:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 7, step - 1)
+        elif step <= 16:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 6, step - 9)
+        elif step <= 24:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 4, step - 17)
+        elif step <= 32:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 5, step - 25)
+        elif step <= 40:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 2, step - 33)
+        elif step <= 48:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 3, step - 41)
+        elif step <= 56:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 0, step - 49)
+        else:
+            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 1, step - 57)
+
+    def _get_bit(self, trig_type_offset: int) -> bool:
+        """Get a single trig bit (active or trigless)."""
+        data = self._pattern_track._pattern._bank._bank_file._data
+        byte_offset, bit_pos = self._get_trig_bit_location()
+        # Adjust offset from TRIG_TRIGGER to the specific trig type
+        byte_offset = byte_offset - MidiTrackTrigsOffset.TRIG_TRIGGER + trig_type_offset
+        return bool(data[byte_offset] & (1 << bit_pos))
+
+    def _set_bit(self, trig_type_offset: int, value: bool):
+        """Set a single trig bit (active or trigless)."""
+        data = self._pattern_track._pattern._bank._bank_file._data
+        byte_offset, bit_pos = self._get_trig_bit_location()
+        byte_offset = byte_offset - MidiTrackTrigsOffset.TRIG_TRIGGER + trig_type_offset
+        if value:
+            data[byte_offset] |= (1 << bit_pos)
+        else:
+            data[byte_offset] &= ~(1 << bit_pos)
+
+    def _plock_offset(self, param_offset: int) -> int:
+        """Get the absolute byte offset for a p-lock parameter on this step."""
+        track_offset = self._pattern_track._track_offset()
+        step_index = self._step_num - 1  # 0-indexed
+        return track_offset + MidiTrackTrigsOffset.PLOCKS + (step_index * MIDI_PLOCK_SIZE) + param_offset
+
+    def _get_plock(self, param_offset: int) -> Optional[int]:
+        """Get a p-lock value. Returns None if disabled (255)."""
+        data = self._pattern_track._pattern._bank._bank_file._data
+        offset = self._plock_offset(param_offset)
+        value = data[offset]
+        return None if value == PLOCK_DISABLED else value
+
+    def _set_plock(self, param_offset: int, value: Optional[int]):
+        """Set a p-lock value. None disables the p-lock."""
+        data = self._pattern_track._pattern._bank._bank_file._data
+        offset = self._plock_offset(param_offset)
+        if value is None:
+            data[offset] = PLOCK_DISABLED
+        else:
+            data[offset] = value & 0xFF
+
+    def _condition_offset(self) -> int:
+        """Get the absolute byte offset for trig condition data on this step."""
+        track_offset = self._pattern_track._track_offset()
+        step_index = self._step_num - 1  # 0-indexed
+        # Each step has 2 bytes: [count/microtiming, condition/microtiming]
+        return track_offset + MidiTrackTrigsOffset.TRIG_CONDITIONS + (step_index * 2) + 1
+
+    # === Trig state properties ===
+
+    @property
+    def active(self) -> bool:
+        """Get/set whether this step has an active trigger."""
+        return self._get_bit(MidiTrackTrigsOffset.TRIG_TRIGGER)
+
+    @active.setter
+    def active(self, value: bool):
+        self._set_bit(MidiTrackTrigsOffset.TRIG_TRIGGER, value)
+
+    @property
+    def trigless(self) -> bool:
+        """Get/set whether this step has a trigless (envelope) trigger."""
+        return self._get_bit(MidiTrackTrigsOffset.TRIG_TRIGLESS)
+
+    @trigless.setter
+    def trigless(self, value: bool):
+        self._set_bit(MidiTrackTrigsOffset.TRIG_TRIGLESS, value)
+
+    # === Trig condition ===
+
+    @property
+    def condition(self):
+        """
+        Get/set the trig condition for this step.
+
+        The condition determines when this step triggers (FILL, probability, etc.).
+        """
+        from .enums import TrigCondition
+        data = self._pattern_track._pattern._bank._bank_file._data
+        offset = self._condition_offset()
+        # Condition is stored in lower 7 bits (0-64), bit 7 is micro-timing
+        raw_value = data[offset] & 0x7F
+        try:
+            return TrigCondition(raw_value)
+        except ValueError:
+            return TrigCondition.NONE
+
+    @condition.setter
+    def condition(self, value):
+        from .enums import TrigCondition
+        data = self._pattern_track._pattern._bank._bank_file._data
+        offset = self._condition_offset()
+        # Preserve micro-timing bit (bit 7), set condition in lower 7 bits
+        current = data[offset]
+        micro_timing_bit = current & 0x80
+        data[offset] = micro_timing_bit | (int(value) & 0x7F)
+
+    # === MIDI P-lock properties ===
+
+    @property
+    def note(self) -> Optional[int]:
+        """
+        Get/set p-locked MIDI note for this step.
+
+        Value range: 0-127 (60 = Middle C)
+        Returns None if no p-lock is set (uses Part default).
+        Set to None to clear the p-lock.
+        """
+        return self._get_plock(MidiPlockOffset.NOTE)
+
+    @note.setter
+    def note(self, value: Optional[int]):
+        self._set_plock(MidiPlockOffset.NOTE, value)
+
+    @property
+    def velocity(self) -> Optional[int]:
+        """
+        Get/set p-locked MIDI velocity for this step.
+
+        Value range: 0-127
+        Returns None if no p-lock is set (uses Part default).
+        Set to None to clear the p-lock.
+        """
+        return self._get_plock(MidiPlockOffset.VELOCITY)
+
+    @velocity.setter
+    def velocity(self, value: Optional[int]):
+        self._set_plock(MidiPlockOffset.VELOCITY, value)
+
+    @property
+    def length(self) -> Optional[int]:
+        """
+        Get/set p-locked MIDI note length for this step.
+
+        Value range: 0-127 (6 = 1/16 note)
+        Returns None if no p-lock is set (uses Part default).
+        Set to None to clear the p-lock.
+        """
+        return self._get_plock(MidiPlockOffset.LENGTH)
+
+    @length.setter
+    def length(self, value: Optional[int]):
+        self._set_plock(MidiPlockOffset.LENGTH, value)
 
     @property
     def probability(self) -> Optional[float]:
