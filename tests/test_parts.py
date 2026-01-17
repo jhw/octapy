@@ -847,3 +847,220 @@ class TestMidiPartTrackChordNotes:
         assert loaded_midi.default_note2 == 67
         assert loaded_midi.default_note3 == 71
         assert loaded_midi.default_note4 == 76
+
+
+# =============================================================================
+# AMP Page Tests (AudioPartTrack)
+# =============================================================================
+
+class TestAudioPartTrackAmpPage:
+    """AudioPartTrack AMP page parameter tests."""
+
+    def test_attack_default(self):
+        """Test default attack value."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        assert track.attack == 0
+
+    def test_set_attack(self):
+        """Test setting attack."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.attack = 64
+        assert track.attack == 64
+
+    def test_hold_default(self):
+        """Test default hold value."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        assert track.hold == 127
+
+    def test_set_hold(self):
+        """Test setting hold."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.hold = 64
+        assert track.hold == 64
+
+    def test_release_default(self):
+        """Test default release value."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        assert track.release == 127
+
+    def test_set_release(self):
+        """Test setting release."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.release = 100
+        assert track.release == 100
+
+    def test_amp_volume_default(self):
+        """Test default amp volume value."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        assert track.amp_volume == 64
+
+    def test_set_amp_volume(self):
+        """Test setting amp volume."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.amp_volume = 80
+        assert track.amp_volume == 80
+
+    def test_balance_default(self):
+        """Test default balance value."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        assert track.balance == 64
+
+    def test_set_balance(self):
+        """Test setting balance."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.balance = 32  # Pan left
+        assert track.balance == 32
+
+    def test_amp_all_tracks(self):
+        """Test AMP page for all 8 tracks."""
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            track = part.track(track_num)
+            track.attack = track_num * 10
+            assert track.attack == track_num * 10
+
+    def test_amp_roundtrip(self, temp_dir):
+        """Test AMP parameters survive save/load."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).part(1).track(1)
+        track.attack = 30
+        track.hold = 80
+        track.release = 50
+        track.amp_volume = 90
+        track.balance = 40
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_track = loaded.bank(1).part(1).track(1)
+        assert loaded_track.attack == 30
+        assert loaded_track.hold == 80
+        assert loaded_track.release == 50
+        assert loaded_track.amp_volume == 90
+        assert loaded_track.balance == 40
+
+
+# =============================================================================
+# ARP Page Tests (MidiPartTrack)
+# =============================================================================
+
+class TestMidiPartTrackArpPage:
+    """MidiPartTrack ARP page parameter tests."""
+
+    def test_arp_transpose_default(self):
+        """Test default arp_transpose value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.arp_transpose == 64  # No transpose
+
+    def test_set_arp_transpose(self):
+        """Test setting arp_transpose."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_transpose = 76  # +12 semitones
+        assert midi_track.arp_transpose == 76
+
+    def test_arp_legato_default(self):
+        """Test default arp_legato value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.arp_legato == 0
+
+    def test_set_arp_legato(self):
+        """Test setting arp_legato."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_legato = 64
+        assert midi_track.arp_legato == 64
+
+    def test_arp_mode_default(self):
+        """Test default arp_mode value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.arp_mode == 0
+
+    def test_set_arp_mode(self):
+        """Test setting arp_mode."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_mode = 3
+        assert midi_track.arp_mode == 3
+
+    def test_arp_speed_default(self):
+        """Test default arp_speed value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.arp_speed == 5
+
+    def test_set_arp_speed(self):
+        """Test setting arp_speed."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_speed = 48
+        assert midi_track.arp_speed == 48
+
+    def test_arp_range_default(self):
+        """Test default arp_range value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.arp_range == 0
+
+    def test_set_arp_range(self):
+        """Test setting arp_range."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_range = 24
+        assert midi_track.arp_range == 24
+
+    def test_arp_note_length_default(self):
+        """Test default arp_note_length value."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.arp_note_length == 6
+
+    def test_set_arp_note_length(self):
+        """Test setting arp_note_length."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_note_length = 12
+        assert midi_track.arp_note_length == 12
+
+    def test_arp_all_tracks(self):
+        """Test ARP page for all 8 MIDI tracks."""
+        project = Project.from_template("TEST")
+        part = project.bank(1).part(1)
+        for track_num in range(1, 9):
+            midi_track = part.midi_track(track_num)
+            midi_track.arp_transpose = 64 + track_num
+            assert midi_track.arp_transpose == 64 + track_num
+
+    def test_arp_roundtrip(self, temp_dir):
+        """Test ARP parameters survive save/load."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        midi_track.arp_transpose = 76
+        midi_track.arp_legato = 64
+        midi_track.arp_mode = 2
+        midi_track.arp_speed = 48
+        midi_track.arp_range = 24
+        midi_track.arp_note_length = 12
+        project.to_directory(temp_dir / "TEST")
+
+        loaded = Project.from_directory(temp_dir / "TEST")
+        loaded_midi = loaded.bank(1).part(1).midi_track(1)
+        assert loaded_midi.arp_transpose == 76
+        assert loaded_midi.arp_legato == 64
+        assert loaded_midi.arp_mode == 2
+        assert loaded_midi.arp_speed == 48
+        assert loaded_midi.arp_range == 24
+        assert loaded_midi.arp_note_length == 12

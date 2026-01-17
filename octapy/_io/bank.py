@@ -334,6 +334,46 @@ class MachineSlotOffset(IntEnum):
     RECORDER_SLOT_ID = 4
 
 
+# Audio track params size (LFO + AMP + FX1 + FX2 = 24 bytes)
+AUDIO_TRACK_PARAMS_SIZE = 24
+
+
+class AudioTrackParamsOffset(IntEnum):
+    """Offsets within AudioTrackParamsValues (24 bytes per track).
+
+    Contains default values for LFO, AMP, FX1, and FX2 pages.
+    These are shared across all machine types.
+    """
+    # LFO page (6 bytes)
+    LFO_SPD1 = 0
+    LFO_SPD2 = 1
+    LFO_SPD3 = 2
+    LFO_DEP1 = 3
+    LFO_DEP2 = 4
+    LFO_DEP3 = 5
+    # AMP page (6 bytes)
+    AMP_ATK = 6
+    AMP_HOLD = 7
+    AMP_REL = 8
+    AMP_VOL = 9
+    AMP_BAL = 10
+    AMP_UNUSED = 11
+    # FX1 page (6 bytes)
+    FX1_PARAM1 = 12
+    FX1_PARAM2 = 13
+    FX1_PARAM3 = 14
+    FX1_PARAM4 = 15
+    FX1_PARAM5 = 16
+    FX1_PARAM6 = 17
+    # FX2 page (6 bytes)
+    FX2_PARAM1 = 18
+    FX2_PARAM2 = 19
+    FX2_PARAM3 = 20
+    FX2_PARAM4 = 21
+    FX2_PARAM5 = 22
+    FX2_PARAM6 = 23
+
+
 # MIDI track data sizes
 MIDI_TRACK_VALUES_SIZE = 32     # MidiTrackParamsValues: 32 bytes per track
 MIDI_TRACK_SETUP_SIZE = 36      # MidiTrackParamsSetup: 36 bytes per track

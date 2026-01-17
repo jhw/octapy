@@ -16,11 +16,13 @@ from .._io import (
     ThruParamsOffset,
     PickupParamsOffset,
     PickupSetupOffset,
+    AudioTrackParamsOffset,
     MidiPartOffset,
     MidiTrackValuesOffset,
     MidiTrackSetupOffset,
     MACHINE_SLOT_SIZE,
     MACHINE_PARAMS_SIZE,
+    AUDIO_TRACK_PARAMS_SIZE,
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
 )
@@ -159,6 +161,67 @@ class AudioPartTrack(BasePartTrack):
                 PartOffset.AUDIO_TRACK_MACHINE_PARAMS_SETUP +
                 (self._track_num - 1) * MACHINE_PARAMS_SIZE +
                 machine_offset)
+
+    def _track_params_offset(self) -> int:
+        """Get offset for track params (LFO/AMP/FX pages)."""
+        return (self._part_offset() +
+                PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                (self._track_num - 1) * AUDIO_TRACK_PARAMS_SIZE)
+
+    # === AMP Page (shared across all audio machines) ===
+    #
+    # AMP Page Encoders:
+    #     A: ATK (attack)     - attack property
+    #     B: HOLD (hold)      - hold property
+    #     C: REL (release)    - release property
+    #     D: VOL (volume)     - amp_volume property
+    #     E: BAL (balance)    - balance property
+    #     F: (unused)
+
+    @property
+    def attack(self) -> int:
+        """Get/set amplitude attack (0-127)."""
+        return self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_ATK]
+
+    @attack.setter
+    def attack(self, value: int):
+        self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_ATK] = value & 0x7F
+
+    @property
+    def hold(self) -> int:
+        """Get/set amplitude hold (0-127)."""
+        return self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_HOLD]
+
+    @hold.setter
+    def hold(self, value: int):
+        self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_HOLD] = value & 0x7F
+
+    @property
+    def release(self) -> int:
+        """Get/set amplitude release (0-127)."""
+        return self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_REL]
+
+    @release.setter
+    def release(self, value: int):
+        self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_REL] = value & 0x7F
+
+    @property
+    def amp_volume(self) -> int:
+        """Get/set amplitude volume (0-127)."""
+        return self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_VOL]
+
+    @amp_volume.setter
+    def amp_volume(self, value: int):
+        self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_VOL] = value & 0x7F
+
+    @property
+    def balance(self) -> int:
+        """Get/set amplitude balance (0-127, 64 = center)."""
+        return self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_BAL]
+
+    @balance.setter
+    def balance(self, value: int):
+        self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_BAL] = value & 0x7F
 
 
 # =============================================================================
@@ -770,6 +833,70 @@ class MidiPartTrack(BasePartTrack):
             raise ValueError(f"CC slot must be 1-10, got {n}")
         offset = self._values_offset() + 19 + n  # CC1 is at offset 20
         self._data[offset] = value & 0x7F
+
+    # === ARP Page ===
+    #
+    # ARP Page Encoders:
+    #     A: TRAN (transpose)   - arp_transpose property
+    #     B: LEG (legato)       - arp_legato property
+    #     C: MODE (arp mode)    - arp_mode property
+    #     D: SPD (speed)        - arp_speed property
+    #     E: RNGE (range)       - arp_range property
+    #     F: NLEN (note length) - arp_note_length property
+
+    @property
+    def arp_transpose(self) -> int:
+        """Get/set arpeggiator transpose (0-127, 64 = no transpose)."""
+        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_TRAN]
+
+    @arp_transpose.setter
+    def arp_transpose(self, value: int):
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_TRAN] = value & 0x7F
+
+    @property
+    def arp_legato(self) -> int:
+        """Get/set arpeggiator legato (0-127)."""
+        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_LEG]
+
+    @arp_legato.setter
+    def arp_legato(self, value: int):
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_LEG] = value & 0x7F
+
+    @property
+    def arp_mode(self) -> int:
+        """Get/set arpeggiator mode (0-127)."""
+        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_MODE]
+
+    @arp_mode.setter
+    def arp_mode(self, value: int):
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_MODE] = value & 0x7F
+
+    @property
+    def arp_speed(self) -> int:
+        """Get/set arpeggiator speed (0-127)."""
+        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_SPD]
+
+    @arp_speed.setter
+    def arp_speed(self, value: int):
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_SPD] = value & 0x7F
+
+    @property
+    def arp_range(self) -> int:
+        """Get/set arpeggiator range (0-127)."""
+        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_RNGE]
+
+    @arp_range.setter
+    def arp_range(self, value: int):
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_RNGE] = value & 0x7F
+
+    @property
+    def arp_note_length(self) -> int:
+        """Get/set arpeggiator note length (0-127)."""
+        return self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN]
+
+    @arp_note_length.setter
+    def arp_note_length(self, value: int):
+        self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN] = value & 0x7F
 
 
 # =============================================================================
