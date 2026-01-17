@@ -157,6 +157,39 @@ class ProjectFile:
             if pattern_tempo_match:
                 self.settings.pattern_tempo_enabled = int(pattern_tempo_match.group(1))
 
+            # Parse MIDI settings
+            midi_clock_send = re.search(r'MIDI_CLOCK_SEND=(\d+)', settings_content)
+            if midi_clock_send:
+                self.settings.midi_clock_send = int(midi_clock_send.group(1))
+
+            midi_clock_receive = re.search(r'MIDI_CLOCK_RECEIVE=(\d+)', settings_content)
+            if midi_clock_receive:
+                self.settings.midi_clock_receive = int(midi_clock_receive.group(1))
+
+            midi_transport_send = re.search(r'MIDI_TRANSPORT_SEND=(\d+)', settings_content)
+            if midi_transport_send:
+                self.settings.midi_transport_send = int(midi_transport_send.group(1))
+
+            midi_transport_receive = re.search(r'MIDI_TRANSPORT_RECEIVE=(\d+)', settings_content)
+            if midi_transport_receive:
+                self.settings.midi_transport_receive = int(midi_transport_receive.group(1))
+
+            midi_pc_send = re.search(r'MIDI_PROGRAM_CHANGE_SEND=(\d+)', settings_content)
+            if midi_pc_send:
+                self.settings.midi_program_change_send = int(midi_pc_send.group(1))
+
+            midi_pc_send_ch = re.search(r'MIDI_PROGRAM_CHANGE_SEND_CH=(-?\d+)', settings_content)
+            if midi_pc_send_ch:
+                self.settings.midi_program_change_send_ch = int(midi_pc_send_ch.group(1))
+
+            midi_pc_receive = re.search(r'MIDI_PROGRAM_CHANGE_RECEIVE=(\d+)', settings_content)
+            if midi_pc_receive:
+                self.settings.midi_program_change_receive = int(midi_pc_receive.group(1))
+
+            midi_pc_receive_ch = re.search(r'MIDI_PROGRAM_CHANGE_RECEIVE_CH=(-?\d+)', settings_content)
+            if midi_pc_receive_ch:
+                self.settings.midi_program_change_receive_ch = int(midi_pc_receive_ch.group(1))
+
         # Parse SAMPLE sections
         sample_matches = re.findall(r'\[SAMPLE\](.*?)\[/SAMPLE\]', content, re.DOTALL)
         for sample_content in sample_matches:

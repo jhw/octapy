@@ -317,6 +317,80 @@ class Project:
     def sample_duration(self, value):
         self._sample_duration = value
 
+    # === MIDI settings ===
+
+    @property
+    def midi_clock_send(self) -> bool:
+        """Enable/disable sending MIDI clock to external gear."""
+        return bool(self._project_file.settings.midi_clock_send)
+
+    @midi_clock_send.setter
+    def midi_clock_send(self, value: bool):
+        self._project_file.settings.midi_clock_send = int(value)
+
+    @property
+    def midi_clock_receive(self) -> bool:
+        """Enable/disable syncing to incoming MIDI clock."""
+        return bool(self._project_file.settings.midi_clock_receive)
+
+    @midi_clock_receive.setter
+    def midi_clock_receive(self, value: bool):
+        self._project_file.settings.midi_clock_receive = int(value)
+
+    @property
+    def midi_transport_send(self) -> bool:
+        """Enable/disable sending MIDI transport (start/stop/continue)."""
+        return bool(self._project_file.settings.midi_transport_send)
+
+    @midi_transport_send.setter
+    def midi_transport_send(self, value: bool):
+        self._project_file.settings.midi_transport_send = int(value)
+
+    @property
+    def midi_transport_receive(self) -> bool:
+        """Enable/disable responding to MIDI transport (start/stop/continue)."""
+        return bool(self._project_file.settings.midi_transport_receive)
+
+    @midi_transport_receive.setter
+    def midi_transport_receive(self, value: bool):
+        self._project_file.settings.midi_transport_receive = int(value)
+
+    @property
+    def midi_program_change_send(self) -> bool:
+        """Enable/disable sending program changes on pattern switch."""
+        return bool(self._project_file.settings.midi_program_change_send)
+
+    @midi_program_change_send.setter
+    def midi_program_change_send(self, value: bool):
+        self._project_file.settings.midi_program_change_send = int(value)
+
+    @property
+    def midi_program_change_send_ch(self) -> int:
+        """MIDI channel for sending program changes (-1 = disabled, 0-15 = channel)."""
+        return self._project_file.settings.midi_program_change_send_ch
+
+    @midi_program_change_send_ch.setter
+    def midi_program_change_send_ch(self, value: int):
+        self._project_file.settings.midi_program_change_send_ch = value
+
+    @property
+    def midi_program_change_receive(self) -> bool:
+        """Enable/disable switching patterns on incoming program change."""
+        return bool(self._project_file.settings.midi_program_change_receive)
+
+    @midi_program_change_receive.setter
+    def midi_program_change_receive(self, value: bool):
+        self._project_file.settings.midi_program_change_receive = int(value)
+
+    @property
+    def midi_program_change_receive_ch(self) -> int:
+        """MIDI channel for receiving program changes (-1 = disabled, 0-15 = channel)."""
+        return self._project_file.settings.midi_program_change_receive_ch
+
+    @midi_program_change_receive_ch.setter
+    def midi_program_change_receive_ch(self, value: int):
+        self._project_file.settings.midi_program_change_receive_ch = value
+
     # === Sample management ===
 
     def _update_flex_count(self) -> None:
