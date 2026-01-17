@@ -2,6 +2,8 @@
 Project class - main entry point for the high-level API.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Dict, Optional
 

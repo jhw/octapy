@@ -31,7 +31,7 @@ Example:
     project.to_zip("output.zip")
 """
 
-# Enums and exceptions
+# Enums
 from .api.enums import (
     MachineType,
     ThruInput,
@@ -39,6 +39,10 @@ from .api.enums import (
     FX2Type,
     TrigCondition,
     SampleDuration,
+)
+
+# Exceptions
+from .api.slot_manager import (
     OctapyError,
     SlotLimitExceeded,
     InvalidSlotNumber,

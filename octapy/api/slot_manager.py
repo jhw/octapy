@@ -2,15 +2,32 @@
 SlotManager - manages sample slot assignments for a project.
 """
 
+from __future__ import annotations
+
 from typing import Dict, Optional
 
-from .enums import (
-    MAX_FLEX_SAMPLE_SLOTS,
-    MAX_STATIC_SAMPLE_SLOTS,
-    RECORDER_SLOTS_START,
-    SlotLimitExceeded,
-    InvalidSlotNumber,
-)
+
+# === Slot limits ===
+MAX_FLEX_SAMPLE_SLOTS = 128  # Slots 1-128 for user samples
+MAX_STATIC_SAMPLE_SLOTS = 128  # Slots 1-128 (separate pool from flex)
+RECORDER_SLOTS_START = 129  # Recorder buffer slots 129-136
+
+
+# === Slot exceptions ===
+
+class OctapyError(Exception):
+    """Base exception for octapy errors."""
+    pass
+
+
+class SlotLimitExceeded(OctapyError):
+    """Raised when trying to add more samples than available slots."""
+    pass
+
+
+class InvalidSlotNumber(OctapyError):
+    """Raised when a slot number is out of valid range."""
+    pass
 
 
 class SlotManager:

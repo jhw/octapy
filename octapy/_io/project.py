@@ -10,10 +10,12 @@ The project file (project.work) is a text-based INI-style file containing:
 IMPORTANT: project.work uses CRLF line endings (\\r\\n), not LF.
 """
 
+from __future__ import annotations
+
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
-import re
 
 
 # =============================================================================

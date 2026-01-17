@@ -18,6 +18,8 @@ from .enums import (
     PatternScale,
     TrigCondition,
     SampleDuration,
+)
+from .slot_manager import (
     OctapyError,
     SlotLimitExceeded,
     InvalidSlotNumber,

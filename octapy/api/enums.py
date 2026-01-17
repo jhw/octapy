@@ -1,31 +1,8 @@
 """
-Enums, constants and exceptions for the Octatrack API.
+Enums for the Octatrack API.
 """
 
 from enum import IntEnum
-
-
-# === Slot limits ===
-MAX_FLEX_SAMPLE_SLOTS = 128  # Slots 1-128 for user samples
-MAX_STATIC_SAMPLE_SLOTS = 128  # Slots 1-128 (separate pool from flex)
-RECORDER_SLOTS_START = 129  # Recorder buffer slots 129-136
-
-
-# === Exceptions ===
-
-class OctapyError(Exception):
-    """Base exception for octapy errors."""
-    pass
-
-
-class SlotLimitExceeded(OctapyError):
-    """Raised when trying to add more samples than available slots."""
-    pass
-
-
-class InvalidSlotNumber(OctapyError):
-    """Raised when a slot number is out of valid range."""
-    pass
 
 
 # === Sample duration ===
@@ -202,29 +179,3 @@ class TrigCondition(IntEnum):
     T6_R8 = 62
     T7_R8 = 63
     T8_R8 = 64
-
-
-# Mapping from probability TrigConditions to float values
-PROBABILITY_MAP = {
-    TrigCondition.PERCENT_1: 0.01,
-    TrigCondition.PERCENT_2: 0.02,
-    TrigCondition.PERCENT_4: 0.04,
-    TrigCondition.PERCENT_6: 0.06,
-    TrigCondition.PERCENT_9: 0.09,
-    TrigCondition.PERCENT_13: 0.13,
-    TrigCondition.PERCENT_19: 0.19,
-    TrigCondition.PERCENT_25: 0.25,
-    TrigCondition.PERCENT_33: 0.33,
-    TrigCondition.PERCENT_41: 0.41,
-    TrigCondition.PERCENT_50: 0.50,
-    TrigCondition.PERCENT_59: 0.59,
-    TrigCondition.PERCENT_67: 0.67,
-    TrigCondition.PERCENT_75: 0.75,
-    TrigCondition.PERCENT_81: 0.81,
-    TrigCondition.PERCENT_87: 0.87,
-    TrigCondition.PERCENT_91: 0.91,
-    TrigCondition.PERCENT_94: 0.94,
-    TrigCondition.PERCENT_96: 0.96,
-    TrigCondition.PERCENT_98: 0.98,
-    TrigCondition.PERCENT_99: 0.99,
-}

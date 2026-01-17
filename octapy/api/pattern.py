@@ -2,8 +2,10 @@
 Pattern and PatternTrack classes for sequence programming.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, List
+from typing import Dict, List
 
 from .._io import (
     AudioTrackOffset,
@@ -12,9 +14,6 @@ from .._io import (
     MIDI_TRACK_PATTERN_SIZE,
 )
 from .step import AudioStep, MidiStep, BaseStep, _trig_mask_to_steps, _steps_to_trig_mask
-
-if TYPE_CHECKING:
-    from .bank import Bank
 
 
 # =============================================================================

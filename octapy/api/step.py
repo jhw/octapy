@@ -2,6 +2,8 @@
 Step classes for individual steps within pattern tracks.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -269,12 +271,13 @@ class BaseStep(ABC):
         Setting a value sets the closest matching probability condition.
         Set to None or 1.0 to clear probability (always trigger).
         """
-        from .enums import PROBABILITY_MAP
+        from .utils import PROBABILITY_MAP
         return PROBABILITY_MAP.get(self.condition)
 
     @probability.setter
     def probability(self, value: Optional[float]):
-        from .enums import TrigCondition, PROBABILITY_MAP
+        from .enums import TrigCondition
+        from .utils import PROBABILITY_MAP
 
         if value is None or value >= 1.0:
             self.condition = TrigCondition.NONE

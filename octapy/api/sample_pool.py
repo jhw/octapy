@@ -2,6 +2,8 @@
 SamplePool - scan and filter samples from a directory.
 """
 
+from __future__ import annotations
+
 import random
 import re
 from pathlib import Path

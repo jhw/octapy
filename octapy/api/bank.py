@@ -2,14 +2,13 @@
 Bank class for managing patterns and parts.
 """
 
-from typing import TYPE_CHECKING, Dict
+from __future__ import annotations
+
+from typing import Dict
 
 from .._io import BankFile
 from .part import Part
 from .pattern import Pattern
-
-if TYPE_CHECKING:
-    from .project import Project
 
 
 class Bank:

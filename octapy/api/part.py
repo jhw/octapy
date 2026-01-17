@@ -2,8 +2,10 @@
 Part and PartTrack classes for sound configuration.
 """
 
+from __future__ import annotations
+
 from abc import ABC
-from typing import TYPE_CHECKING, Dict
+from typing import Dict
 
 from .._io import (
     PartOffset,
@@ -23,9 +25,6 @@ from .._io import (
     MIDI_TRACK_SETUP_SIZE,
 )
 from .enums import MachineType, ThruInput
-
-if TYPE_CHECKING:
-    from .bank import Bank
 
 
 # =============================================================================
