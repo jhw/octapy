@@ -23,6 +23,9 @@ from .bank import (
     PartOffset,
     MachineSlotOffset,
     PlockOffset,
+    MidiPartOffset,
+    MidiTrackValuesOffset,
+    MidiTrackSetupOffset,
     BANK_FILE_SIZE,
     BANK_HEADER,
     BANK_FILE_VERSION,
@@ -36,6 +39,8 @@ from .bank import (
     PLOCK_SIZE,
     NUM_STEPS,
     PLOCK_DISABLED,
+    MIDI_TRACK_VALUES_SIZE,
+    MIDI_TRACK_SETUP_SIZE,
 )
 
 from .markers import (

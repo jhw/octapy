@@ -4,7 +4,16 @@ Part and AudioPartTrack classes for sound configuration.
 
 from typing import TYPE_CHECKING, Dict
 
-from .._io import PartOffset, MachineSlotOffset, MACHINE_SLOT_SIZE
+from .._io import (
+    PartOffset,
+    MachineSlotOffset,
+    MidiPartOffset,
+    MidiTrackValuesOffset,
+    MidiTrackSetupOffset,
+    MACHINE_SLOT_SIZE,
+    MIDI_TRACK_VALUES_SIZE,
+    MIDI_TRACK_SETUP_SIZE,
+)
 from .enums import MachineType
 
 if TYPE_CHECKING:
@@ -125,6 +134,111 @@ class AudioPartTrack:
         data[offset] = value
 
 
+class MidiPartTrack:
+    """
+    MIDI track configuration within a Part.
+
+    Provides access to MIDI channel, program, and default note parameters.
+    This is separate from MidiPatternTrack which handles sequencing.
+
+    Usage:
+        midi_track = part.midi_track(1)
+        midi_track.channel = 5           # MIDI channel 6 (0-indexed)
+        midi_track.program = 32          # Program 33
+        midi_track.default_note = 60     # Middle C
+    """
+
+    def __init__(self, part: "Part", track_num: int):
+        self._part = part
+        self._track_num = track_num
+
+    def _part_offset(self) -> int:
+        """Get the byte offset for this track's part in the bank file."""
+        return self._part._bank._bank_file.part_offset(self._part._part_num)
+
+    def _values_offset(self) -> int:
+        """Get byte offset for this track's MidiTrackParamsValues."""
+        return (self._part_offset() +
+                MidiPartOffset.MIDI_TRACK_PARAMS_VALUES +
+                (self._track_num - 1) * MIDI_TRACK_VALUES_SIZE)
+
+    def _setup_offset(self) -> int:
+        """Get byte offset for this track's MidiTrackParamsSetup."""
+        return (self._part_offset() +
+                MidiPartOffset.MIDI_TRACK_PARAMS_SETUP +
+                (self._track_num - 1) * MIDI_TRACK_SETUP_SIZE)
+
+    # === Setup properties (MidiTrackNoteParamsSetup) ===
+
+    @property
+    def channel(self) -> int:
+        """Get/set the MIDI channel (0-15)."""
+        data = self._part._bank._bank_file._data
+        return data[self._setup_offset() + MidiTrackSetupOffset.CHANNEL]
+
+    @channel.setter
+    def channel(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._setup_offset() + MidiTrackSetupOffset.CHANNEL] = value & 0x0F
+
+    @property
+    def bank(self) -> int:
+        """Get/set the bank select (128 = off)."""
+        data = self._part._bank._bank_file._data
+        return data[self._setup_offset() + MidiTrackSetupOffset.BANK]
+
+    @bank.setter
+    def bank(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._setup_offset() + MidiTrackSetupOffset.BANK] = value & 0xFF
+
+    @property
+    def program(self) -> int:
+        """Get/set the program change (128 = off)."""
+        data = self._part._bank._bank_file._data
+        return data[self._setup_offset() + MidiTrackSetupOffset.PROGRAM]
+
+    @program.setter
+    def program(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._setup_offset() + MidiTrackSetupOffset.PROGRAM] = value & 0xFF
+
+    # === Values properties (MidiTrackMidiParamsValues) ===
+
+    @property
+    def default_note(self) -> int:
+        """Get/set the default note (0-127, 48 = C3)."""
+        data = self._part._bank._bank_file._data
+        return data[self._values_offset() + MidiTrackValuesOffset.NOTE]
+
+    @default_note.setter
+    def default_note(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._values_offset() + MidiTrackValuesOffset.NOTE] = value & 0x7F
+
+    @property
+    def default_velocity(self) -> int:
+        """Get/set the default velocity (0-127)."""
+        data = self._part._bank._bank_file._data
+        return data[self._values_offset() + MidiTrackValuesOffset.VELOCITY]
+
+    @default_velocity.setter
+    def default_velocity(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._values_offset() + MidiTrackValuesOffset.VELOCITY] = value & 0x7F
+
+    @property
+    def default_length(self) -> int:
+        """Get/set the default note length (6 = 1/16)."""
+        data = self._part._bank._bank_file._data
+        return data[self._values_offset() + MidiTrackValuesOffset.LENGTH]
+
+    @default_length.setter
+    def default_length(self, value: int):
+        data = self._part._bank._bank_file._data
+        data[self._values_offset() + MidiTrackValuesOffset.LENGTH] = value & 0xFF
+
+
 class Part:
     """
     Pythonic interface for an Octatrack Part.
@@ -142,6 +256,7 @@ class Part:
         self._bank = bank
         self._part_num = part_num
         self._tracks: Dict[int, AudioPartTrack] = {}
+        self._midi_tracks: Dict[int, MidiPartTrack] = {}
 
     def _part_offset(self) -> int:
         """Get the byte offset for this part in the bank file."""
@@ -160,6 +275,20 @@ class Part:
         if track_num not in self._tracks:
             self._tracks[track_num] = AudioPartTrack(self, track_num)
         return self._tracks[track_num]
+
+    def midi_track(self, track_num: int) -> MidiPartTrack:
+        """
+        Get MIDI configuration for a track (1-8).
+
+        Args:
+            track_num: Track number (1-8)
+
+        Returns:
+            MidiPartTrack instance for configuring MIDI settings
+        """
+        if track_num not in self._midi_tracks:
+            self._midi_tracks[track_num] = MidiPartTrack(self, track_num)
+        return self._midi_tracks[track_num]
 
     @property
     def active_scene_a(self) -> int:

@@ -174,6 +174,116 @@ class MachineSlotOffset(IntEnum):
     RECORDER_SLOT_ID = 4
 
 
+# MIDI track data sizes
+MIDI_TRACK_VALUES_SIZE = 32     # MidiTrackParamsValues: 32 bytes per track
+MIDI_TRACK_SETUP_SIZE = 36      # MidiTrackParamsSetup: 36 bytes per track
+
+
+class MidiPartOffset(IntEnum):
+    """Byte offsets for MIDI track data within a Part block."""
+    # MIDI track params values array (8 tracks * 32 bytes = 256 bytes)
+    MIDI_TRACK_PARAMS_VALUES = 1003  # 0x3EB
+    # MIDI track params setup array (8 tracks * 36 bytes = 288 bytes)
+    MIDI_TRACK_PARAMS_SETUP = 1259   # 0x4EB
+
+
+class MidiTrackValuesOffset(IntEnum):
+    """Offsets within MidiTrackParamsValues (32 bytes per track).
+
+    Structure:
+    - midi (6 bytes): note, vel, len, not2, not3, not4
+    - lfo (6 bytes): spd1, spd2, spd3, dep1, dep2, dep3
+    - arp (6 bytes): tran, leg, mode, spd, rnge, nlen
+    - ctrl1 (6 bytes): pb, at, cc1, cc2, cc3, cc4
+    - ctrl2 (6 bytes): cc5, cc6, cc7, cc8, cc9, cc10
+    - unknown (2 bytes)
+    """
+    # MIDI/Note page (offset 0-5)
+    NOTE = 0
+    VELOCITY = 1
+    LENGTH = 2
+    NOTE2 = 3
+    NOTE3 = 4
+    NOTE4 = 5
+    # LFO page (offset 6-11)
+    LFO_SPD1 = 6
+    LFO_SPD2 = 7
+    LFO_SPD3 = 8
+    LFO_DEP1 = 9
+    LFO_DEP2 = 10
+    LFO_DEP3 = 11
+    # Arp page (offset 12-17)
+    ARP_TRAN = 12
+    ARP_LEG = 13
+    ARP_MODE = 14
+    ARP_SPD = 15
+    ARP_RNGE = 16
+    ARP_NLEN = 17
+    # CC1 page (offset 18-23)
+    PITCH_BEND = 18
+    AFTERTOUCH = 19
+    CC1_VALUE = 20
+    CC2_VALUE = 21
+    CC3_VALUE = 22
+    CC4_VALUE = 23
+    # CC2 page (offset 24-29)
+    CC5_VALUE = 24
+    CC6_VALUE = 25
+    CC7_VALUE = 26
+    CC8_VALUE = 27
+    CC9_VALUE = 28
+    CC10_VALUE = 29
+
+
+class MidiTrackSetupOffset(IntEnum):
+    """Offsets within MidiTrackParamsSetup (36 bytes per track).
+
+    Structure:
+    - note (6 bytes): chan, bank, prog, unused_1, sbank, unused_2
+    - lfo1 (6 bytes): lfo1_pmtr, lfo2_pmtr, lfo3_pmtr, lfo1_wave, lfo2_wave, lfo3_wave
+    - arp (6 bytes): unused_1, unused_2, len, unused_3, unused_4, key
+    - ctrl1 (6 bytes): unused_1, unused_2, cc1, cc2, cc3, cc4
+    - ctrl2 (6 bytes): cc5, cc6, cc7, cc8, cc9, cc10
+    - lfo2 (6 bytes): lfo1_mult, lfo2_mult, lfo3_mult, lfo1_trig, lfo2_trig, lfo3_trig
+    """
+    # Note setup page (offset 0-5)
+    CHANNEL = 0
+    BANK = 1
+    PROGRAM = 2
+    # offset 3 unused
+    SBANK = 4
+    # offset 5 unused
+    # LFO setup 1 (offset 6-11)
+    LFO1_PMTR = 6
+    LFO2_PMTR = 7
+    LFO3_PMTR = 8
+    LFO1_WAVE = 9
+    LFO2_WAVE = 10
+    LFO3_WAVE = 11
+    # Arp setup (offset 12-17)
+    ARP_LEN = 14
+    ARP_KEY = 17
+    # CC1 setup (offset 18-23)
+    CC1_NUMBER = 20
+    CC2_NUMBER = 21
+    CC3_NUMBER = 22
+    CC4_NUMBER = 23
+    # CC2 setup (offset 24-29)
+    CC5_NUMBER = 24
+    CC6_NUMBER = 25
+    CC7_NUMBER = 26
+    CC8_NUMBER = 27
+    CC9_NUMBER = 28
+    CC10_NUMBER = 29
+    # LFO setup 2 (offset 30-35)
+    LFO1_MULT = 30
+    LFO2_MULT = 31
+    LFO3_MULT = 32
+    LFO1_TRIG = 33
+    LFO2_TRIG = 34
+    LFO3_TRIG = 35
+
+
 # =============================================================================
 # BankFile Class
 # =============================================================================
