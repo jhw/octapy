@@ -150,9 +150,178 @@ project.to_zip("MY PROJECT.zip")
 2. Copy to Octatrack
 3. Verify settings appear correctly in PROJECT > MIDI > SYNC menu
 
-### Future Phases
+---
 
-- **Phase 2**: MIDI track channel/program configuration (MidiPartTrack)
+## Phase 2: MIDI Part Configuration (MidiPartTrack)
+
+### Overview
+
+Implement `MidiPartTrack` class for configuring MIDI track settings at the Part level. This is analogous to `PartTrack` for audio tracks (machine type, sample slots) but for MIDI (channel, program, default note/velocity/length).
+
+### Settings to Implement
+
+| Property | Field | Offset | Type | Default | Description |
+|----------|-------|--------|------|---------|-------------|
+| `channel` | `chan` | TBD | int | 0 | MIDI channel (0-15) |
+| `bank` | `bank` | TBD | int | 128 | Bank select (128 = off) |
+| `program` | `prog` | TBD | int | 128 | Program change (128 = off) |
+| `default_note` | `note` | TBD | int | 48 | Base note (48 = C3) |
+| `default_velocity` | `vel` | TBD | int | 100 | Base velocity (0-127) |
+| `default_length` | `len` | TBD | int | 6 | Base note length |
+
+### Note Length Values
+
+The `default_length` field uses value `6` as the default. Based on device observation, this appears to display as "1/16" in the UI (SRC page, dial C).
+
+**TODO: Full value mapping needs device verification.**
+
+The exact mapping between byte values (0-127?) and musical durations (1/128, 1/64, 1/32, 1/16, 1/8, etc.) is not documented in the ot-tools-io library. For now, implement with raw integer values and default of 6.
+
+### Implementation Tasks
+
+#### 1. Add MidiPartTrack class
+
+Location: `octapy/api/part.py`
+
+```python
+class MidiPartTrack:
+    """
+    MIDI configuration for a track within a Part.
+
+    Provides access to MIDI channel, program, and default note parameters.
+    """
+
+    def __init__(self, part: "Part", track_num: int):
+        self._part = part
+        self._track_num = track_num
+
+    @property
+    def channel(self) -> int:
+        """MIDI channel (0-15)."""
+        # TODO: implement offset calculation
+        pass
+
+    @channel.setter
+    def channel(self, value: int):
+        pass
+
+    @property
+    def default_length(self) -> int:
+        """Default note length. Value 6 = 1/16 (believed)."""
+        pass
+
+    @default_length.setter
+    def default_length(self, value: int):
+        pass
+
+    # ... similar for other properties
+```
+
+#### 2. Add midi_track() method to Part
+
+Location: `octapy/api/part.py`
+
+```python
+class Part:
+    def __init__(self, ...):
+        ...
+        self._midi_tracks: Dict[int, MidiPartTrack] = {}
+
+    def midi_track(self, track_num: int) -> MidiPartTrack:
+        """
+        Get MIDI configuration for a track (1-8).
+
+        Args:
+            track_num: Track number (1-8)
+
+        Returns:
+            MidiPartTrack instance
+        """
+        if track_num not in self._midi_tracks:
+            self._midi_tracks[track_num] = MidiPartTrack(self, track_num)
+        return self._midi_tracks[track_num]
+```
+
+#### 3. Add low-level offsets
+
+Location: `octapy/_io/bank.py`
+
+```python
+class MidiPartOffset:
+    """Offsets for MIDI track data within a Part."""
+    # TODO: Determine from ot-tools-io or reverse engineering
+    MIDI_TRACK_PARAMS_VALUES = ...
+    MIDI_TRACK_PARAMS_SETUP = ...
+```
+
+#### 4. Add tests
+
+Location: `tests/test_parts.py`
+
+```python
+class TestMidiPartTrack:
+    def test_channel_default(self):
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.channel == 0
+
+    def test_default_length_default(self):
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+        assert midi_track.default_length == 6  # 1/16
+
+    def test_channel_roundtrip(self, temp_dir):
+        project = Project.from_template("TEST")
+        project.bank(1).part(1).midi_track(1).channel = 5
+        project.to_zip(temp_dir / "TEST.zip")
+
+        loaded = Project.from_zip(temp_dir / "TEST.zip")
+        assert loaded.bank(1).part(1).midi_track(1).channel == 5
+```
+
+### API Usage
+
+```python
+from octapy import Project
+
+project = Project.from_template("MY PROJECT")
+part = project.bank(1).part(1)
+
+# Configure MIDI track 1
+midi_track = part.midi_track(1)
+midi_track.channel = 5           # MIDI channel 6 (0-indexed)
+midi_track.program = 32          # Program 33
+midi_track.default_note = 60     # Middle C
+midi_track.default_velocity = 100
+midi_track.default_length = 6    # 1/16 (believed default)
+
+project.to_zip("MY PROJECT.zip")
+```
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `octapy/_io/bank.py` | Add `MidiPartOffset` constants |
+| `octapy/api/part.py` | Add `MidiPartTrack` class, `Part.midi_track()` method |
+| `tests/test_parts.py` | Add roundtrip tests for MIDI part configuration |
+
+### Verification
+
+1. Create project with MIDI track configured
+2. Copy to Octatrack
+3. Press MIDI button, select track, verify channel/program in SRC page
+4. Verify default note/velocity/length values
+
+### Deferred
+
+- CC number assignments (Phase 4)
+- Arp setup and sequences (Phase 5)
+
+---
+
+## Future Phases
+
 - **Phase 3**: MIDI pattern sequencing (MidiPatternTrack, MidiStep)
 - **Phase 4**: MIDI CC assignments and control
 - **Phase 5**: Arp sequences and advanced MIDI features
