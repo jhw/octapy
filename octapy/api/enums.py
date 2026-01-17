@@ -7,10 +7,6 @@ from enum import IntEnum
 
 # === Note length ===
 
-# Valid note length values (MIDI ticks at 24 PPQN)
-_NOTE_LENGTH_VALUES = (3, 6, 12, 24, 48)
-
-
 class NoteLength(IntEnum):
     """
     Note length in musical subdivisions.
@@ -34,32 +30,6 @@ class NoteLength(IntEnum):
     EIGHTH = 12         # 1/8 note
     QUARTER = 24        # 1/4 note
     HALF = 48           # 1/2 note
-
-
-def quantize_note_length(value: int) -> int:
-    """
-    Quantize a raw value to the nearest valid NoteLength.
-
-    Args:
-        value: Raw note length value (0-127)
-
-    Returns:
-        Nearest valid NoteLength value (3, 6, 12, 24, or 48)
-    """
-    if value <= 0:
-        return NoteLength.THIRTY_SECOND
-    if value >= 48:
-        return NoteLength.HALF
-
-    # Find nearest valid value
-    best = _NOTE_LENGTH_VALUES[0]
-    best_dist = abs(value - best)
-    for v in _NOTE_LENGTH_VALUES[1:]:
-        dist = abs(value - v)
-        if dist < best_dist:
-            best = v
-            best_dist = dist
-    return best
 
 
 # Machine types (for audio tracks in Parts)

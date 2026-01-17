@@ -277,15 +277,13 @@ class BaseStep(ABC):
     @probability.setter
     def probability(self, value: Optional[float]):
         from .enums import TrigCondition
-        from .utils import PROBABILITY_MAP
+        from .utils import probability_to_condition
 
         if value is None or value >= 1.0:
             self.condition = TrigCondition.NONE
             return
 
-        # Find closest match
-        closest = min(PROBABILITY_MAP.items(), key=lambda x: abs(x[1] - value))
-        self.condition = closest[0]
+        self.condition = probability_to_condition(value)
 
 
 # =============================================================================

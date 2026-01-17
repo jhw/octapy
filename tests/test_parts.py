@@ -5,7 +5,7 @@ Tests for Part and AudioPartTrack high-level API.
 import pytest
 
 from octapy import Project, MachineType, NoteLength
-from octapy.api.enums import quantize_note_length
+from octapy.api.utils import quantize_note_length
 
 
 class TestPartBasics:

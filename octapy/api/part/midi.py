@@ -11,7 +11,7 @@ from ..._io import (
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
 )
-from ..enums import quantize_note_length
+from ..utils import quantize_note_length
 from .base import BasePartTrack
 
 
