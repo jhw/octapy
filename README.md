@@ -19,7 +19,8 @@ Project
 └── Bank (1-16)
     ├── Pattern (1-16)
     │   ├── AudioPatternTrack (1-8) — audio sequence data
-    │   │   └── AudioStep (1-64) — triggers, p-locks, conditions
+    │   │   ├── AudioStep — base step (Thru, Neighbor, Pickup)
+    │   │   └── SamplerStep — sample p-locks (Flex, Static)
     │   └── MidiPatternTrack (1-8) — MIDI sequence data
     │       └── MidiStep (1-64) — note, velocity, CC p-locks
     └── Part (1-4)
@@ -63,7 +64,8 @@ octapy/api/
 │   └── pattern.py      # Pattern container
 └── step/               # Step classes
     ├── base.py         # BaseStep + trig mask utilities
-    ├── audio.py        # AudioStep (volume, pitch, sample lock)
+    ├── audio.py        # AudioStep (base for audio tracks)
+    ├── sampler.py      # SamplerStep (volume, pitch, sample lock)
     └── midi.py         # MidiStep (note, velocity, CC)
 ```
 

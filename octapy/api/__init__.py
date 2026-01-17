@@ -38,5 +38,5 @@ from .part import (
     MidiPartTrack,
 )
 from .pattern import Pattern, AudioPatternTrack, MidiPatternTrack
-from .step import AudioStep, MidiStep
+from .step import AudioStep, SamplerStep, MidiStep
 from .sample_pool import SamplePool

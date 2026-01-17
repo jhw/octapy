@@ -9,11 +9,13 @@ from .base import (
     _step_to_bit_position,
 )
 from .audio import AudioStep
+from .sampler import SamplerStep
 from .midi import MidiStep
 
 __all__ = [
     "BaseStep",
     "AudioStep",
+    "SamplerStep",
     "MidiStep",
     "_trig_mask_to_steps",
     "_steps_to_trig_mask",
