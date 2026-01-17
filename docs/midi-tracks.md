@@ -294,6 +294,87 @@ Project
 
 Key difference: Audio samples have inherent duration; MIDI notes require explicit length.
 
+## Proposed API Design
+
+### Why Separate Classes?
+
+Analysis of audio vs MIDI track overlap:
+
+| Level | Shared | Different |
+|-------|--------|-----------|
+| **Pattern** | Container only | — |
+| **PatternTrack** | ~30% (trig masks, conditions) | ~70% (p-lock structure) |
+| **Step** | ~20% (active, condition) | ~80% (all p-lock params) |
+| **Part** | Container only | — |
+| **PartTrack** | 0% | 100% (completely different) |
+
+The p-lock structures are fundamentally different:
+- Audio: 32-byte block per step with byte offsets (PlockOffset enum)
+- MIDI: Structured fields (MidiTrackParameterLocks with nested structs)
+
+### Recommended Structure: Composition
+
+```
+Pattern (existing, extended)
+├── track(n) -> AudioPatternTrack (current PatternTrack)
+│   └── step(n) -> AudioStep (current Step)
+└── midi_track(n) -> MidiPatternTrack (NEW)
+    └── step(n) -> MidiStep (NEW)
+
+Part (existing, extended)
+├── track(n) -> AudioPartTrack (current PartTrack)
+└── midi_track(n) -> MidiPartTrack (NEW)
+```
+
+This approach:
+- Keeps Pattern and Part as shared containers
+- Uses explicit `.track()` vs `.midi_track()` for clarity
+- Avoids complex inheritance for minimal shared code
+- Allows independent evolution of audio and MIDI APIs
+
+### Proposed API Usage
+
+```python
+# Audio (unchanged)
+pattern.track(1).step(5).volume = 100
+pattern.track(1).step(5).pitch = 64
+pattern.track(1).step(5).probability = 0.85
+part.track(1).machine_type = MachineType.FLEX
+part.track(1).flex_slot = 0
+
+# MIDI (new)
+pattern.midi_track(1).step(5).note = 60        # MIDI note number
+pattern.midi_track(1).step(5).velocity = 100   # 0-127
+pattern.midi_track(1).step(5).length = 6       # note duration
+pattern.midi_track(1).step(5).probability = 0.85  # same condition system
+part.midi_track(1).channel = 5                 # MIDI channel 0-15
+part.midi_track(1).default_length = 6          # default note length
+```
+
+### New Classes Required
+
+**MidiPatternTrack**
+- `active_steps` — which steps trigger (same as audio)
+- `step(n)` — returns MidiStep
+
+**MidiStep**
+- `active` — trigger on/off (shared concept)
+- `condition` — trig condition (shared concept)
+- `probability` — probability shortcut (shared concept)
+- `note` — MIDI note number p-lock
+- `velocity` — velocity p-lock
+- `length` — note length p-lock
+- `chord_note_2/3/4` — chord tone p-locks
+
+**MidiPartTrack**
+- `channel` — MIDI channel (0-15)
+- `bank` — bank select
+- `program` — program change
+- `default_note` — base note value
+- `default_velocity` — base velocity
+- `default_length` — base note length
+- `cc1_number` through `cc10_number` — CC assignments
+
 ## Current octapy Support
 
 | Feature | Status |
