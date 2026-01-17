@@ -1,7 +1,8 @@
 """
-Part and AudioPartTrack classes for sound configuration.
+Part and PartTrack classes for sound configuration.
 """
 
+from abc import ABC
 from typing import TYPE_CHECKING, Dict
 
 from .._io import (
@@ -20,7 +21,37 @@ if TYPE_CHECKING:
     from .bank import Bank
 
 
-class AudioPartTrack:
+# =============================================================================
+# BasePartTrack Class
+# =============================================================================
+
+class BasePartTrack(ABC):
+    """
+    Abstract base class for part track configuration.
+
+    Provides shared functionality for accessing part data.
+    Subclasses provide track-specific properties.
+    """
+
+    def __init__(self, part: "Part", track_num: int):
+        self._part = part
+        self._track_num = track_num
+
+    @property
+    def _data(self) -> bytearray:
+        """Get the bank file data."""
+        return self._part._bank._bank_file._data
+
+    def _part_offset(self) -> int:
+        """Get the byte offset for this track's part in the bank file."""
+        return self._part._bank._bank_file.part_offset(self._part._part_num)
+
+
+# =============================================================================
+# AudioPartTrack Class
+# =============================================================================
+
+class AudioPartTrack(BasePartTrack):
     """
     Audio track configuration within a Part.
 
@@ -33,108 +64,88 @@ class AudioPartTrack:
         track.flex_slot = 0
     """
 
-    def __init__(self, part: "Part", track_num: int):
-        self._part = part
-        self._track_num = track_num
-
-    def _part_offset(self) -> int:
-        """Get the byte offset for this track's part in the bank file."""
-        return self._part._bank._bank_file.part_offset(self._part._part_num)
-
     @property
     def machine_type(self) -> MachineType:
         """Get/set the machine type for this track."""
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_TYPES + (self._track_num - 1)
-        return MachineType(data[offset])
+        return MachineType(self._data[offset])
 
     @machine_type.setter
     def machine_type(self, value: MachineType):
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_TYPES + (self._track_num - 1)
-        data[offset] = int(value)
+        self._data[offset] = int(value)
+
+    def _slot_offset(self) -> int:
+        """Get the byte offset for this track's machine slots."""
+        return self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
 
     @property
     def flex_slot(self) -> int:
         """Get/set the flex sample slot."""
-        data = self._part._bank._bank_file._data
-        slot_offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
-        return data[slot_offset + MachineSlotOffset.FLEX_SLOT_ID]
+        return self._data[self._slot_offset() + MachineSlotOffset.FLEX_SLOT_ID]
 
     @flex_slot.setter
     def flex_slot(self, value: int):
-        data = self._part._bank._bank_file._data
-        slot_offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
-        data[slot_offset + MachineSlotOffset.FLEX_SLOT_ID] = value & 0xFF
+        self._data[self._slot_offset() + MachineSlotOffset.FLEX_SLOT_ID] = value & 0xFF
 
     @property
     def static_slot(self) -> int:
         """Get/set the static sample slot."""
-        data = self._part._bank._bank_file._data
-        slot_offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
-        return data[slot_offset + MachineSlotOffset.STATIC_SLOT_ID]
+        return self._data[self._slot_offset() + MachineSlotOffset.STATIC_SLOT_ID]
 
     @static_slot.setter
     def static_slot(self, value: int):
-        data = self._part._bank._bank_file._data
-        slot_offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
-        data[slot_offset + MachineSlotOffset.STATIC_SLOT_ID] = value & 0xFF
+        self._data[self._slot_offset() + MachineSlotOffset.STATIC_SLOT_ID] = value & 0xFF
 
     @property
     def recorder_slot(self) -> int:
         """Get/set the recorder slot."""
-        data = self._part._bank._bank_file._data
-        slot_offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
-        return data[slot_offset + MachineSlotOffset.RECORDER_SLOT_ID]
+        return self._data[self._slot_offset() + MachineSlotOffset.RECORDER_SLOT_ID]
 
     @recorder_slot.setter
     def recorder_slot(self, value: int):
-        data = self._part._bank._bank_file._data
-        slot_offset = self._part_offset() + PartOffset.AUDIO_TRACK_MACHINE_SLOTS + (self._track_num - 1) * MACHINE_SLOT_SIZE
-        data[slot_offset + MachineSlotOffset.RECORDER_SLOT_ID] = value & 0xFF
+        self._data[self._slot_offset() + MachineSlotOffset.RECORDER_SLOT_ID] = value & 0xFF
 
     @property
     def volume(self) -> tuple:
         """Get the volume as (main, cue) tuple."""
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_VOLUMES + (self._track_num - 1) * 2
-        return (data[offset], data[offset + 1])
+        return (self._data[offset], self._data[offset + 1])
 
     def set_volume(self, main: int = 108, cue: int = 108):
         """Set the volume (main and cue)."""
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_VOLUMES + (self._track_num - 1) * 2
-        data[offset] = main & 0x7F
-        data[offset + 1] = cue & 0x7F
+        self._data[offset] = main & 0x7F
+        self._data[offset + 1] = cue & 0x7F
 
     @property
     def fx1_type(self) -> int:
         """Get/set the FX1 type."""
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_FX1 + (self._track_num - 1)
-        return data[offset]
+        return self._data[offset]
 
     @fx1_type.setter
     def fx1_type(self, value: int):
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_FX1 + (self._track_num - 1)
-        data[offset] = value
+        self._data[offset] = value
 
     @property
     def fx2_type(self) -> int:
         """Get/set the FX2 type."""
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_FX2 + (self._track_num - 1)
-        return data[offset]
+        return self._data[offset]
 
     @fx2_type.setter
     def fx2_type(self, value: int):
-        data = self._part._bank._bank_file._data
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_FX2 + (self._track_num - 1)
-        data[offset] = value
+        self._data[offset] = value
 
 
-class MidiPartTrack:
+# =============================================================================
+# MidiPartTrack Class
+# =============================================================================
+
+class MidiPartTrack(BasePartTrack):
     """
     MIDI track configuration within a Part.
 
@@ -147,14 +158,6 @@ class MidiPartTrack:
         midi_track.program = 32          # Program 33
         midi_track.default_note = 60     # Middle C
     """
-
-    def __init__(self, part: "Part", track_num: int):
-        self._part = part
-        self._track_num = track_num
-
-    def _part_offset(self) -> int:
-        """Get the byte offset for this track's part in the bank file."""
-        return self._part._bank._bank_file.part_offset(self._part._part_num)
 
     def _values_offset(self) -> int:
         """Get byte offset for this track's MidiTrackParamsValues."""
@@ -173,70 +176,58 @@ class MidiPartTrack:
     @property
     def channel(self) -> int:
         """Get/set the MIDI channel (0-15)."""
-        data = self._part._bank._bank_file._data
-        return data[self._setup_offset() + MidiTrackSetupOffset.CHANNEL]
+        return self._data[self._setup_offset() + MidiTrackSetupOffset.CHANNEL]
 
     @channel.setter
     def channel(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._setup_offset() + MidiTrackSetupOffset.CHANNEL] = value & 0x0F
+        self._data[self._setup_offset() + MidiTrackSetupOffset.CHANNEL] = value & 0x0F
 
     @property
     def bank(self) -> int:
         """Get/set the bank select (128 = off)."""
-        data = self._part._bank._bank_file._data
-        return data[self._setup_offset() + MidiTrackSetupOffset.BANK]
+        return self._data[self._setup_offset() + MidiTrackSetupOffset.BANK]
 
     @bank.setter
     def bank(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._setup_offset() + MidiTrackSetupOffset.BANK] = value & 0xFF
+        self._data[self._setup_offset() + MidiTrackSetupOffset.BANK] = value & 0xFF
 
     @property
     def program(self) -> int:
         """Get/set the program change (128 = off)."""
-        data = self._part._bank._bank_file._data
-        return data[self._setup_offset() + MidiTrackSetupOffset.PROGRAM]
+        return self._data[self._setup_offset() + MidiTrackSetupOffset.PROGRAM]
 
     @program.setter
     def program(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._setup_offset() + MidiTrackSetupOffset.PROGRAM] = value & 0xFF
+        self._data[self._setup_offset() + MidiTrackSetupOffset.PROGRAM] = value & 0xFF
 
     # === Values properties (MidiTrackMidiParamsValues) ===
 
     @property
     def default_note(self) -> int:
         """Get/set the default note (0-127, 48 = C3)."""
-        data = self._part._bank._bank_file._data
-        return data[self._values_offset() + MidiTrackValuesOffset.NOTE]
+        return self._data[self._values_offset() + MidiTrackValuesOffset.NOTE]
 
     @default_note.setter
     def default_note(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._values_offset() + MidiTrackValuesOffset.NOTE] = value & 0x7F
+        self._data[self._values_offset() + MidiTrackValuesOffset.NOTE] = value & 0x7F
 
     @property
     def default_velocity(self) -> int:
         """Get/set the default velocity (0-127)."""
-        data = self._part._bank._bank_file._data
-        return data[self._values_offset() + MidiTrackValuesOffset.VELOCITY]
+        return self._data[self._values_offset() + MidiTrackValuesOffset.VELOCITY]
 
     @default_velocity.setter
     def default_velocity(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._values_offset() + MidiTrackValuesOffset.VELOCITY] = value & 0x7F
+        self._data[self._values_offset() + MidiTrackValuesOffset.VELOCITY] = value & 0x7F
 
     @property
     def default_length(self) -> int:
         """Get/set the default note length (6 = 1/16)."""
-        data = self._part._bank._bank_file._data
-        return data[self._values_offset() + MidiTrackValuesOffset.LENGTH]
+        return self._data[self._values_offset() + MidiTrackValuesOffset.LENGTH]
 
     @default_length.setter
     def default_length(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._values_offset() + MidiTrackValuesOffset.LENGTH] = value & 0xFF
+        self._data[self._values_offset() + MidiTrackValuesOffset.LENGTH] = value & 0xFF
 
     # === CC Number Assignments (Setup) ===
 
@@ -252,9 +243,8 @@ class MidiPartTrack:
         """
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
-        data = self._part._bank._bank_file._data
         offset = self._setup_offset() + 19 + n  # CC1 is at offset 20
-        return data[offset]
+        return self._data[offset]
 
     def set_cc_number(self, n: int, value: int):
         """
@@ -266,33 +256,28 @@ class MidiPartTrack:
         """
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
-        data = self._part._bank._bank_file._data
         offset = self._setup_offset() + 19 + n  # CC1 is at offset 20
-        data[offset] = value & 0x7F
+        self._data[offset] = value & 0x7F
 
     # === CC Default Values ===
 
     @property
     def pitch_bend(self) -> int:
         """Get/set default pitch bend (0-127, 64 = center)."""
-        data = self._part._bank._bank_file._data
-        return data[self._values_offset() + MidiTrackValuesOffset.PITCH_BEND]
+        return self._data[self._values_offset() + MidiTrackValuesOffset.PITCH_BEND]
 
     @pitch_bend.setter
     def pitch_bend(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._values_offset() + MidiTrackValuesOffset.PITCH_BEND] = value & 0x7F
+        self._data[self._values_offset() + MidiTrackValuesOffset.PITCH_BEND] = value & 0x7F
 
     @property
     def aftertouch(self) -> int:
         """Get/set default aftertouch (0-127)."""
-        data = self._part._bank._bank_file._data
-        return data[self._values_offset() + MidiTrackValuesOffset.AFTERTOUCH]
+        return self._data[self._values_offset() + MidiTrackValuesOffset.AFTERTOUCH]
 
     @aftertouch.setter
     def aftertouch(self, value: int):
-        data = self._part._bank._bank_file._data
-        data[self._values_offset() + MidiTrackValuesOffset.AFTERTOUCH] = value & 0x7F
+        self._data[self._values_offset() + MidiTrackValuesOffset.AFTERTOUCH] = value & 0x7F
 
     def cc_value(self, n: int) -> int:
         """
@@ -306,9 +291,8 @@ class MidiPartTrack:
         """
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
-        data = self._part._bank._bank_file._data
         offset = self._values_offset() + 19 + n  # CC1 is at offset 20
-        return data[offset]
+        return self._data[offset]
 
     def set_cc_value(self, n: int, value: int):
         """
@@ -320,10 +304,13 @@ class MidiPartTrack:
         """
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
-        data = self._part._bank._bank_file._data
         offset = self._values_offset() + 19 + n  # CC1 is at offset 20
-        data[offset] = value & 0x7F
+        self._data[offset] = value & 0x7F
 
+
+# =============================================================================
+# Part Class
+# =============================================================================
 
 class Part:
     """

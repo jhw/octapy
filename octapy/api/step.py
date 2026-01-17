@@ -1,7 +1,8 @@
 """
-AudioStep and MidiStep classes for individual steps within pattern tracks.
+Step classes for individual steps within pattern tracks.
 """
 
+from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from .._io import (
@@ -86,11 +87,209 @@ def _steps_to_trig_mask(data: bytearray, offset: int, steps: List[int]):
             data[offset + 1] |= (1 << (step - 57))
 
 
+def _step_to_bit_position(step: int) -> tuple:
+    """
+    Convert step number (1-64) to (byte_index, bit_position) within trig mask.
+
+    Returns byte index (0-7) relative to the trig mask start.
+    """
+    if step <= 8:
+        return (7, step - 1)
+    elif step <= 16:
+        return (6, step - 9)
+    elif step <= 24:
+        return (4, step - 17)
+    elif step <= 32:
+        return (5, step - 25)
+    elif step <= 40:
+        return (2, step - 33)
+    elif step <= 48:
+        return (3, step - 41)
+    elif step <= 56:
+        return (0, step - 49)
+    else:
+        return (1, step - 57)
+
+
+# =============================================================================
+# BaseStep Class
+# =============================================================================
+
+class BaseStep(ABC):
+    """
+    Abstract base class for individual steps within pattern tracks.
+
+    Provides shared functionality for trig state, conditions, p-locks,
+    and probability. Subclasses provide offset constants.
+    """
+
+    def __init__(self, pattern_track, step_num: int):
+        self._pattern_track = pattern_track
+        self._step_num = step_num  # 1-64
+
+    @property
+    def _data(self) -> bytearray:
+        """Get the bank file data."""
+        return self._pattern_track._pattern._bank._bank_file._data
+
+    @property
+    @abstractmethod
+    def _trig_offset(self) -> int:
+        """Offset to TRIG_TRIGGER within the track."""
+        pass
+
+    @property
+    @abstractmethod
+    def _trigless_offset(self) -> int:
+        """Offset to TRIG_TRIGLESS within the track."""
+        pass
+
+    @property
+    @abstractmethod
+    def _plocks_offset(self) -> int:
+        """Offset to PLOCKS within the track."""
+        pass
+
+    @property
+    @abstractmethod
+    def _plock_size(self) -> int:
+        """Size of each step's p-lock data."""
+        pass
+
+    @property
+    @abstractmethod
+    def _conditions_offset(self) -> int:
+        """Offset to TRIG_CONDITIONS within the track."""
+        pass
+
+    # === Shared trig bit methods ===
+
+    def _get_bit_at_offset(self, trig_base_offset: int) -> bool:
+        """Get a single trig bit at the given base offset."""
+        track_offset = self._pattern_track._track_offset()
+        byte_idx, bit_pos = _step_to_bit_position(self._step_num)
+        offset = track_offset + trig_base_offset + byte_idx
+        return bool(self._data[offset] & (1 << bit_pos))
+
+    def _set_bit_at_offset(self, trig_base_offset: int, value: bool):
+        """Set a single trig bit at the given base offset."""
+        track_offset = self._pattern_track._track_offset()
+        byte_idx, bit_pos = _step_to_bit_position(self._step_num)
+        offset = track_offset + trig_base_offset + byte_idx
+        if value:
+            self._data[offset] |= (1 << bit_pos)
+        else:
+            self._data[offset] &= ~(1 << bit_pos)
+
+    # === Shared p-lock methods ===
+
+    def _plock_offset_for(self, param_offset: int) -> int:
+        """Get the absolute byte offset for a p-lock parameter on this step."""
+        track_offset = self._pattern_track._track_offset()
+        step_index = self._step_num - 1  # 0-indexed
+        return track_offset + self._plocks_offset + (step_index * self._plock_size) + param_offset
+
+    def _get_plock(self, param_offset: int) -> Optional[int]:
+        """Get a p-lock value. Returns None if disabled (255)."""
+        offset = self._plock_offset_for(param_offset)
+        value = self._data[offset]
+        return None if value == PLOCK_DISABLED else value
+
+    def _set_plock(self, param_offset: int, value: Optional[int]):
+        """Set a p-lock value. None disables the p-lock."""
+        offset = self._plock_offset_for(param_offset)
+        if value is None:
+            self._data[offset] = PLOCK_DISABLED
+        else:
+            self._data[offset] = value & 0xFF
+
+    # === Shared condition methods ===
+
+    def _condition_byte_offset(self) -> int:
+        """Get the absolute byte offset for trig condition data on this step."""
+        track_offset = self._pattern_track._track_offset()
+        step_index = self._step_num - 1  # 0-indexed
+        # Each step has 2 bytes: [count/microtiming, condition/microtiming]
+        return track_offset + self._conditions_offset + (step_index * 2) + 1
+
+    # === Trig state properties ===
+
+    @property
+    def active(self) -> bool:
+        """Get/set whether this step has an active trigger."""
+        return self._get_bit_at_offset(self._trig_offset)
+
+    @active.setter
+    def active(self, value: bool):
+        self._set_bit_at_offset(self._trig_offset, value)
+
+    @property
+    def trigless(self) -> bool:
+        """Get/set whether this step has a trigless (envelope) trigger."""
+        return self._get_bit_at_offset(self._trigless_offset)
+
+    @trigless.setter
+    def trigless(self, value: bool):
+        self._set_bit_at_offset(self._trigless_offset, value)
+
+    # === Trig condition ===
+
+    @property
+    def condition(self):
+        """
+        Get/set the trig condition for this step.
+
+        The condition determines when this step triggers (FILL, probability, etc.).
+        """
+        from .enums import TrigCondition
+        offset = self._condition_byte_offset()
+        # Condition is stored in lower 7 bits (0-64), bit 7 is micro-timing
+        raw_value = self._data[offset] & 0x7F
+        try:
+            return TrigCondition(raw_value)
+        except ValueError:
+            return TrigCondition.NONE
+
+    @condition.setter
+    def condition(self, value):
+        offset = self._condition_byte_offset()
+        # Preserve micro-timing bit (bit 7), set condition in lower 7 bits
+        current = self._data[offset]
+        micro_timing_bit = current & 0x80
+        self._data[offset] = micro_timing_bit | (int(value) & 0x7F)
+
+    @property
+    def probability(self) -> Optional[float]:
+        """
+        Get/set probability for this step as a float (0.0-1.0).
+
+        Returns the probability if a probability condition is set,
+        or None if no probability condition is active.
+
+        Setting a value sets the closest matching probability condition.
+        Set to None or 1.0 to clear probability (always trigger).
+        """
+        from .enums import PROBABILITY_MAP
+        return PROBABILITY_MAP.get(self.condition)
+
+    @probability.setter
+    def probability(self, value: Optional[float]):
+        from .enums import TrigCondition, PROBABILITY_MAP
+
+        if value is None or value >= 1.0:
+            self.condition = TrigCondition.NONE
+            return
+
+        # Find closest match
+        closest = min(PROBABILITY_MAP.items(), key=lambda x: abs(x[1] - value))
+        self.condition = closest[0]
+
+
 # =============================================================================
 # AudioStep Class
 # =============================================================================
 
-class AudioStep:
+class AudioStep(BaseStep):
     """
     Individual step within an audio pattern track.
 
@@ -105,133 +304,27 @@ class AudioStep:
         step.pitch = 64    # P-lock pitch (64 = no transpose)
     """
 
-    def __init__(self, pattern_track, step_num: int):
-        self._pattern_track = pattern_track
-        self._step_num = step_num  # 1-64
-
-    def _get_trig_bit_location(self) -> tuple:
-        """Get (byte_offset, bit_position) for this step in the trig mask."""
-        step = self._step_num
-        base_offset = self._pattern_track._track_offset()
-
-        # Calculate byte and bit position based on step number
-        # Steps 1-8: byte 7, Steps 9-16: byte 6
-        # Steps 17-24: byte 4, Steps 25-32: byte 5
-        # Steps 33-40: byte 2, Steps 41-48: byte 3
-        # Steps 49-56: byte 0, Steps 57-64: byte 1
-        if step <= 8:
-            return (base_offset + 7, step - 1)
-        elif step <= 16:
-            return (base_offset + 6, step - 9)
-        elif step <= 24:
-            return (base_offset + 4, step - 17)
-        elif step <= 32:
-            return (base_offset + 5, step - 25)
-        elif step <= 40:
-            return (base_offset + 2, step - 33)
-        elif step <= 48:
-            return (base_offset + 3, step - 41)
-        elif step <= 56:
-            return (base_offset + 0, step - 49)
-        else:
-            return (base_offset + 1, step - 57)
-
-    def _get_bit(self, trig_type_offset: int) -> bool:
-        """Get a single trig bit (active or trigless)."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        byte_offset, bit_pos = self._get_trig_bit_location()
-        byte_offset += trig_type_offset
-        return bool(data[byte_offset] & (1 << bit_pos))
-
-    def _set_bit(self, trig_type_offset: int, value: bool):
-        """Set a single trig bit (active or trigless)."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        byte_offset, bit_pos = self._get_trig_bit_location()
-        byte_offset += trig_type_offset
-        if value:
-            data[byte_offset] |= (1 << bit_pos)
-        else:
-            data[byte_offset] &= ~(1 << bit_pos)
-
-    def _plock_offset(self, param_offset: int) -> int:
-        """Get the absolute byte offset for a p-lock parameter on this step."""
-        track_offset = self._pattern_track._track_offset()
-        step_index = self._step_num - 1  # 0-indexed
-        return track_offset + AudioTrackOffset.PLOCKS + (step_index * PLOCK_SIZE) + param_offset
-
-    def _get_plock(self, param_offset: int) -> Optional[int]:
-        """Get a p-lock value. Returns None if disabled (255)."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._plock_offset(param_offset)
-        value = data[offset]
-        return None if value == PLOCK_DISABLED else value
-
-    def _set_plock(self, param_offset: int, value: Optional[int]):
-        """Set a p-lock value. None disables the p-lock."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._plock_offset(param_offset)
-        if value is None:
-            data[offset] = PLOCK_DISABLED
-        else:
-            data[offset] = value & 0xFF
-
-    def _condition_offset(self) -> int:
-        """Get the absolute byte offset for trig condition data on this step."""
-        track_offset = self._pattern_track._track_offset()
-        step_index = self._step_num - 1  # 0-indexed
-        # Each step has 2 bytes: [count/microtiming, condition/microtiming]
-        return track_offset + AudioTrackOffset.TRIG_CONDITIONS + (step_index * 2) + 1
-
-    # === Trig state properties ===
+    @property
+    def _trig_offset(self) -> int:
+        return AudioTrackOffset.TRIG_TRIGGER
 
     @property
-    def active(self) -> bool:
-        """Get/set whether this step has an active trigger."""
-        return self._get_bit(AudioTrackOffset.TRIG_TRIGGER)
-
-    @active.setter
-    def active(self, value: bool):
-        self._set_bit(AudioTrackOffset.TRIG_TRIGGER, value)
+    def _trigless_offset(self) -> int:
+        return AudioTrackOffset.TRIG_TRIGLESS
 
     @property
-    def trigless(self) -> bool:
-        """Get/set whether this step has a trigless (envelope) trigger."""
-        return self._get_bit(AudioTrackOffset.TRIG_TRIGLESS)
-
-    @trigless.setter
-    def trigless(self, value: bool):
-        self._set_bit(AudioTrackOffset.TRIG_TRIGLESS, value)
-
-    # === Trig condition ===
+    def _plocks_offset(self) -> int:
+        return AudioTrackOffset.PLOCKS
 
     @property
-    def condition(self):
-        """
-        Get/set the trig condition for this step.
+    def _plock_size(self) -> int:
+        return PLOCK_SIZE
 
-        The condition determines when this step triggers (FILL, probability, etc.).
-        """
-        from .enums import TrigCondition
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._condition_offset()
-        # Condition is stored in lower 7 bits (0-64), bit 7 is micro-timing
-        raw_value = data[offset] & 0x7F
-        try:
-            return TrigCondition(raw_value)
-        except ValueError:
-            return TrigCondition.NONE
+    @property
+    def _conditions_offset(self) -> int:
+        return AudioTrackOffset.TRIG_CONDITIONS
 
-    @condition.setter
-    def condition(self, value):
-        from .enums import TrigCondition
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._condition_offset()
-        # Preserve micro-timing bit (bit 7), set condition in lower 7 bits
-        current = data[offset]
-        micro_timing_bit = current & 0x80
-        data[offset] = micro_timing_bit | (int(value) & 0x7F)
-
-    # === P-lock properties ===
+    # === Audio P-lock properties ===
 
     @property
     def volume(self) -> Optional[int]:
@@ -279,38 +372,12 @@ class AudioStep:
     def sample_lock(self, value: Optional[int]):
         self._set_plock(PlockOffset.FLEX_SLOT_ID, value)
 
-    @property
-    def probability(self) -> Optional[float]:
-        """
-        Get/set probability for this step as a float (0.0-1.0).
-
-        Returns the probability if a probability condition is set,
-        or None if no probability condition is active.
-
-        Setting a value sets the closest matching probability condition.
-        Set to None or 1.0 to clear probability (always trigger).
-        """
-        from .enums import TrigCondition, PROBABILITY_MAP
-        return PROBABILITY_MAP.get(self.condition)
-
-    @probability.setter
-    def probability(self, value: Optional[float]):
-        from .enums import TrigCondition, PROBABILITY_MAP
-
-        if value is None or value >= 1.0:
-            self.condition = TrigCondition.NONE
-            return
-
-        # Find closest match
-        closest = min(PROBABILITY_MAP.items(), key=lambda x: abs(x[1] - value))
-        self.condition = closest[0]
-
 
 # =============================================================================
 # MidiStep Class
 # =============================================================================
 
-class MidiStep:
+class MidiStep(BaseStep):
     """
     Individual step within a MIDI pattern track.
 
@@ -325,129 +392,25 @@ class MidiStep:
         step.length = 6      # 1/16 note length
     """
 
-    def __init__(self, pattern_track, step_num: int):
-        self._pattern_track = pattern_track
-        self._step_num = step_num  # 1-64
-
-    def _get_trig_bit_location(self) -> tuple:
-        """Get (byte_offset, bit_position) for this step in the trig mask."""
-        step = self._step_num
-        base_offset = self._pattern_track._track_offset()
-
-        # Calculate byte and bit position based on step number
-        # Same layout as audio: reversed byte order within pages
-        if step <= 8:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 7, step - 1)
-        elif step <= 16:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 6, step - 9)
-        elif step <= 24:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 4, step - 17)
-        elif step <= 32:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 5, step - 25)
-        elif step <= 40:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 2, step - 33)
-        elif step <= 48:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 3, step - 41)
-        elif step <= 56:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 0, step - 49)
-        else:
-            return (base_offset + MidiTrackTrigsOffset.TRIG_TRIGGER + 1, step - 57)
-
-    def _get_bit(self, trig_type_offset: int) -> bool:
-        """Get a single trig bit (active or trigless)."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        byte_offset, bit_pos = self._get_trig_bit_location()
-        # Adjust offset from TRIG_TRIGGER to the specific trig type
-        byte_offset = byte_offset - MidiTrackTrigsOffset.TRIG_TRIGGER + trig_type_offset
-        return bool(data[byte_offset] & (1 << bit_pos))
-
-    def _set_bit(self, trig_type_offset: int, value: bool):
-        """Set a single trig bit (active or trigless)."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        byte_offset, bit_pos = self._get_trig_bit_location()
-        byte_offset = byte_offset - MidiTrackTrigsOffset.TRIG_TRIGGER + trig_type_offset
-        if value:
-            data[byte_offset] |= (1 << bit_pos)
-        else:
-            data[byte_offset] &= ~(1 << bit_pos)
-
-    def _plock_offset(self, param_offset: int) -> int:
-        """Get the absolute byte offset for a p-lock parameter on this step."""
-        track_offset = self._pattern_track._track_offset()
-        step_index = self._step_num - 1  # 0-indexed
-        return track_offset + MidiTrackTrigsOffset.PLOCKS + (step_index * MIDI_PLOCK_SIZE) + param_offset
-
-    def _get_plock(self, param_offset: int) -> Optional[int]:
-        """Get a p-lock value. Returns None if disabled (255)."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._plock_offset(param_offset)
-        value = data[offset]
-        return None if value == PLOCK_DISABLED else value
-
-    def _set_plock(self, param_offset: int, value: Optional[int]):
-        """Set a p-lock value. None disables the p-lock."""
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._plock_offset(param_offset)
-        if value is None:
-            data[offset] = PLOCK_DISABLED
-        else:
-            data[offset] = value & 0xFF
-
-    def _condition_offset(self) -> int:
-        """Get the absolute byte offset for trig condition data on this step."""
-        track_offset = self._pattern_track._track_offset()
-        step_index = self._step_num - 1  # 0-indexed
-        # Each step has 2 bytes: [count/microtiming, condition/microtiming]
-        return track_offset + MidiTrackTrigsOffset.TRIG_CONDITIONS + (step_index * 2) + 1
-
-    # === Trig state properties ===
+    @property
+    def _trig_offset(self) -> int:
+        return MidiTrackTrigsOffset.TRIG_TRIGGER
 
     @property
-    def active(self) -> bool:
-        """Get/set whether this step has an active trigger."""
-        return self._get_bit(MidiTrackTrigsOffset.TRIG_TRIGGER)
-
-    @active.setter
-    def active(self, value: bool):
-        self._set_bit(MidiTrackTrigsOffset.TRIG_TRIGGER, value)
+    def _trigless_offset(self) -> int:
+        return MidiTrackTrigsOffset.TRIG_TRIGLESS
 
     @property
-    def trigless(self) -> bool:
-        """Get/set whether this step has a trigless (envelope) trigger."""
-        return self._get_bit(MidiTrackTrigsOffset.TRIG_TRIGLESS)
-
-    @trigless.setter
-    def trigless(self, value: bool):
-        self._set_bit(MidiTrackTrigsOffset.TRIG_TRIGLESS, value)
-
-    # === Trig condition ===
+    def _plocks_offset(self) -> int:
+        return MidiTrackTrigsOffset.PLOCKS
 
     @property
-    def condition(self):
-        """
-        Get/set the trig condition for this step.
+    def _plock_size(self) -> int:
+        return MIDI_PLOCK_SIZE
 
-        The condition determines when this step triggers (FILL, probability, etc.).
-        """
-        from .enums import TrigCondition
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._condition_offset()
-        # Condition is stored in lower 7 bits (0-64), bit 7 is micro-timing
-        raw_value = data[offset] & 0x7F
-        try:
-            return TrigCondition(raw_value)
-        except ValueError:
-            return TrigCondition.NONE
-
-    @condition.setter
-    def condition(self, value):
-        from .enums import TrigCondition
-        data = self._pattern_track._pattern._bank._bank_file._data
-        offset = self._condition_offset()
-        # Preserve micro-timing bit (bit 7), set condition in lower 7 bits
-        current = data[offset]
-        micro_timing_bit = current & 0x80
-        data[offset] = micro_timing_bit | (int(value) & 0x7F)
+    @property
+    def _conditions_offset(self) -> int:
+        return MidiTrackTrigsOffset.TRIG_CONDITIONS
 
     # === MIDI P-lock properties ===
 
@@ -553,29 +516,3 @@ class MidiStep:
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
         self._set_plock(19 + n, value)  # CC1 is at offset 20
-
-    @property
-    def probability(self) -> Optional[float]:
-        """
-        Get/set probability for this step as a float (0.0-1.0).
-
-        Returns the probability if a probability condition is set,
-        or None if no probability condition is active.
-
-        Setting a value sets the closest matching probability condition.
-        Set to None or 1.0 to clear probability (always trigger).
-        """
-        from .enums import TrigCondition, PROBABILITY_MAP
-        return PROBABILITY_MAP.get(self.condition)
-
-    @probability.setter
-    def probability(self, value: Optional[float]):
-        from .enums import TrigCondition, PROBABILITY_MAP
-
-        if value is None or value >= 1.0:
-            self.condition = TrigCondition.NONE
-            return
-
-        # Find closest match
-        closest = min(PROBABILITY_MAP.items(), key=lambda x: abs(x[1] - value))
-        self.condition = closest[0]
