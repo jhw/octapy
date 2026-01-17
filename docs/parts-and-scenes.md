@@ -165,6 +165,82 @@ pub struct SceneParams {
 }
 ```
 
+## Scene Propagation
+
+### The Problem
+
+With 16 scenes per Part × 4 Parts per Bank = 64 scenes per Bank, manually maintaining consistent scenes across Parts becomes tedious.
+
+**Common use case:** You want to switch sounds by switching Parts, but maintain the same scene behavior. Scene 1 should do "filter sweep" regardless of which Part is active.
+
+### Horizontal Propagation (Bank Level)
+
+Copy a scene from one Part to other Parts within the same Bank:
+
+```python
+bank.propagate_scene(
+    source_part=1,
+    scene_num=1,
+    target_parts=[2, 3, 4],
+    mode="strict"  # or "compatible"
+)
+```
+
+### Propagation Constraints
+
+Scene locks reference encoder destinations. Not all locks can be copied to all Parts:
+
+| Param Type | Propagation Safe When |
+|------------|----------------------|
+| LFO | Always (common to all audio tracks) |
+| AMP | Always (common to all audio tracks) |
+| FX1 | Target track has same `fx1_type` |
+| FX2 | Target track has same `fx2_type` |
+| PLAYBACK | Target track has same `machine_type` |
+
+### Propagation Modes
+
+**Strict mode** (default):
+- Validates all 8 tracks have matching machine and FX types
+- Raises error if any track configuration differs
+- Guarantees complete scene copy
+
+```python
+bank.propagate_scene(source_part=1, scene_num=1, target_parts=[2, 3, 4], mode="strict")
+# Raises ValueError if Part 2 track 1 has different machine type than Part 1 track 1
+```
+
+**Compatible mode**:
+- Only copies locks that are valid for target configuration
+- LFO/AMP always copied
+- FX1/FX2 copied only if types match
+- PLAYBACK copied only if machine types match
+- Silently skips incompatible locks
+
+```python
+bank.propagate_scene(source_part=1, scene_num=1, target_parts=[2, 3, 4], mode="compatible")
+# Copies what it can, skips incompatible locks
+```
+
+### Implementation Notes
+
+The `propagate_scene` method should:
+
+1. For each target Part:
+   - For each track (1-8):
+     - Check machine type compatibility
+     - Check FX1 type compatibility
+     - Check FX2 type compatibility
+   - Based on mode, either error or filter
+2. Copy scene data (raw bytes or property-by-property)
+3. Return summary of what was copied/skipped (in compatible mode)
+
+### Future: Vertical Propagation
+
+Copying scenes across Banks (for live sets where banks = songs) is a potential future enhancement but is not in scope for initial implementation. Users can achieve this by:
+1. Copying a Bank
+2. Using horizontal propagation within each Bank
+
 ## References
 
 - [Parts and Scenes - Elektronauts](https://www.elektronauts.com/t/parts-and-scenes/154290)
