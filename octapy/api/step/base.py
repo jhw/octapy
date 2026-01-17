@@ -1,5 +1,5 @@
 """
-Step classes for individual steps within pattern tracks.
+Base step class and trig mask utilities.
 """
 
 from __future__ import annotations
@@ -7,15 +7,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from .._io import (
-    AudioTrackOffset,
-    PlockOffset,
-    MidiTrackTrigsOffset,
-    MidiPlockOffset,
-    PLOCK_SIZE,
-    PLOCK_DISABLED,
-    MIDI_PLOCK_SIZE,
-)
+from ..._io import PLOCK_DISABLED
 
 
 # =============================================================================
@@ -243,7 +235,7 @@ class BaseStep(ABC):
 
         The condition determines when this step triggers (FILL, probability, etc.).
         """
-        from .enums import TrigCondition
+        from ..enums import TrigCondition
         offset = self._condition_byte_offset()
         # Condition is stored in lower 7 bits (0-64), bit 7 is micro-timing
         raw_value = self._data[offset] & 0x7F
@@ -271,249 +263,16 @@ class BaseStep(ABC):
         Setting a value sets the closest matching probability condition.
         Set to None or 1.0 to clear probability (always trigger).
         """
-        from .utils import PROBABILITY_MAP
+        from ..utils import PROBABILITY_MAP
         return PROBABILITY_MAP.get(self.condition)
 
     @probability.setter
     def probability(self, value: Optional[float]):
-        from .enums import TrigCondition
-        from .utils import probability_to_condition
+        from ..enums import TrigCondition
+        from ..utils import probability_to_condition
 
         if value is None or value >= 1.0:
             self.condition = TrigCondition.NONE
             return
 
         self.condition = probability_to_condition(value)
-
-
-# =============================================================================
-# AudioStep Class
-# =============================================================================
-
-class AudioStep(BaseStep):
-    """
-    Individual step within an audio pattern track.
-
-    Provides access to step properties including active state, trigless state,
-    condition, and p-locks (per-step parameter values).
-
-    Usage:
-        step = pattern.track(1).step(5)
-        step.active = True
-        step.condition = TrigCondition.FILL
-        step.volume = 100  # P-lock volume
-        step.pitch = 64    # P-lock pitch (64 = no transpose)
-    """
-
-    @property
-    def _trig_offset(self) -> int:
-        return AudioTrackOffset.TRIG_TRIGGER
-
-    @property
-    def _trigless_offset(self) -> int:
-        return AudioTrackOffset.TRIG_TRIGLESS
-
-    @property
-    def _plocks_offset(self) -> int:
-        return AudioTrackOffset.PLOCKS
-
-    @property
-    def _plock_size(self) -> int:
-        return PLOCK_SIZE
-
-    @property
-    def _conditions_offset(self) -> int:
-        return AudioTrackOffset.TRIG_CONDITIONS
-
-    # === Audio P-lock properties ===
-
-    @property
-    def volume(self) -> Optional[int]:
-        """
-        Get/set p-locked volume for this step.
-
-        Value range: 0-127 (0 = silent, 127 = max)
-        Returns None if no p-lock is set (uses track default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(PlockOffset.AMP_VOL)
-
-    @volume.setter
-    def volume(self, value: Optional[int]):
-        self._set_plock(PlockOffset.AMP_VOL, value)
-
-    @property
-    def pitch(self) -> Optional[int]:
-        """
-        Get/set p-locked pitch/note for this step.
-
-        Value range: 0-127 (64 = no transpose, <64 = lower, >64 = higher)
-        This is the PTCH parameter on the Playback page.
-        Returns None if no p-lock is set (uses track default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(PlockOffset.MACHINE_PARAM1)
-
-    @pitch.setter
-    def pitch(self, value: Optional[int]):
-        self._set_plock(PlockOffset.MACHINE_PARAM1, value)
-
-    @property
-    def sample_lock(self) -> Optional[int]:
-        """
-        Get/set p-locked sample slot for this step (Flex machines).
-
-        Value range: 0-127 (0-indexed slot number)
-        Returns None if no sample lock is set.
-        Set to None to clear the sample lock.
-        """
-        return self._get_plock(PlockOffset.FLEX_SLOT_ID)
-
-    @sample_lock.setter
-    def sample_lock(self, value: Optional[int]):
-        self._set_plock(PlockOffset.FLEX_SLOT_ID, value)
-
-
-# =============================================================================
-# MidiStep Class
-# =============================================================================
-
-class MidiStep(BaseStep):
-    """
-    Individual step within a MIDI pattern track.
-
-    Provides access to step properties including active state, trigless state,
-    condition, and MIDI-specific p-locks (note, velocity, length).
-
-    Usage:
-        step = pattern.midi_track(1).step(5)
-        step.active = True
-        step.note = 60       # Middle C
-        step.velocity = 100  # Note velocity
-        step.length = 6      # 1/16 note length
-    """
-
-    @property
-    def _trig_offset(self) -> int:
-        return MidiTrackTrigsOffset.TRIG_TRIGGER
-
-    @property
-    def _trigless_offset(self) -> int:
-        return MidiTrackTrigsOffset.TRIG_TRIGLESS
-
-    @property
-    def _plocks_offset(self) -> int:
-        return MidiTrackTrigsOffset.PLOCKS
-
-    @property
-    def _plock_size(self) -> int:
-        return MIDI_PLOCK_SIZE
-
-    @property
-    def _conditions_offset(self) -> int:
-        return MidiTrackTrigsOffset.TRIG_CONDITIONS
-
-    # === MIDI P-lock properties ===
-
-    @property
-    def note(self) -> Optional[int]:
-        """
-        Get/set p-locked MIDI note for this step.
-
-        Value range: 0-127 (60 = Middle C)
-        Returns None if no p-lock is set (uses Part default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(MidiPlockOffset.NOTE)
-
-    @note.setter
-    def note(self, value: Optional[int]):
-        self._set_plock(MidiPlockOffset.NOTE, value)
-
-    @property
-    def velocity(self) -> Optional[int]:
-        """
-        Get/set p-locked MIDI velocity for this step.
-
-        Value range: 0-127
-        Returns None if no p-lock is set (uses Part default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(MidiPlockOffset.VELOCITY)
-
-    @velocity.setter
-    def velocity(self, value: Optional[int]):
-        self._set_plock(MidiPlockOffset.VELOCITY, value)
-
-    @property
-    def length(self) -> Optional[int]:
-        """
-        Get/set p-locked MIDI note length for this step.
-
-        Value range: 0-127 (6 = 1/16 note)
-        Returns None if no p-lock is set (uses Part default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(MidiPlockOffset.LENGTH)
-
-    @length.setter
-    def length(self, value: Optional[int]):
-        self._set_plock(MidiPlockOffset.LENGTH, value)
-
-    # === MIDI CC P-lock properties ===
-
-    @property
-    def pitch_bend(self) -> Optional[int]:
-        """
-        Get/set p-locked MIDI pitch bend for this step.
-
-        Value range: 0-127 (64 = center, no bend)
-        Returns None if no p-lock is set (uses Part default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(MidiPlockOffset.PITCH_BEND)
-
-    @pitch_bend.setter
-    def pitch_bend(self, value: Optional[int]):
-        self._set_plock(MidiPlockOffset.PITCH_BEND, value)
-
-    @property
-    def aftertouch(self) -> Optional[int]:
-        """
-        Get/set p-locked MIDI aftertouch for this step.
-
-        Value range: 0-127
-        Returns None if no p-lock is set (uses Part default).
-        Set to None to clear the p-lock.
-        """
-        return self._get_plock(MidiPlockOffset.AFTERTOUCH)
-
-    @aftertouch.setter
-    def aftertouch(self, value: Optional[int]):
-        self._set_plock(MidiPlockOffset.AFTERTOUCH, value)
-
-    def cc(self, n: int) -> Optional[int]:
-        """
-        Get p-locked CC value for slot n (1-10).
-
-        Args:
-            n: CC slot number (1-10)
-
-        Returns:
-            CC value (0-127), or None if no p-lock is set
-        """
-        if n < 1 or n > 10:
-            raise ValueError(f"CC slot must be 1-10, got {n}")
-        return self._get_plock(19 + n)  # CC1 is at offset 20
-
-    def set_cc(self, n: int, value: Optional[int]):
-        """
-        Set p-locked CC value for slot n (1-10).
-
-        Args:
-            n: CC slot number (1-10)
-            value: CC value (0-127), or None to clear p-lock
-        """
-        if n < 1 or n > 10:
-            raise ValueError(f"CC slot must be 1-10, got {n}")
-        self._set_plock(19 + n, value)  # CC1 is at offset 20
