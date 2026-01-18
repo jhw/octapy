@@ -4,6 +4,8 @@ AudioPartTrack - base class for audio track configuration.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..._io import (
     PartOffset,
     MachineSlotOffset,
@@ -13,6 +15,7 @@ from ..._io import (
     AUDIO_TRACK_PARAMS_SIZE,
 )
 from ..enums import MachineType
+from ..fx import create_fx, BaseFX
 from .base import BasePartTrack
 
 
@@ -179,3 +182,36 @@ class AudioPartTrack(BasePartTrack):
     @balance.setter
     def balance(self, value: int):
         self._data[self._track_params_offset() + AudioTrackParamsOffset.AMP_BAL] = value & 0x7F
+
+    # === FX Page Access ===
+
+    @property
+    def fx1(self) -> BaseFX:
+        """
+        Get FX1 container with type-specific properties.
+
+        Returns an FX container matching the current fx1_type setting.
+        For example, if fx1_type is FILTER, returns FilterFX with
+        cutoff, resonance, etc. properties.
+
+        Usage:
+            track.fx1_type = FX1Type.FILTER
+            track.fx1.base = 64
+            track.fx1.q = 80
+        """
+        return create_fx(self, slot=1, fx_type=self.fx1_type)
+
+    @property
+    def fx2(self) -> BaseFX:
+        """
+        Get FX2 container with type-specific properties.
+
+        Returns an FX container matching the current fx2_type setting.
+        FX2 supports additional time-based effects (delay, reverbs).
+
+        Usage:
+            track.fx2_type = FX2Type.DELAY
+            track.fx2.time = 64
+            track.fx2.feedback = 80
+        """
+        return create_fx(self, slot=2, fx_type=self.fx2_type)
