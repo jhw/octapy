@@ -349,3 +349,94 @@ class TrigCondition(IntEnum):
     T6_R8 = 62
     T7_R8 = 63
     T8_R8 = 64
+
+
+# === Sampler Setup Page (FUNC+SRC) ===
+
+class LoopMode(IntEnum):
+    """
+    Loop mode for sampler machines (Flex/Static).
+
+    Controls how the sample loops during playback.
+    Set via FUNC+SRC page, encoder A (LOOP).
+
+    Usage:
+        track = part.flex_track(1)
+        track.loop_mode = LoopMode.ON
+    """
+    OFF = 0    # No looping
+    ON = 1     # Loop enabled
+    PIPO = 2   # Ping-pong (alternating direction)
+    AUTO = 3   # Use per-sample loop settings from audio editor
+
+
+class SliceMode(IntEnum):
+    """
+    Slice mode for sampler machines (Flex/Static).
+
+    When ON, the STRT parameter selects slices instead of linear position.
+    Set via FUNC+SRC page, encoder B (SLIC).
+
+    Usage:
+        track = part.flex_track(1)
+        track.slice_mode = SliceMode.ON
+    """
+    OFF = 0
+    ON = 1
+
+
+class LengthMode(IntEnum):
+    """
+    Length mode for sampler machines (Flex/Static).
+
+    Controls how the LEN encoder on the main SRC page behaves.
+    Set via FUNC+SRC page, encoder C (LEN).
+
+    When SliceMode.OFF:
+        - OFF: LEN encoder is inactive
+        - TIME: LEN controls sample length linearly
+
+    When SliceMode.ON:
+        - SLICE: LEN controls number of slices to play
+        - TIME: LEN controls slice length
+
+    Usage:
+        track = part.flex_track(1)
+        track.length_mode = LengthMode.TIME  # Enable length control
+    """
+    OFF = 0    # LEN inactive (also SLICE when slice mode is ON)
+    TIME = 1   # LEN controls length linearly
+
+
+class RateMode(IntEnum):
+    """
+    Rate mode for sampler machines (Flex/Static).
+
+    Controls whether the RATE encoder affects pitch or timestretch.
+    Set via FUNC+SRC page, encoder D (RATE).
+
+    Note: For reverse playback, use PITCH mode (timestretch cannot reverse).
+
+    Usage:
+        track = part.flex_track(1)
+        track.rate_mode = RateMode.PITCH  # Allow reverse via negative rate
+    """
+    PITCH = 0  # RATE affects pitch (allows reverse with negative values)
+    TSTR = 1   # RATE affects timestretch amount
+
+
+class TimestretchMode(IntEnum):
+    """
+    Timestretch mode for sampler machines (Flex/Static) and Pickup.
+
+    Controls the timestretch algorithm.
+    Set via FUNC+SRC page, encoder E (TSTR).
+
+    Usage:
+        track = part.flex_track(1)
+        track.timestretch_mode = TimestretchMode.OFF  # Disable for reverse playback
+    """
+    OFF = 0    # No timestretch
+    AUTO = 1   # Use per-sample settings from audio editor
+    NORM = 2   # Normal algorithm (smooth)
+    BEAT = 3   # Beat-slicing algorithm (transient-aware)

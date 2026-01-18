@@ -712,7 +712,7 @@ class TestFlexPartTrack:
         """Test default length value."""
         project = Project.from_template("TEST")
         flex = project.bank(1).part(1).flex_track(1)
-        assert flex.length == 0  # Template default
+        assert flex.length == 127  # Max length (full sample plays)
 
     def test_flex_rate_default(self):
         """Test default rate value."""
@@ -720,18 +720,20 @@ class TestFlexPartTrack:
         flex = project.bank(1).part(1).flex_track(1)
         assert flex.rate == 127  # Template default (max)
 
-    def test_flex_timestretch_default(self):
-        """Test default timestretch value."""
+    def test_flex_timestretch_mode_default(self):
+        """Test default timestretch mode."""
+        from octapy import TimestretchMode
         project = Project.from_template("TEST")
         flex = project.bank(1).part(1).flex_track(1)
-        assert flex.timestretch == 1  # Template default
+        assert flex.timestretch_mode == TimestretchMode.AUTO  # Template default
 
-    def test_flex_set_timestretch(self):
-        """Test setting timestretch."""
+    def test_flex_set_timestretch_mode(self):
+        """Test setting timestretch mode."""
+        from octapy import TimestretchMode
         project = Project.from_template("TEST")
         flex = project.bank(1).part(1).flex_track(1)
-        flex.timestretch = 64
-        assert flex.timestretch == 64
+        flex.timestretch_mode = TimestretchMode.BEAT
+        assert flex.timestretch_mode == TimestretchMode.BEAT
 
     def test_flex_all_tracks(self):
         """Test FlexPartTrack for all 8 tracks."""
@@ -871,18 +873,19 @@ class TestMachinePartTrackRoundTrip:
     @pytest.mark.slow
     def test_flex_track_roundtrip(self, temp_dir):
         """Test FlexPartTrack values survive save/load."""
+        from octapy import TimestretchMode
         project = Project.from_template("TEST")
         flex = project.bank(1).part(1).flex_track(1)
         flex.pitch = 72
         flex.start = 32
-        flex.timestretch = 64
+        flex.timestretch_mode = TimestretchMode.BEAT
         project.to_directory(temp_dir / "TEST")
 
         loaded = Project.from_directory(temp_dir / "TEST")
         loaded_flex = loaded.bank(1).part(1).flex_track(1)
         assert loaded_flex.pitch == 72
         assert loaded_flex.start == 32
-        assert loaded_flex.timestretch == 64
+        assert loaded_flex.timestretch_mode == TimestretchMode.BEAT
 
     @pytest.mark.slow
     def test_thru_track_roundtrip(self, temp_dir):

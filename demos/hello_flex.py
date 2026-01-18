@@ -128,13 +128,8 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             part.track(track_num).machine_type = MachineType.FLEX
             part.track(track_num).flex_slot = slot - 1
 
-            # Use FlexPartTrack for Flex-specific Playback/Setup page params
-            flex_track = part.flex_track(track_num)
-            flex_track.pitch = 64        # No transpose
-            flex_track.start = 0         # Sample start
-            flex_track.length = 0        # Full length (0 = use sample length)
-            flex_track.rate = 127        # Max rate
-            flex_track.timestretch = 1   # Default timestretch mode
+            # Flex-specific params use sensible defaults from template:
+            # pitch=64 (no transpose), start=0, length=127 (full), rate=127
 
     # Configure all 16 patterns with Euclidean rhythms
     print(f"\n  Bank {bank_num} ({bank_letter}) Patterns 1-16:")
@@ -177,8 +172,8 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Create sample pools with pattern matching
     pools = {
         'kicks': SamplePool(SAMPLES_DIR, r"BD|KK|KIK|BASS\d*\.wav$"),
-        'snares': SamplePool(SAMPLES_DIR, r"(SD|CL|CP)\d*\.wav$"),
-        'hats': SamplePool(SAMPLES_DIR, r"(OH|HH|CY|PL|RM)\d*\.wav$"),
+        'snares': SamplePool(SAMPLES_DIR, r"(SD|CL|CP|HC)\d*\.wav$"),
+        'hats': SamplePool(SAMPLES_DIR, r"(OH|HH|CY|PL|RS)\d*\.wav$"),
     }
 
     for pool_name, pool in [("kick", pools['kicks']), ("snare", pools['snares']),

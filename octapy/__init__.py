@@ -39,6 +39,12 @@ from .api.enums import (
     FX2Type,
     TrigCondition,
     NoteLength,
+    # Sampler Setup page (FUNC+SRC)
+    LoopMode,
+    SliceMode,
+    LengthMode,
+    RateMode,
+    TimestretchMode,
 )
 
 # Exceptions
@@ -77,6 +83,11 @@ __all__ = [
     "FX2Type",
     "TrigCondition",
     "NoteLength",
+    "LoopMode",
+    "SliceMode",
+    "LengthMode",
+    "RateMode",
+    "TimestretchMode",
     # Exceptions
     "OctapyError",
     "SlotLimitExceeded",

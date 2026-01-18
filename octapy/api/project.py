@@ -108,6 +108,9 @@ class Project:
         for i in range(1, 9):
             project._arr_files[i] = read_template_file(f"arr{i:02d}.work")
 
+        # Apply sensible sampler defaults
+        project._apply_sampler_defaults()
+
         return project
 
     @classmethod
@@ -425,6 +428,28 @@ class Project:
     def add_recorder_slots(self) -> None:
         """Add the 8 recorder buffer slots (129-136)."""
         self._project_file.add_recorder_slots()
+
+    def _apply_sampler_defaults(self) -> None:
+        """
+        Apply sensible sampler defaults to all banks/parts/tracks.
+
+        For Flex machines only, sets:
+        - loop_mode = OFF (no looping by default)
+        - length_mode = TIME so LEN encoder works for truncating samples
+        - length = 127 (max) so samples play fully by default
+        """
+        from .enums import LoopMode, LengthMode
+
+        # Apply to all 16 banks, 4 parts, 8 tracks (Flex only)
+        for bank_num in range(1, 17):
+            bank = self.bank(bank_num)
+            for part_num in range(1, 5):
+                part = bank.part(part_num)
+                for track_num in range(1, 9):
+                    flex = part.flex_track(track_num)
+                    flex.loop_mode = LoopMode.OFF
+                    flex.length_mode = LengthMode.TIME
+                    flex.length = 127
 
 
 def _get_wav_frame_count(wav_path: Path) -> int:
