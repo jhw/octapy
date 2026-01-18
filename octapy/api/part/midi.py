@@ -33,11 +33,13 @@ class MidiPartTrack(BasePartTrack):
     Note2/3/4 are chord note offsets (64 = no offset, <64 = lower, >64 = higher).
 
     Usage:
+        from octapy.api.enums import MidiNote
+
         midi_track = part.midi_track(1)
-        midi_track.channel = 5           # MIDI channel 6 (0-indexed)
-        midi_track.program = 32          # Program 33
-        midi_track.default_note = 60     # Middle C
-        midi_track.default_note2 = 67    # +7 semitones (G)
+        midi_track.channel = 5                    # MIDI channel 6 (0-indexed)
+        midi_track.program = 32                   # Program 33
+        midi_track.default_note = MidiNote.C4    # Middle C (60)
+        midi_track.default_note = MidiNote.A4    # Concert pitch A (69)
     """
 
     def _values_offset(self) -> int:
@@ -85,7 +87,13 @@ class MidiPartTrack(BasePartTrack):
 
     @property
     def default_note(self) -> int:
-        """Get/set the default note (0-127, 48 = C3)."""
+        """
+        Get/set the default note (0-127).
+
+        Accepts MidiNote enum values or raw integers.
+        Standard MIDI mapping: C-1 = 0, C4 = 60 (Middle C), G9 = 127.
+        Default is 48 (C3).
+        """
         return self._data[self._values_offset() + MidiTrackValuesOffset.NOTE]
 
     @default_note.setter

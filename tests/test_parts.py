@@ -5,6 +5,7 @@ Tests for Part and AudioPartTrack high-level API.
 import pytest
 
 from octapy import Project, MachineType, NoteLength
+from octapy.api.enums import MidiNote
 from octapy.api.utils import quantize_note_length
 
 
@@ -327,6 +328,86 @@ class TestNoteLengthEnum:
         """Test NoteLength values work as integers."""
         assert int(NoteLength.SIXTEENTH) == 6
         assert NoteLength.QUARTER * 2 == 48
+
+
+class TestMidiNoteEnum:
+    """MidiNote enum tests."""
+
+    def test_octave_minus1_notes(self):
+        """Test octave -1 note values (0-11)."""
+        assert MidiNote.C_MINUS1 == 0
+        assert MidiNote.Cs_MINUS1 == 1
+        assert MidiNote.D_MINUS1 == 2
+        assert MidiNote.E_MINUS1 == 4
+        assert MidiNote.F_MINUS1 == 5
+        assert MidiNote.G_MINUS1 == 7
+        assert MidiNote.A_MINUS1 == 9
+        assert MidiNote.B_MINUS1 == 11
+
+    def test_octave_boundaries(self):
+        """Test C notes at octave boundaries."""
+        assert MidiNote.C_MINUS1 == 0
+        assert MidiNote.C0 == 12
+        assert MidiNote.C1 == 24
+        assert MidiNote.C2 == 36
+        assert MidiNote.C3 == 48
+        assert MidiNote.C4 == 60   # Middle C
+        assert MidiNote.C5 == 72
+        assert MidiNote.C6 == 84
+        assert MidiNote.C7 == 96
+        assert MidiNote.C8 == 108
+        assert MidiNote.C9 == 120
+
+    def test_middle_c(self):
+        """Test Middle C is 60."""
+        assert MidiNote.C4 == 60
+
+    def test_concert_a(self):
+        """Test concert pitch A4 is 69."""
+        assert MidiNote.A4 == 69
+
+    def test_highest_note(self):
+        """Test highest note G9 is 127."""
+        assert MidiNote.G9 == 127
+
+    def test_all_128_notes_exist(self):
+        """Test all 128 MIDI notes have enum values."""
+        # Get all enum values
+        values = set(note.value for note in MidiNote)
+        # Check all 0-127 are present
+        for i in range(128):
+            assert i in values, f"MIDI note {i} missing from enum"
+
+    def test_enum_as_int(self):
+        """Test MidiNote values work as integers."""
+        assert int(MidiNote.C4) == 60
+        assert MidiNote.C4 + 12 == 72  # Octave up
+
+    def test_use_with_default_note(self):
+        """Test MidiNote can be used with midi_track.default_note."""
+        project = Project.from_template("TEST")
+        midi_track = project.bank(1).part(1).midi_track(1)
+
+        midi_track.default_note = MidiNote.C4
+        assert midi_track.default_note == 60
+
+        midi_track.default_note = MidiNote.A4
+        assert midi_track.default_note == 69
+
+        midi_track.default_note = MidiNote.C_MINUS1
+        assert midi_track.default_note == 0
+
+        midi_track.default_note = MidiNote.G9
+        assert midi_track.default_note == 127
+
+    def test_sharps_are_correct(self):
+        """Test sharp note values are correct."""
+        # Check sharps in octave 4
+        assert MidiNote.Cs4 == 61
+        assert MidiNote.Ds4 == 63
+        assert MidiNote.Fs4 == 66
+        assert MidiNote.Gs4 == 68
+        assert MidiNote.As4 == 70
 
 
 class TestNoteLengthQuantization:

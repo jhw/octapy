@@ -5,6 +5,166 @@ Enums for the Octatrack API.
 from enum import IntEnum
 
 
+# === MIDI Notes ===
+
+class MidiNote(IntEnum):
+    """
+    MIDI note values (0-127).
+
+    Standard MIDI note mapping where C-1 = 0 and C4 = 60 (Middle C).
+    This matches the Octatrack's display which shows notes starting at C-1.
+
+    Naming convention:
+    - Note name (C, D, E, F, G, A, B)
+    - 's' suffix for sharps (Cs = C#, Ds = D#, etc.)
+    - Octave number (-1 through 9, using _MINUS1 for -1 octave)
+
+    Usage:
+        midi_track.default_note = MidiNote.C4      # Middle C (60)
+        midi_track.default_note = MidiNote.A4      # Concert pitch A (69)
+        midi_track.default_note = MidiNote.C_MINUS1  # Lowest note (0)
+    """
+    # Octave -1 (notes 0-11)
+    C_MINUS1 = 0
+    Cs_MINUS1 = 1
+    D_MINUS1 = 2
+    Ds_MINUS1 = 3
+    E_MINUS1 = 4
+    F_MINUS1 = 5
+    Fs_MINUS1 = 6
+    G_MINUS1 = 7
+    Gs_MINUS1 = 8
+    A_MINUS1 = 9
+    As_MINUS1 = 10
+    B_MINUS1 = 11
+    # Octave 0 (notes 12-23)
+    C0 = 12
+    Cs0 = 13
+    D0 = 14
+    Ds0 = 15
+    E0 = 16
+    F0 = 17
+    Fs0 = 18
+    G0 = 19
+    Gs0 = 20
+    A0 = 21
+    As0 = 22
+    B0 = 23
+    # Octave 1 (notes 24-35)
+    C1 = 24
+    Cs1 = 25
+    D1 = 26
+    Ds1 = 27
+    E1 = 28
+    F1 = 29
+    Fs1 = 30
+    G1 = 31
+    Gs1 = 32
+    A1 = 33
+    As1 = 34
+    B1 = 35
+    # Octave 2 (notes 36-47)
+    C2 = 36
+    Cs2 = 37
+    D2 = 38
+    Ds2 = 39
+    E2 = 40
+    F2 = 41
+    Fs2 = 42
+    G2 = 43
+    Gs2 = 44
+    A2 = 45
+    As2 = 46
+    B2 = 47
+    # Octave 3 (notes 48-59)
+    C3 = 48
+    Cs3 = 49
+    D3 = 50
+    Ds3 = 51
+    E3 = 52
+    F3 = 53
+    Fs3 = 54
+    G3 = 55
+    Gs3 = 56
+    A3 = 57
+    As3 = 58
+    B3 = 59
+    # Octave 4 (notes 60-71) - Middle C octave
+    C4 = 60
+    Cs4 = 61
+    D4 = 62
+    Ds4 = 63
+    E4 = 64
+    F4 = 65
+    Fs4 = 66
+    G4 = 67
+    Gs4 = 68
+    A4 = 69   # Concert pitch A (440 Hz)
+    As4 = 70
+    B4 = 71
+    # Octave 5 (notes 72-83)
+    C5 = 72
+    Cs5 = 73
+    D5 = 74
+    Ds5 = 75
+    E5 = 76
+    F5 = 77
+    Fs5 = 78
+    G5 = 79
+    Gs5 = 80
+    A5 = 81
+    As5 = 82
+    B5 = 83
+    # Octave 6 (notes 84-95)
+    C6 = 84
+    Cs6 = 85
+    D6 = 86
+    Ds6 = 87
+    E6 = 88
+    F6 = 89
+    Fs6 = 90
+    G6 = 91
+    Gs6 = 92
+    A6 = 93
+    As6 = 94
+    B6 = 95
+    # Octave 7 (notes 96-107)
+    C7 = 96
+    Cs7 = 97
+    D7 = 98
+    Ds7 = 99
+    E7 = 100
+    F7 = 101
+    Fs7 = 102
+    G7 = 103
+    Gs7 = 104
+    A7 = 105
+    As7 = 106
+    B7 = 107
+    # Octave 8 (notes 108-119)
+    C8 = 108
+    Cs8 = 109
+    D8 = 110
+    Ds8 = 111
+    E8 = 112
+    F8 = 113
+    Fs8 = 114
+    G8 = 115
+    Gs8 = 116
+    A8 = 117
+    As8 = 118
+    B8 = 119
+    # Octave 9 (notes 120-127, incomplete octave)
+    C9 = 120
+    Cs9 = 121
+    D9 = 122
+    Ds9 = 123
+    E9 = 124
+    F9 = 125
+    Fs9 = 126
+    G9 = 127
+
+
 # === Note length ===
 
 class NoteLength(IntEnum):
