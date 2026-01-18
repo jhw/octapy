@@ -1,56 +1,94 @@
 #!/usr/bin/env python3
 """
-Clean all project zip files from the local tmp/ directory.
+Clean project zip files from the local tmp/projects directory.
+
+Usage:
+    clean_local.py              # List all, ask to remove each
+    clean_local.py flex         # Find matching, ask to remove each
+    clean_local.py -f           # Remove all without prompting
+    clean_local.py -f flex      # Remove matching without prompting
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-TMP_DIR = Path(__file__).parent.parent / "tmp"
+TMP_DIR = Path(__file__).parent.parent / "tmp" / "projects"
 
 
-def clean_local(force: bool = False):
-    """Remove all zip files from tmp/ directory."""
+def find_matching_zips(pattern: str = None) -> list:
+    """Find zip files matching the pattern (case-insensitive)."""
     if not TMP_DIR.exists():
-        print(f"tmp/ directory does not exist: {TMP_DIR}")
-        return
+        return []
 
     zip_files = list(TMP_DIR.glob("*.zip"))
 
-    if not zip_files:
-        print("No zip files found in tmp/")
+    if pattern:
+        pattern_lower = pattern.lower()
+        zip_files = [f for f in zip_files if pattern_lower in f.stem.lower()]
+
+    return sorted(zip_files, key=lambda f: f.name)
+
+
+def clean_local(pattern: str = None, force: bool = False):
+    """Remove zip files from tmp/projects directory."""
+    if not TMP_DIR.exists():
+        print(f"Directory does not exist: {TMP_DIR}")
         return
 
-    print(f"Found {len(zip_files)} zip file(s) in tmp/:")
-    for f in zip_files:
-        print(f"  {f.name}")
+    zip_files = find_matching_zips(pattern)
 
-    if not force:
-        response = input("\nRemove all? [y/N] ")
-        if response.lower() != 'y':
-            print("Aborted.")
-            sys.exit(0)
+    if not zip_files:
+        if pattern:
+            print(f"No zip files matching '{pattern}' found in {TMP_DIR}")
+        else:
+            print(f"No zip files found in {TMP_DIR}")
+        return
 
-    for f in zip_files:
-        f.unlink()
-        print(f"Removed {f.name}")
+    if pattern:
+        print(f"Found {len(zip_files)} zip file(s) matching '{pattern}':")
+    else:
+        print(f"Found {len(zip_files)} zip file(s) in {TMP_DIR}:")
 
-    print("Done.")
+    if force:
+        # Remove all matching without prompting
+        for f in zip_files:
+            f.unlink()
+            print(f"  Removed {f.name}")
+        print("Done.")
+    else:
+        # Ask for each file
+        removed = 0
+        for f in zip_files:
+            response = input(f"  Remove {f.name}? [y/N] ")
+            if response.lower() == 'y':
+                f.unlink()
+                print(f"    Removed.")
+                removed += 1
+            else:
+                print(f"    Skipped.")
+
+        print(f"\nRemoved {removed} of {len(zip_files)} file(s).")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Clean all project zip files from tmp/"
+        description="Clean project zip files from tmp/projects"
+    )
+    parser.add_argument(
+        "pattern",
+        nargs="?",
+        default=None,
+        help="Text fragment to match (case-insensitive)"
     )
     parser.add_argument(
         "-f", "--force",
         action="store_true",
-        help="Skip confirmation prompt"
+        help="Remove without prompting"
     )
 
     args = parser.parse_args()
-    clean_local(args.force)
+    clean_local(args.pattern, args.force)
 
 
 if __name__ == "__main__":

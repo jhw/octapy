@@ -30,8 +30,8 @@ from octapy import Project, MachineType, SamplePool, NoteLength
 from patterns.euclid import get_random_euclidean_pattern
 
 # Constants
-OUTPUT_DIR = Path(__file__).parent.parent / "tmp"
-SAMPLES_DIR = OUTPUT_DIR / "Erica Pico"
+OUTPUT_DIR = Path(__file__).parent.parent / "tmp" / "projects"
+SAMPLES_DIR = Path(__file__).parent.parent / "tmp" / "Erica Pico"
 
 # Probability for kick and hat tracks
 DEFAULT_PROBABILITY = 0.85
@@ -194,7 +194,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Create project
     print(f"\nCreating project '{name}'")
     project = Project.from_template(name)
-    project.tempo = 124
+    project.settings.tempo = 124
     project.sample_duration = NoteLength.SIXTEENTH
 
     # Configure Banks 1 and 2
