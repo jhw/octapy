@@ -53,7 +53,7 @@ class TestAudioPartTrackMachineTypes:
             MachineType.STATIC,
             MachineType.THRU,
             MachineType.NEIGHBOR,
-            MachineType.PICKUP,
+            MachineType.NEIGHBOR,
             MachineType.FLEX,
             MachineType.STATIC,
             MachineType.THRU,
@@ -825,48 +825,6 @@ class TestNeighborPartTrack:
         assert neighbor is not None
 
 
-class TestPickupPartTrack:
-    """PickupPartTrack machine-specific parameter tests."""
-
-    def test_pickup_track_factory(self):
-        """Test getting a PickupPartTrack from Part."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        assert pickup is not None
-
-    def test_pickup_pitch_default(self):
-        """Test default pitch value."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        assert pickup.pitch == 64
-
-    def test_pickup_set_pitch(self):
-        """Test setting pitch."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        pickup.pitch = 72
-        assert pickup.pitch == 72
-
-    def test_pickup_direction_default(self):
-        """Test default direction value."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        assert pickup.direction == 2  # Template default
-
-    def test_pickup_gain_default(self):
-        """Test default gain value."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        assert pickup.gain == 64  # Template default
-
-    def test_pickup_set_gain(self):
-        """Test setting gain."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        pickup.gain = 80
-        assert pickup.gain == 80
-
-
 class TestMachinePartTrackRoundTrip:
     """Test machine-specific part tracks survive save/load."""
 
@@ -900,20 +858,6 @@ class TestMachinePartTrackRoundTrip:
         loaded_thru = loaded.bank(1).part(1).thru_track(1)
         assert loaded_thru.in_ab == 1
         assert loaded_thru.vol_ab == 80
-
-    @pytest.mark.slow
-    def test_pickup_track_roundtrip(self, temp_dir):
-        """Test PickupPartTrack values survive save/load."""
-        project = Project.from_template("TEST")
-        pickup = project.bank(1).part(1).pickup_track(1)
-        pickup.pitch = 60
-        pickup.gain = 90
-        project.to_directory(temp_dir / "TEST")
-
-        loaded = Project.from_directory(temp_dir / "TEST")
-        loaded_pickup = loaded.bank(1).part(1).pickup_track(1)
-        assert loaded_pickup.pitch == 60
-        assert loaded_pickup.gain == 90
 
 
 # =============================================================================

@@ -9,7 +9,6 @@ from .flex import FlexPartTrack
 from .static import StaticPartTrack
 from .thru import ThruPartTrack
 from .neighbor import NeighborPartTrack
-from .pickup import PickupPartTrack
 from .midi import MidiPartTrack
 from .part import Part
 
@@ -21,7 +20,6 @@ __all__ = [
     "StaticPartTrack",
     "ThruPartTrack",
     "NeighborPartTrack",
-    "PickupPartTrack",
     "MidiPartTrack",
     "Part",
 ]

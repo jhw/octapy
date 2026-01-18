@@ -10,7 +10,6 @@ from octapy.api.scene import (
     SamplerSceneTrack,
     ThruSceneTrack,
     NeighborSceneTrack,
-    PickupSceneTrack,
 )
 
 
@@ -80,11 +79,6 @@ class TestSceneTrackAccess:
         """Test accessing a neighbor track."""
         track = scene.neighbor_track(1)
         assert isinstance(track, NeighborSceneTrack)
-
-    def test_pickup_track_access(self, scene):
-        """Test accessing a pickup track."""
-        track = scene.pickup_track(1)
-        assert isinstance(track, PickupSceneTrack)
 
     def test_track_range(self, scene):
         """Test all 8 tracks are accessible."""
@@ -330,44 +324,6 @@ class TestNeighborLocks:
         track.fx2_param1 = 80
         assert track.fx1_param1 == 64
         assert track.fx2_param1 == 80
-
-
-# =============================================================================
-# Pickup Playback Lock Tests
-# =============================================================================
-
-class TestPickupPlaybackLocks:
-    """Test Pickup playback page locks."""
-
-    def test_pitch(self, scene):
-        """Test pitch lock."""
-        track = scene.pickup_track(1)
-        track.pitch = 64
-        assert track.pitch == 64
-
-    def test_direction(self, scene):
-        """Test direction lock."""
-        track = scene.pickup_track(1)
-        track.direction = 2
-        assert track.direction == 2
-
-    def test_length(self, scene):
-        """Test length lock."""
-        track = scene.pickup_track(1)
-        track.length = 1
-        assert track.length == 1
-
-    def test_gain(self, scene):
-        """Test gain lock."""
-        track = scene.pickup_track(1)
-        track.gain = 80
-        assert track.gain == 80
-
-    def test_operation(self, scene):
-        """Test operation lock."""
-        track = scene.pickup_track(1)
-        track.operation = 1
-        assert track.operation == 1
 
 
 # =============================================================================

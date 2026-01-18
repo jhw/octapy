@@ -13,7 +13,6 @@ from .flex import FlexPartTrack
 from .static import StaticPartTrack
 from .thru import ThruPartTrack
 from .neighbor import NeighborPartTrack
-from .pickup import PickupPartTrack
 from .midi import MidiPartTrack
 
 
@@ -45,7 +44,6 @@ class Part:
         self._static_tracks: Dict[int, StaticPartTrack] = {}
         self._thru_tracks: Dict[int, ThruPartTrack] = {}
         self._neighbor_tracks: Dict[int, NeighborPartTrack] = {}
-        self._pickup_tracks: Dict[int, PickupPartTrack] = {}
         self._midi_tracks: Dict[int, MidiPartTrack] = {}
         self._scenes: Dict[int, Scene] = {}
 
@@ -126,20 +124,6 @@ class Part:
         if track_num not in self._neighbor_tracks:
             self._neighbor_tracks[track_num] = NeighborPartTrack(self, track_num)
         return self._neighbor_tracks[track_num]
-
-    def pickup_track(self, track_num: int) -> PickupPartTrack:
-        """
-        Get a track (1-8) as PickupPartTrack with Pickup-specific parameters.
-
-        Args:
-            track_num: Track number (1-8)
-
-        Returns:
-            PickupPartTrack instance with pitch, direction, gain, operation, etc.
-        """
-        if track_num not in self._pickup_tracks:
-            self._pickup_tracks[track_num] = PickupPartTrack(self, track_num)
-        return self._pickup_tracks[track_num]
 
     def midi_track(self, track_num: int) -> MidiPartTrack:
         """

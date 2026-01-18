@@ -35,7 +35,6 @@ from .part import (
     StaticPartTrack,
     ThruPartTrack,
     NeighborPartTrack,
-    PickupPartTrack,
     MidiPartTrack,
 )
 from .pattern import Pattern, AudioPatternTrack, MidiPatternTrack

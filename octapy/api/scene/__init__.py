@@ -9,7 +9,6 @@ from .audio import AudioSceneTrack
 from .sampler import SamplerSceneTrack
 from .thru import ThruSceneTrack
 from .neighbor import NeighborSceneTrack
-from .pickup import PickupSceneTrack
 from .scene import Scene
 
 __all__ = [
@@ -18,6 +17,5 @@ __all__ = [
     "SamplerSceneTrack",
     "ThruSceneTrack",
     "NeighborSceneTrack",
-    "PickupSceneTrack",
     "Scene",
 ]

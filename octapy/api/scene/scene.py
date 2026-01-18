@@ -10,7 +10,6 @@ from .audio import AudioSceneTrack
 from .sampler import SamplerSceneTrack
 from .thru import ThruSceneTrack
 from .neighbor import NeighborSceneTrack
-from .pickup import PickupSceneTrack
 
 
 class Scene:
@@ -40,7 +39,6 @@ class Scene:
         self._sampler_tracks: Dict[int, SamplerSceneTrack] = {}
         self._thru_tracks: Dict[int, ThruSceneTrack] = {}
         self._neighbor_tracks: Dict[int, NeighborSceneTrack] = {}
-        self._pickup_tracks: Dict[int, PickupSceneTrack] = {}
 
     def track(self, track_num: int) -> AudioSceneTrack:
         """
@@ -102,20 +100,6 @@ class Scene:
         if track_num not in self._neighbor_tracks:
             self._neighbor_tracks[track_num] = NeighborSceneTrack(self, track_num)
         return self._neighbor_tracks[track_num]
-
-    def pickup_track(self, track_num: int) -> PickupSceneTrack:
-        """
-        Get a track (1-8) as PickupSceneTrack with Pickup playback locks.
-
-        Args:
-            track_num: Track number (1-8)
-
-        Returns:
-            PickupSceneTrack instance with pitch, direction, gain, operation
-        """
-        if track_num not in self._pickup_tracks:
-            self._pickup_tracks[track_num] = PickupSceneTrack(self, track_num)
-        return self._pickup_tracks[track_num]
 
     def clear_all_locks(self):
         """Clear all locks for all tracks in this scene."""
