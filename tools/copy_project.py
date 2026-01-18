@@ -3,7 +3,7 @@
 Copy project(s) to the connected Octatrack device.
 
 Searches tmp/projects for matching zip files and asks to copy each one.
-Bundled samples are automatically copied to AUDIO/{PROJECT}/ on the device.
+Bundled samples are automatically copied to AUDIO/projects/{PROJECT}/ on the device.
 
 Usage:
     copy_project.py              # List all, ask to copy each
@@ -47,7 +47,7 @@ def copy_single_project(zip_path: Path, force: bool = False) -> bool:
     project = Project.from_zip(zip_path)
     name = project.name
     dest_path = Path(OCTATRACK_DEVICE) / name
-    audio_dest = Path(OCTATRACK_DEVICE) / "AUDIO" / name
+    audio_dest = Path(OCTATRACK_DEVICE) / "AUDIO" / "projects" / name
 
     # Check if destination already exists
     if dest_path.exists():
@@ -65,7 +65,7 @@ def copy_single_project(zip_path: Path, force: bool = False) -> bool:
     # Save project to destination (this writes .work files)
     project.to_directory(dest_path)
 
-    # Copy bundled samples to AUDIO/{PROJECT}/
+    # Copy bundled samples to AUDIO/projects/{PROJECT}/
     sample_pool = project.sample_pool
     if sample_pool:
         audio_dest.mkdir(parents=True, exist_ok=True)

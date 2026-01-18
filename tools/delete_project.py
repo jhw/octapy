@@ -48,7 +48,7 @@ def delete_single_project(project_path: Path) -> bool:
     Returns True if deleted, False if skipped.
     """
     name = project_path.name
-    audio_path = Path(OCTATRACK_DEVICE) / "AUDIO" / name
+    audio_path = Path(OCTATRACK_DEVICE) / "AUDIO" / "projects" / name
 
     shutil.rmtree(project_path)
 

@@ -331,7 +331,7 @@ class Project:
 
         The sample is added to the sample pool and will be bundled with the
         project when saved. The OT path is auto-generated as:
-        ../AUDIO/{PROJECT_NAME}/{filename}.wav
+        ../AUDIO/projects/{PROJECT_NAME}/{filename}.wav
 
         If the same filename has already been added, returns the existing slot.
         If no slot is specified, automatically assigns the next available slot.
@@ -355,7 +355,7 @@ class Project:
             raise FileNotFoundError(f"Sample file not found: {local_path}")
 
         filename = local_path.name
-        ot_path = f"../AUDIO/{self.name}/{filename}"
+        ot_path = f"../AUDIO/projects/{self.name}/{filename}"
         is_flex = slot_type.upper() == "FLEX"
 
         # Check if already assigned (returns existing slot)
@@ -399,7 +399,7 @@ class Project:
         Returns:
             Slot number if found, None otherwise
         """
-        ot_path = f"../AUDIO/{self.name}/{filename}"
+        ot_path = f"../AUDIO/projects/{self.name}/{filename}"
         return self._slot_manager.get(ot_path, slot_type)
 
     @property
