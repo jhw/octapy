@@ -2,7 +2,7 @@
 
 """
 Download Erica Synths Pico Drum sample packs from their official server.
-Saves samples to tmp/Erica Pico/{pack-name}/{sample-name}.wav
+Saves samples to tmp/samples/Erica Pico/{pack-name}/{sample-name}.wav
 """
 
 import json
@@ -23,7 +23,7 @@ def fetch_bin(path, endpoint = Endpoint):
 
 def directory_name(pack_name):
     pack_slug = pack_name.lower().replace(" ", "-")
-    return f"tmp/Erica Pico/{pack_slug}"
+    return f"tmp/samples/Erica Pico/{pack_slug}"
 
 def filter_blocks(buf):
     def format_block(i, block):

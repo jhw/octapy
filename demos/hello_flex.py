@@ -31,7 +31,7 @@ from patterns.euclid import get_random_euclidean_pattern
 
 # Constants
 OUTPUT_DIR = Path(__file__).parent.parent / "tmp" / "projects"
-SAMPLES_DIR = Path(__file__).parent.parent / "tmp" / "Erica Pico"
+SAMPLES_DIR = Path(__file__).parent.parent / "tmp" / "samples" / "Erica Pico"
 
 # Probability for kick and hat tracks
 DEFAULT_PROBABILITY = 0.85
