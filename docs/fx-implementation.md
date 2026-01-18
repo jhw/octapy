@@ -241,12 +241,12 @@ Scene FX locks are stored in `SceneParams.fx1` and `SceneParams.fx2` (6 bytes ea
 | Page | Varies By | Properties | Implementation |
 |------|-----------|------------|----------------|
 | PLAYBACK | Machine type | Machine-specific | Machine subclasses (existing) |
-| LFO | Never | Always same 6 | Direct properties in AudioPartTrack |
+| LFO | Never | Always same 6 | Not yet implemented (needs design) |
 | AMP | Never | Always same 6 | Direct properties in AudioPartTrack |
 | FX1 | FX1 type | Type-specific | Container pattern (this doc) |
 | FX2 | FX2 type | Type-specific | Container pattern (this doc) |
 
-LFO and AMP don't need containers because they're always the same structure. FX benefits from containers because the parameter meanings change based on effect type.
+AMP doesn't need a container because it's always the same structure. FX benefits from containers because the parameter meanings change based on effect type. LFO requires further design consideration due to additional complexity beyond the 6 encoder values.
 
 ## Integration Points
 

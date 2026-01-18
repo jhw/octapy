@@ -80,7 +80,7 @@ The PLAYBACK page encoders differ by machine type:
 ```
 part/
 ├── base.py         # BasePartTrack (ABC)
-├── audio.py        # AudioPartTrack (LFO, AMP pages)
+├── audio.py        # AudioPartTrack (AMP page)
 ├── sampler.py      # SamplerPartTrack (Flex/Static base)
 ├── flex.py         # FlexPartTrack
 ├── static.py       # StaticPartTrack
