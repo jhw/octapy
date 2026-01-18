@@ -35,6 +35,8 @@ from .bank import (
     MidiTrackSetupOffset,
     MidiTrackTrigsOffset,
     MidiPlockOffset,
+    SceneOffset,
+    SceneParamsOffset,
     BANK_FILE_SIZE,
     BANK_HEADER,
     BANK_FILE_VERSION,
@@ -54,6 +56,12 @@ from .bank import (
     MIDI_TRACK_SETUP_SIZE,
     MIDI_TRACK_PATTERN_SIZE,
     MIDI_PLOCK_SIZE,
+    SCENE_PARAMS_SIZE,
+    SCENE_TRACK_COUNT,
+    SCENE_SIZE,
+    SCENE_COUNT,
+    SCENE_XLV_SIZE,
+    SCENE_LOCK_DISABLED,
 )
 
 from .markers import (

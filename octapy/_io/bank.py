@@ -387,6 +387,78 @@ class MidiPartOffset(IntEnum):
     MIDI_TRACK_PARAMS_SETUP = 1259   # 0x4EB
 
 
+# =============================================================================
+# Scene Data Offsets
+# =============================================================================
+
+# Scene data sizes
+SCENE_PARAMS_SIZE = 32          # SceneParams: 32 bytes per track per scene
+SCENE_TRACK_COUNT = 8           # 8 audio tracks per scene
+SCENE_SIZE = 256                # SceneParamsArray: 8 tracks * 32 bytes
+SCENE_COUNT = 16                # 16 scenes per part
+SCENE_XLV_SIZE = 10             # SceneXlvAssignments: 8 tracks + 2 unknown
+
+
+class SceneOffset(IntEnum):
+    """Byte offsets for scene data within a Part block."""
+    # Recorder setup: 8 tracks * 12 bytes = 96 bytes
+    RECORDER_SETUP = 1547
+    # Scene params: 16 scenes * 8 tracks * 32 bytes = 4096 bytes
+    SCENES = 1643
+    # Scene XLV (crossfader volume) assignments: 16 scenes * 10 bytes = 160 bytes
+    SCENE_XLVS = 5739
+
+
+class SceneParamsOffset(IntEnum):
+    """Offsets within SceneParams (32 bytes per track per scene).
+
+    Values of 255 indicate "no lock" (use Part default, don't morph).
+    Any other value is the scene's lock destination.
+    """
+    # Machine/Playback page (6 bytes) - machine-specific params
+    PLAYBACK_PARAM1 = 0
+    PLAYBACK_PARAM2 = 1
+    PLAYBACK_PARAM3 = 2
+    PLAYBACK_PARAM4 = 3
+    PLAYBACK_PARAM5 = 4
+    PLAYBACK_PARAM6 = 5
+    # LFO page (6 bytes)
+    LFO_SPD1 = 6
+    LFO_SPD2 = 7
+    LFO_SPD3 = 8
+    LFO_DEP1 = 9
+    LFO_DEP2 = 10
+    LFO_DEP3 = 11
+    # AMP page (6 bytes)
+    AMP_ATK = 12
+    AMP_HOLD = 13
+    AMP_REL = 14
+    AMP_VOL = 15
+    AMP_BAL = 16
+    AMP_F = 17
+    # FX1 page (6 bytes)
+    FX1_PARAM1 = 18
+    FX1_PARAM2 = 19
+    FX1_PARAM3 = 20
+    FX1_PARAM4 = 21
+    FX1_PARAM5 = 22
+    FX1_PARAM6 = 23
+    # FX2 page (6 bytes)
+    FX2_PARAM1 = 24
+    FX2_PARAM2 = 25
+    FX2_PARAM3 = 26
+    FX2_PARAM4 = 27
+    FX2_PARAM5 = 28
+    FX2_PARAM6 = 29
+    # Unknown/reserved (2 bytes)
+    UNKNOWN_1 = 30
+    UNKNOWN_2 = 31
+
+
+# Scene lock disabled value (255 = no lock, use Part default)
+SCENE_LOCK_DISABLED = 255
+
+
 class MidiTrackValuesOffset(IntEnum):
     """Offsets within MidiTrackParamsValues (32 bytes per track).
 

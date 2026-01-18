@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Dict
 
 from ..._io import PartOffset
+from ..scene import Scene
 from .audio import AudioPartTrack
 from .flex import FlexPartTrack
 from .static import StaticPartTrack
@@ -36,7 +37,7 @@ class Part:
         flex.timestretch = 0
     """
 
-    def __init__(self, bank: "Bank", part_num: int):
+    def __init__(self, bank: Bank, part_num: int):
         self._bank = bank
         self._part_num = part_num
         self._tracks: Dict[int, AudioPartTrack] = {}
@@ -46,6 +47,7 @@ class Part:
         self._neighbor_tracks: Dict[int, NeighborPartTrack] = {}
         self._pickup_tracks: Dict[int, PickupPartTrack] = {}
         self._midi_tracks: Dict[int, MidiPartTrack] = {}
+        self._scenes: Dict[int, Scene] = {}
 
     def _part_offset(self) -> int:
         """Get the byte offset for this part in the bank file."""
@@ -152,6 +154,23 @@ class Part:
         if track_num not in self._midi_tracks:
             self._midi_tracks[track_num] = MidiPartTrack(self, track_num)
         return self._midi_tracks[track_num]
+
+    def scene(self, scene_num: int) -> Scene:
+        """
+        Get a scene (1-16) for this Part.
+
+        Each Part has 16 scenes. Scenes contain parameter locks for
+        crossfader morphing across all 8 audio tracks.
+
+        Args:
+            scene_num: Scene number (1-16)
+
+        Returns:
+            Scene instance for configuring scene locks
+        """
+        if scene_num not in self._scenes:
+            self._scenes[scene_num] = Scene(self, scene_num)
+        return self._scenes[scene_num]
 
     @property
     def active_scene_a(self) -> int:
