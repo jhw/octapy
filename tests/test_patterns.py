@@ -729,6 +729,81 @@ class TestMidiStepCCPlocks:
             step.cc(11)
 
 
+class TestMidiStepLengthQuantization:
+    """MidiStep length p-lock quantization tests."""
+
+    def test_length_exact_values(self):
+        """Test exact NoteLength values are preserved."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        # Test all valid NoteLength values
+        for expected in [3, 6, 12, 24, 48]:
+            step.length = expected
+            assert step.length == expected, f"Expected {expected}, got {step.length}"
+
+    def test_length_quantizes_to_nearest(self):
+        """Test non-NoteLength values are quantized to nearest."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        # Values close to 3 (1/32)
+        step.length = 1
+        assert step.length == 3
+        step.length = 4
+        assert step.length == 3
+
+        # Values close to 6 (1/16)
+        step.length = 5
+        assert step.length == 6
+        step.length = 8
+        assert step.length == 6
+
+        # Values close to 12 (1/8)
+        step.length = 10
+        assert step.length == 12
+        step.length = 15
+        assert step.length == 12
+
+        # Values close to 24 (1/4)
+        step.length = 20
+        assert step.length == 24
+        step.length = 30
+        assert step.length == 24
+
+        # Values close to 48 (1/2)
+        step.length = 40
+        assert step.length == 48
+        step.length = 100
+        assert step.length == 48
+
+    def test_length_clear_with_none(self):
+        """Test clearing length p-lock with None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.length = 12
+        assert step.length == 12
+        step.length = None
+        assert step.length is None
+
+    def test_length_zero_quantizes_to_minimum(self):
+        """Test zero value quantizes to minimum (3)."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.length = 0
+        assert step.length == 3
+
+    def test_length_large_value_quantizes_to_maximum(self):
+        """Test large values quantize to maximum (48)."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).midi_track(1).step(5)
+
+        step.length = 127
+        assert step.length == 48
+
+
 class TestMidiStepCondition:
     """MidiStep condition tests."""
 

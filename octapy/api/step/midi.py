@@ -11,6 +11,7 @@ from ..._io import (
     MidiPlockOffset,
     MIDI_PLOCK_SIZE,
 )
+from ..utils import quantize_note_length
 from .base import BaseStep
 
 
@@ -86,15 +87,24 @@ class MidiStep(BaseStep):
         """
         Get/set p-locked MIDI note length for this step.
 
-        Value range: 0-127 (6 = 1/16 note)
+        Values are quantized to valid NoteLength values:
+        3 (1/32), 6 (1/16), 12 (1/8), 24 (1/4), 48 (1/2)
+
         Returns None if no p-lock is set (uses Part default).
         Set to None to clear the p-lock.
         """
-        return self._get_plock(MidiPlockOffset.LENGTH)
+        raw = self._get_plock(MidiPlockOffset.LENGTH)
+        if raw is None:
+            return None
+        return quantize_note_length(raw)
 
     @length.setter
     def length(self, value: Optional[int]):
-        self._set_plock(MidiPlockOffset.LENGTH, value)
+        if value is None:
+            self._set_plock(MidiPlockOffset.LENGTH, None)
+        else:
+            quantized = quantize_note_length(value)
+            self._set_plock(MidiPlockOffset.LENGTH, quantized)
 
     # === MIDI CC P-lock properties ===
 
