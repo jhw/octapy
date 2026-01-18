@@ -250,62 +250,62 @@ class TestSampleSlot:
 
 
 class TestProjectMidiSettings:
-    """High-level Project MIDI settings tests."""
+    """High-level Project MIDI settings tests (via project.settings)."""
 
     def test_midi_clock_send_default_false(self):
         """Test midi_clock_send defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_clock_send is False
+        assert project.settings.midi_clock_send is False
 
     def test_midi_clock_send_set_true(self):
         """Test setting midi_clock_send to True."""
         from octapy import Project
         project = Project.from_template("TEST")
-        project.midi_clock_send = True
-        assert project.midi_clock_send is True
+        project.settings.midi_clock_send = True
+        assert project.settings.midi_clock_send is True
 
     def test_midi_clock_receive_default_false(self):
         """Test midi_clock_receive defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_clock_receive is False
+        assert project.settings.midi_clock_receive is False
 
     def test_midi_transport_send_default_false(self):
         """Test midi_transport_send defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_transport_send is False
+        assert project.settings.midi_transport_send is False
 
     def test_midi_transport_receive_default_false(self):
         """Test midi_transport_receive defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_transport_receive is False
+        assert project.settings.midi_transport_receive is False
 
     def test_midi_program_change_send_default_false(self):
         """Test midi_program_change_send defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_program_change_send is False
+        assert project.settings.midi_program_change_send is False
 
     def test_midi_program_change_send_ch_default(self):
         """Test midi_program_change_send_ch defaults to -1."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_program_change_send_ch == -1
+        assert project.settings.midi_program_change_send_ch == -1
 
     def test_midi_program_change_receive_default_false(self):
         """Test midi_program_change_receive defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_program_change_receive is False
+        assert project.settings.midi_program_change_receive is False
 
     def test_midi_program_change_receive_ch_default(self):
         """Test midi_program_change_receive_ch defaults to -1."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.midi_program_change_receive_ch == -1
+        assert project.settings.midi_program_change_receive_ch == -1
 
     @pytest.mark.slow
     def test_midi_settings_roundtrip(self, temp_dir):
@@ -313,25 +313,25 @@ class TestProjectMidiSettings:
         from octapy import Project
 
         project = Project.from_template("TEST")
-        project.midi_clock_send = True
-        project.midi_clock_receive = True
-        project.midi_transport_send = True
-        project.midi_transport_receive = True
-        project.midi_program_change_send = True
-        project.midi_program_change_send_ch = 10
-        project.midi_program_change_receive = True
-        project.midi_program_change_receive_ch = 5
+        project.settings.midi_clock_send = True
+        project.settings.midi_clock_receive = True
+        project.settings.midi_transport_send = True
+        project.settings.midi_transport_receive = True
+        project.settings.midi_program_change_send = True
+        project.settings.midi_program_change_send_ch = 10
+        project.settings.midi_program_change_receive = True
+        project.settings.midi_program_change_receive_ch = 5
 
         # Save and reload
         project.to_directory(temp_dir / "TEST")
         loaded = Project.from_directory(temp_dir / "TEST")
 
         # Verify
-        assert loaded.midi_clock_send is True
-        assert loaded.midi_clock_receive is True
-        assert loaded.midi_transport_send is True
-        assert loaded.midi_transport_receive is True
-        assert loaded.midi_program_change_send is True
-        assert loaded.midi_program_change_send_ch == 10
-        assert loaded.midi_program_change_receive is True
-        assert loaded.midi_program_change_receive_ch == 5
+        assert loaded.settings.midi_clock_send is True
+        assert loaded.settings.midi_clock_receive is True
+        assert loaded.settings.midi_transport_send is True
+        assert loaded.settings.midi_transport_receive is True
+        assert loaded.settings.midi_program_change_send is True
+        assert loaded.settings.midi_program_change_send_ch == 10
+        assert loaded.settings.midi_program_change_receive is True
+        assert loaded.settings.midi_program_change_receive_ch == 5

@@ -26,6 +26,7 @@ from .slot_manager import (
 )
 
 from .project import Project
+from .settings import Settings
 from .bank import Bank
 from .part import (
     Part,
