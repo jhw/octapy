@@ -484,3 +484,70 @@ class TestMasterTrackAutoTrig:
 
         # Pattern with no trigs should remain empty
         assert project.bank(2).pattern(1).track(8).active_steps == []
+
+
+class TestRenderSettings:
+    """Tests for octapy RenderSettings."""
+
+    def test_render_settings_accessible(self):
+        """Test render_settings is accessible on project."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings is not None
+
+    def test_auto_master_trig_default_true(self):
+        """Test auto_master_trig defaults to True."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.auto_master_trig is True
+
+    def test_auto_master_trig_can_be_disabled(self):
+        """Test auto_master_trig can be set to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.auto_master_trig = False
+        assert project.render_settings.auto_master_trig is False
+
+    def test_auto_master_trig_disabled_prevents_auto_trig(self, temp_dir):
+        """When auto_master_trig is False, track 8 trigs are not auto-added."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        project.render_settings.auto_master_trig = False
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+
+        # Save - should NOT add auto-trig because disabled
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should remain empty
+        assert project.bank(1).pattern(1).track(8).active_steps == []
+
+    def test_sample_duration_default_none(self):
+        """Test sample_duration defaults to None."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.sample_duration is None
+
+    def test_sample_duration_via_render_settings(self):
+        """Test sample_duration can be set via render_settings."""
+        from octapy import Project
+        from octapy.api.enums import NoteLength
+
+        project = Project.from_template("TEST")
+        project.render_settings.sample_duration = NoteLength.QUARTER
+        assert project.render_settings.sample_duration == NoteLength.QUARTER
+
+    def test_sample_duration_shortcut(self):
+        """Test sample_duration shortcut property on project."""
+        from octapy import Project
+        from octapy.api.enums import NoteLength
+
+        project = Project.from_template("TEST")
+        project.sample_duration = NoteLength.HALF
+        assert project.sample_duration == NoteLength.HALF
+        assert project.render_settings.sample_duration == NoteLength.HALF

@@ -196,3 +196,57 @@ class Settings:
     @master_track.setter
     def master_track(self, value: bool):
         self._settings.master_track = int(value)
+
+
+class RenderSettings:
+    """
+    Octapy-specific settings used during project rendering/saving.
+
+    These settings are NOT saved to Octatrack files - they control
+    octapy's behavior when processing and saving projects.
+
+    Access via project.render_settings.
+
+    Usage:
+        project.render_settings.auto_master_trig = True
+        project.render_settings.sample_duration = NoteLength.QUARTER
+    """
+
+    def __init__(self):
+        self._auto_master_trig = True
+        self._sample_duration = None
+
+    @property
+    def auto_master_trig(self) -> bool:
+        """
+        Auto-add trig to track 8 when master track is enabled.
+
+        When True (default), automatically adds a step 1 trig to track 8
+        for any pattern where tracks 1-7 have trigs. This ensures the
+        master track processes audio.
+
+        Set to False for manual control over track 8 trigs.
+        """
+        return self._auto_master_trig
+
+    @auto_master_trig.setter
+    def auto_master_trig(self, value: bool):
+        self._auto_master_trig = value
+
+    @property
+    def sample_duration(self):
+        """
+        Target duration for sample normalization.
+
+        When set, samples are normalized (trimmed/padded) to this duration
+        based on project BPM when saving.
+
+        Values: NoteLength.SIXTEENTH (1 step), EIGHTH (2 steps),
+                QUARTER (4 steps), HALF (8 steps), WHOLE (16 steps),
+                or None (no normalization, default)
+        """
+        return self._sample_duration
+
+    @sample_duration.setter
+    def sample_duration(self, value):
+        self._sample_duration = value

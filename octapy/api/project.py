@@ -16,7 +16,7 @@ from .._io import (
     unzip_project,
 )
 from .bank import Bank
-from .settings import Settings
+from .settings import RenderSettings, Settings
 from .slot_manager import SlotManager
 
 
@@ -78,8 +78,8 @@ class Project:
         # Temp directory reference (kept alive when loading from zip)
         self._temp_dir = None
 
-        # Sample normalization (None = no normalization)
-        self._sample_duration = None
+        # Octapy rendering settings (not saved to OT files)
+        self._render_settings = RenderSettings()
 
     @classmethod
     def from_template(cls, name: str) -> "Project":
@@ -218,8 +218,11 @@ class Project:
         step 1 of track 8 for any pattern where tracks 1-7 have trigs.
 
         Only affects audio tracks (MIDI tracks are separate and unaffected).
+        Controlled by render_settings.auto_master_trig (default True).
         """
         if not self.settings.master_track:
+            return
+        if not self.render_settings.auto_master_trig:
             return
 
         # Iterate through all 16 banks
@@ -275,9 +278,11 @@ class Project:
             samples_dir = path / "samples"
             samples_dir.mkdir(exist_ok=True)
 
-            if self._sample_duration is not None:
+            if self.render_settings.sample_duration is not None:
                 # Normalize samples to target duration
-                target_ms = _calculate_duration_ms(self.settings.tempo, self._sample_duration)
+                target_ms = _calculate_duration_ms(
+                    self.settings.tempo, self.render_settings.sample_duration
+                )
                 for filename, local_path in self._sample_pool.items():
                     _normalize_sample(local_path, samples_dir / filename, target_ms)
             else:
@@ -333,9 +338,25 @@ class Project:
         return self._settings
 
     @property
+    def render_settings(self) -> RenderSettings:
+        """
+        Get octapy rendering settings.
+
+        These settings control octapy's behavior during project processing
+        and saving. They are NOT saved to Octatrack files.
+
+        Available settings:
+            auto_master_trig: Auto-add track 8 trig when master track enabled
+            sample_duration: Target duration for sample normalization
+        """
+        return self._render_settings
+
+    @property
     def sample_duration(self):
         """
         Get/set sample duration for normalization.
+
+        Shortcut for render_settings.sample_duration.
 
         When set, samples are normalized (trimmed/padded) to this duration
         based on BPM when saving the project.
@@ -344,11 +365,11 @@ class Project:
                 QUARTER (4 steps), HALF (8 steps), WHOLE (16 steps),
                 or None (no normalization)
         """
-        return self._sample_duration
+        return self._render_settings.sample_duration
 
     @sample_duration.setter
     def sample_duration(self, value):
-        self._sample_duration = value
+        self._render_settings.sample_duration = value
 
     # === Sample management ===
 
