@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength
+from octapy import Project, MachineType, SamplePool, NoteLength, LoopMode, LengthMode
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -122,14 +122,16 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
         print(f"    Part {part_num}: {kick_sample.name}, {snare_sample.name}, {hat_sample.name}")
 
         # Configure machine types and slots for tracks 1-3
-        # Use FlexPartTrack for machine-specific parameters
         for track_num, slot in [(1, kick_slot), (2, snare_slot), (3, hat_slot)]:
-            # Set machine type via base track accessor
+            # Set machine type and slot
             part.track(track_num).machine_type = MachineType.FLEX
             part.track(track_num).flex_slot = slot - 1
 
-            # Flex-specific params use sensible defaults from template:
-            # pitch=64 (no transpose), start=0, length=127 (full), rate=127
+            # Configure Flex-specific parameters
+            flex = part.flex_track(track_num)
+            flex.loop_mode = LoopMode.OFF
+            flex.length_mode = LengthMode.TIME
+            flex.length = 127  # Full sample length
 
     # Configure all 16 patterns with Euclidean rhythms
     print(f"\n  Bank {bank_num} ({bank_letter}) Patterns 1-16:")
@@ -190,7 +192,13 @@ def create_project(name: str, output_dir: Path) -> Path:
     print(f"\nCreating project '{name}'")
     project = Project.from_template(name)
     project.settings.tempo = 124
-    project.sample_duration = NoteLength.SIXTEENTH
+
+    # Enable master track (track 8 receives summed output of tracks 1-7)
+    project.settings.master_track = True
+
+    # Configure render settings (octapy-specific, not saved to OT files)
+    project.render_settings.sample_duration = NoteLength.SIXTEENTH
+    project.render_settings.auto_master_trig = True
 
     # Configure Banks 1 and 2
     print(f"\nConfiguring Banks 1-2:")

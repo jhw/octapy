@@ -215,9 +215,9 @@ class RenderSettings:
     """
 
     def __init__(self):
-        self._auto_master_trig = True
-        self._auto_thru_trig = True
-        self._propagate_scenes = True
+        self._auto_master_trig = False
+        self._auto_thru_trig = False
+        self._propagate_scenes = False
         self._sample_duration = None
 
     @property
@@ -225,11 +225,11 @@ class RenderSettings:
         """
         Auto-add trig to track 8 when master track is enabled.
 
-        When True (default), automatically adds a step 1 trig to track 8
-        for any pattern where tracks 1-7 have trigs. This ensures the
-        master track processes audio.
+        When True, automatically adds a step 1 trig to track 8 for any
+        pattern where tracks 1-7 have trigs. This ensures the master
+        track processes audio.
 
-        Set to False for manual control over track 8 trigs.
+        Default is False (manual control over track 8 trigs).
         """
         return self._auto_master_trig
 
@@ -242,11 +242,11 @@ class RenderSettings:
         """
         Auto-add trig to tracks with Thru machines.
 
-        When True (default), automatically adds a step 1 trig to any track
-        with a Thru machine in patterns that have audio activity.
-        Thru machines need a trig to process incoming external audio.
+        When True, automatically adds a step 1 trig to any track with a
+        Thru machine in patterns that have audio activity. Thru machines
+        need a trig to process incoming external audio.
 
-        Set to False for manual control over Thru track trigs.
+        Default is False (manual control over Thru track trigs).
         """
         return self._auto_thru_trig
 
@@ -259,11 +259,11 @@ class RenderSettings:
         """
         Propagate scenes from Part 1 to Parts 2-4 within each bank.
 
-        When True (default), any scene with locks defined in Part 1 is
-        automatically copied to the same scene number in Parts 2, 3, and 4.
-        This ensures consistent scene behavior when switching Parts.
+        When True, any scene with locks defined in Part 1 is automatically
+        copied to the same scene number in Parts 2, 3, and 4. This ensures
+        consistent scene behavior when switching Parts.
 
-        Set to False for manual scene configuration per Part.
+        Default is False (manual scene configuration per Part).
         """
         return self._propagate_scenes
 

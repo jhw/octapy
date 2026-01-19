@@ -59,6 +59,8 @@ class TestStepToDict:
     def test_flex_step_to_dict(self):
         """Test FlexStep includes length and reverse."""
         project = Project.from_template("TEST")
+        # Must explicitly set machine type to Flex
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
         track = project.bank(1).pattern(1).track(1)
         track.active_steps = [1]
         step = track.step(1)
@@ -350,6 +352,11 @@ class TestProjectToDict:
         assert "flex_slot_count" in result
         assert "static_slot_count" in result
         assert "sample_paths" in result
+        assert "render_settings" in result
+        assert result["render_settings"]["auto_master_trig"] is False
+        assert result["render_settings"]["auto_thru_trig"] is False
+        assert result["render_settings"]["propagate_scenes"] is False
+        assert result["render_settings"]["sample_duration"] is None
         assert "banks" not in result
 
     def test_project_to_dict_with_banks(self):
@@ -359,6 +366,22 @@ class TestProjectToDict:
         result = project.to_dict(include_banks=True)
         assert "banks" in result
         assert len(result["banks"]) == 16
+
+    def test_project_to_dict_render_settings_enabled(self):
+        """Test Project to_dict includes render_settings when enabled."""
+        from octapy import NoteLength
+
+        project = Project.from_template("TEST")
+        project.render_settings.auto_master_trig = True
+        project.render_settings.auto_thru_trig = True
+        project.render_settings.propagate_scenes = True
+        project.render_settings.sample_duration = NoteLength.QUARTER
+
+        result = project.to_dict(include_banks=False)
+        assert result["render_settings"]["auto_master_trig"] is True
+        assert result["render_settings"]["auto_thru_trig"] is True
+        assert result["render_settings"]["propagate_scenes"] is True
+        assert result["render_settings"]["sample_duration"] == "QUARTER"
 
     @pytest.mark.slow
     def test_project_to_dict_full(self):

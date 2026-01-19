@@ -941,13 +941,15 @@ class TestFlexStepType:
         """Test that Flex machine tracks return FlexStep."""
         from octapy.api.step import FlexStep
         project = Project.from_template("TEST")
-        # Default machine type is Flex
+        # Must explicitly set machine type to Flex
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
         step = project.bank(1).pattern(1).track(1).step(1)
         assert isinstance(step, FlexStep)
 
     def test_flexstep_has_sampler_properties(self):
         """Test that FlexStep inherits SamplerStep properties."""
         project = Project.from_template("TEST")
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
         step = project.bank(1).pattern(1).track(1).step(1)
         # Should have volume, pitch, sample_lock from SamplerStep
         assert hasattr(step, 'volume')
@@ -958,15 +960,21 @@ class TestFlexStepType:
 class TestFlexStepLengthPlock:
     """FlexStep length p-lock tests."""
 
+    def _setup_flex_track(self, project):
+        """Configure track 1 as Flex machine."""
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
+
     def test_length_default_none(self):
         """Test length p-lock defaults to None."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(1)
         assert step.length is None
 
     def test_set_length_full(self):
         """Test setting length to 1.0 (full sample)."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.length = 1.0
@@ -975,6 +983,7 @@ class TestFlexStepLengthPlock:
     def test_set_length_half(self):
         """Test setting length to 0.5 (half sample)."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.length = 0.5
@@ -985,6 +994,7 @@ class TestFlexStepLengthPlock:
     def test_set_length_zero(self):
         """Test setting length to 0.0."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.length = 0.0
@@ -993,6 +1003,7 @@ class TestFlexStepLengthPlock:
     def test_set_length_quantization(self):
         """Test length values are quantized to 0-127."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         # 0.25 should quantize to 32/127 ≈ 0.252
@@ -1002,6 +1013,7 @@ class TestFlexStepLengthPlock:
     def test_clear_length(self):
         """Test clearing length p-lock."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.length = 0.5
@@ -1011,6 +1023,7 @@ class TestFlexStepLengthPlock:
     def test_length_clamps_above_one(self):
         """Test length values above 1.0 are clamped."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.length = 1.5
@@ -1019,6 +1032,7 @@ class TestFlexStepLengthPlock:
     def test_length_clamps_below_zero(self):
         """Test length values below 0.0 are clamped."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.length = -0.5
@@ -1028,15 +1042,21 @@ class TestFlexStepLengthPlock:
 class TestFlexStepReversePlock:
     """FlexStep reverse p-lock tests."""
 
+    def _setup_flex_track(self, project):
+        """Configure track 1 as Flex machine."""
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
+
     def test_reverse_default_none(self):
         """Test reverse p-lock defaults to None."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(1)
         assert step.reverse is None
 
     def test_set_reverse_true(self):
         """Test setting reverse to True."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.reverse = True
@@ -1045,6 +1065,7 @@ class TestFlexStepReversePlock:
     def test_set_reverse_false(self):
         """Test setting reverse to False."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.reverse = False
@@ -1053,6 +1074,7 @@ class TestFlexStepReversePlock:
     def test_clear_reverse(self):
         """Test clearing reverse p-lock."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.reverse = True
@@ -1062,6 +1084,7 @@ class TestFlexStepReversePlock:
     def test_reverse_toggle(self):
         """Test toggling reverse back and forth."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         step = project.bank(1).pattern(1).track(1).step(5)
 
         step.reverse = True
@@ -1077,9 +1100,14 @@ class TestFlexStepReversePlock:
 class TestFlexStepPlocksIndependent:
     """Test FlexStep p-locks are independent per step."""
 
+    def _setup_flex_track(self, project):
+        """Configure track 1 as Flex machine."""
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
+
     def test_length_independent_per_step(self):
         """Test length p-locks are independent per step."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         track = project.bank(1).pattern(1).track(1)
 
         track.step(1).length = 0.25
@@ -1094,6 +1122,7 @@ class TestFlexStepPlocksIndependent:
     def test_reverse_independent_per_step(self):
         """Test reverse p-locks are independent per step."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         track = project.bank(1).pattern(1).track(1)
 
         track.step(1).reverse = True
@@ -1109,10 +1138,15 @@ class TestFlexStepPlocksIndependent:
 class TestFlexStepRoundTrip:
     """FlexStep p-lock round-trip tests."""
 
+    def _setup_flex_track(self, project):
+        """Configure track 1 as Flex machine."""
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
+
     @pytest.mark.slow
     def test_length_survives_save(self, temp_dir):
         """Test length p-lock survives save/load."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         track = project.bank(1).pattern(1).track(1)
 
         track.step(5).length = 0.5
@@ -1127,6 +1161,7 @@ class TestFlexStepRoundTrip:
     def test_reverse_survives_save(self, temp_dir):
         """Test reverse p-lock survives save/load."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         track = project.bank(1).pattern(1).track(1)
 
         track.step(5).reverse = True
@@ -1140,6 +1175,7 @@ class TestFlexStepRoundTrip:
     def test_multiple_flex_plocks_survive_save(self, temp_dir):
         """Test multiple FlexStep p-locks survive save/load."""
         project = Project.from_template("TEST")
+        self._setup_flex_track(project)
         track = project.bank(1).pattern(1).track(1)
 
         track.step(1).length = 0.25

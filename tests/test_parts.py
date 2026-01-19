@@ -30,12 +30,12 @@ class TestAudioPartTrackMachineTypes:
     """AudioPartTrack machine type tests."""
 
     def test_default_machine_type(self):
-        """Test default machine type is FLEX (set by from_template)."""
+        """Test default machine type is STATIC (OT template default)."""
         project = Project.from_template("TEST")
         part = project.bank(1).part(1)
         for track_num in range(1, 9):
             track = part.track(track_num)
-            assert track.machine_type == MachineType.FLEX
+            assert track.machine_type == MachineType.STATIC
 
     def test_set_machine_type(self):
         """Test setting machine type."""
@@ -735,10 +735,10 @@ class TestFlexPartTrack:
         assert flex.start == 32
 
     def test_flex_length_default(self):
-        """Test default length value."""
+        """Test default length value from template."""
         project = Project.from_template("TEST")
         flex = project.bank(1).part(1).flex_track(1)
-        assert flex.length == 127  # Max length (full sample plays)
+        assert flex.length == 0  # Template default
 
     def test_flex_rate_default(self):
         """Test default rate value."""

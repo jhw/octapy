@@ -108,9 +108,6 @@ class Project:
         for i in range(1, 9):
             project._arr_files[i] = read_template_file(f"arr{i:02d}.work")
 
-        # Apply sensible sampler defaults
-        project._apply_sampler_defaults()
-
         return project
 
     @classmethod
@@ -583,12 +580,22 @@ class Project:
         Returns:
             Dict with project name, settings, sample info, and optionally banks.
         """
+        # Get sample_duration name if set
+        sample_duration = self.render_settings.sample_duration
+        sample_duration_name = sample_duration.name if sample_duration else None
+
         result = {
             "name": self.name,
             "tempo": self.settings.tempo,
             "flex_slot_count": self.flex_slot_count,
             "static_slot_count": self.static_slot_count,
             "sample_paths": self.sample_paths,
+            "render_settings": {
+                "auto_master_trig": self.render_settings.auto_master_trig,
+                "auto_thru_trig": self.render_settings.auto_thru_trig,
+                "propagate_scenes": self.render_settings.propagate_scenes,
+                "sample_duration": sample_duration_name,
+            },
         }
 
         if include_banks:
@@ -598,33 +605,6 @@ class Project:
             ]
 
         return result
-
-    def _apply_sampler_defaults(self) -> None:
-        """
-        Apply sensible sampler defaults to all banks/parts/tracks.
-
-        Sets all audio tracks to Flex machine type with sensible defaults:
-        - machine_type = FLEX (enables FlexStep with length/reverse p-locks)
-        - loop_mode = OFF (no looping by default)
-        - length_mode = TIME so LEN encoder works for truncating samples
-        - length = 127 (max) so samples play fully by default
-
-        Note: rate defaults to 127 (forward) from template, enabling reverse p-lock to 0.
-        """
-        from .enums import LoopMode, LengthMode, MachineType
-
-        # Apply to all 16 banks, 4 parts, 8 tracks
-        for bank_num in range(1, 17):
-            bank = self.bank(bank_num)
-            for part_num in range(1, 5):
-                part = bank.part(part_num)
-                for track_num in range(1, 9):
-                    track = part.track(track_num)
-                    track.machine_type = MachineType.FLEX
-                    flex = part.flex_track(track_num)
-                    flex.loop_mode = LoopMode.OFF
-                    flex.length_mode = LengthMode.TIME
-                    flex.length = 127
 
 
 def _get_wav_frame_count(wav_path: Path) -> int:
