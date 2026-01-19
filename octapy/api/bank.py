@@ -67,3 +67,21 @@ class Bank:
     @flex_count.setter
     def flex_count(self, value: int):
         self._bank_file.flex_count = value
+
+    def to_dict(self, include_steps: bool = False, include_scenes: bool = False) -> dict:
+        """
+        Convert bank to dictionary.
+
+        Args:
+            include_steps: Include step data in patterns (default False)
+            include_scenes: Include scene locks in parts (default False)
+
+        Returns:
+            Dict with bank number, flex count, parts, and patterns.
+        """
+        return {
+            "bank": self._bank_num,
+            "flex_count": self.flex_count,
+            "parts": [self.part(n).to_dict(include_scenes=include_scenes) for n in range(1, 5)],
+            "patterns": [self.pattern(n).to_dict(include_steps=include_steps) for n in range(1, 17)],
+        }

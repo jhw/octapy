@@ -83,3 +83,31 @@ class SamplerSceneTrack(AudioSceneTrack):
     @retrig_time.setter
     def retrig_time(self, value: Optional[int]):
         self._set_lock(SceneParamsOffset.PLAYBACK_PARAM6, value)
+
+    def to_dict(self) -> dict:
+        """
+        Convert sampler scene track locks to dictionary.
+
+        Extends AudioSceneTrack to_dict with playback page locks.
+        Only includes locks that are set (not None).
+        """
+        result = super().to_dict()
+
+        # Playback locks
+        playback = {}
+        if self.pitch is not None:
+            playback["pitch"] = self.pitch
+        if self.start is not None:
+            playback["start"] = self.start
+        if self.length is not None:
+            playback["length"] = self.length
+        if self.rate is not None:
+            playback["rate"] = self.rate
+        if self.retrig is not None:
+            playback["retrig"] = self.retrig
+        if self.retrig_time is not None:
+            playback["retrig_time"] = self.retrig_time
+        if playback:
+            result["playback"] = playback
+
+        return result

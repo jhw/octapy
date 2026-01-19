@@ -163,3 +163,32 @@ class MidiStep(BaseStep):
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
         self._set_plock(19 + n, value)  # CC1 is at offset 20
+
+    def to_dict(self) -> dict:
+        """
+        Convert step state to dictionary including MIDI p-locks.
+
+        Extends base to_dict with note, velocity, length, pitch_bend,
+        aftertouch, and CC values.
+        """
+        result = super().to_dict()
+        # Only include p-locks if set
+        if self.note is not None:
+            result["note"] = self.note
+        if self.velocity is not None:
+            result["velocity"] = self.velocity
+        if self.length is not None:
+            result["length"] = self.length
+        if self.pitch_bend is not None:
+            result["pitch_bend"] = self.pitch_bend
+        if self.aftertouch is not None:
+            result["aftertouch"] = self.aftertouch
+        # Check CC slots 1-10
+        cc_values = {}
+        for n in range(1, 11):
+            val = self.cc(n)
+            if val is not None:
+                cc_values[n] = val
+        if cc_values:
+            result["cc"] = cc_values
+        return result

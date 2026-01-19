@@ -190,3 +190,50 @@ class AudioSceneTrack(BaseSceneTrack):
     @fx2_param6.setter
     def fx2_param6(self, value: Optional[int]):
         self._set_lock(SceneParamsOffset.FX2_PARAM6, value)
+
+    def to_dict(self) -> dict:
+        """
+        Convert scene track locks to dictionary.
+
+        Only includes locks that are set (not None).
+        """
+        result = {"track": self._track_num}
+
+        # AMP locks
+        amp = {}
+        if self.amp_attack is not None:
+            amp["attack"] = self.amp_attack
+        if self.amp_hold is not None:
+            amp["hold"] = self.amp_hold
+        if self.amp_release is not None:
+            amp["release"] = self.amp_release
+        if self.amp_volume is not None:
+            amp["volume"] = self.amp_volume
+        if self.amp_balance is not None:
+            amp["balance"] = self.amp_balance
+        if amp:
+            result["amp"] = amp
+
+        # FX1 locks
+        fx1 = {}
+        for i, prop in enumerate([
+            self.fx1_param1, self.fx1_param2, self.fx1_param3,
+            self.fx1_param4, self.fx1_param5, self.fx1_param6
+        ], 1):
+            if prop is not None:
+                fx1[f"param{i}"] = prop
+        if fx1:
+            result["fx1"] = fx1
+
+        # FX2 locks
+        fx2 = {}
+        for i, prop in enumerate([
+            self.fx2_param1, self.fx2_param2, self.fx2_param3,
+            self.fx2_param4, self.fx2_param5, self.fx2_param6
+        ], 1):
+            if prop is not None:
+                fx2[f"param{i}"] = prop
+        if fx2:
+            result["fx2"] = fx2
+
+        return result

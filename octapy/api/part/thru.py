@@ -78,3 +78,18 @@ class ThruPartTrack(AudioPartTrack):
     @vol_cd.setter
     def vol_cd(self, value: int):
         self._data[self._values_offset() + ThruParamsOffset.VOL_CD] = value & 0x7F
+
+    def to_dict(self) -> dict:
+        """
+        Convert Thru part track to dictionary.
+
+        Extends AudioPartTrack to_dict with Thru-specific input routing.
+        """
+        result = super().to_dict()
+        result["src"] = {
+            "in_ab": self.in_ab.name,
+            "vol_ab": self.vol_ab,
+            "in_cd": self.in_cd.name,
+            "vol_cd": self.vol_cd,
+        }
+        return result

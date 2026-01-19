@@ -276,3 +276,24 @@ class BaseStep(ABC):
             return
 
         self.condition = probability_to_condition(value)
+
+    def to_dict(self) -> dict:
+        """
+        Convert step state to dictionary.
+
+        Returns dict with active, trigless, condition, probability.
+        Subclasses extend this with p-lock data.
+        """
+        from ..enums import TrigCondition
+        result = {
+            "step": self._step_num,
+            "active": self.active,
+            "trigless": self.trigless,
+        }
+        # Only include condition if not NONE
+        if self.condition != TrigCondition.NONE:
+            result["condition"] = self.condition.name
+        # Only include probability if set
+        if self.probability is not None:
+            result["probability"] = self.probability
+        return result

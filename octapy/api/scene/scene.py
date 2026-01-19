@@ -105,3 +105,19 @@ class Scene:
         """Clear all locks for all tracks in this scene."""
         for track_num in range(1, 9):
             self.track(track_num).clear_all_locks()
+
+    def to_dict(self) -> dict:
+        """
+        Convert scene to dictionary.
+
+        Returns dict with scene number and tracks that have any locks set.
+        """
+        result = {"scene": self._scene_num, "tracks": []}
+
+        for track_num in range(1, 9):
+            track_dict = self.track(track_num).to_dict()
+            # Only include tracks that have locks (more than just track number)
+            if len(track_dict) > 1:
+                result["tracks"].append(track_dict)
+
+        return result

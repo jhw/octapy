@@ -82,3 +82,17 @@ class FlexStep(SamplerStep):
         else:
             # True = reverse (0), False = forward (127)
             self._set_plock(PlockOffset.MACHINE_PARAM4, 0 if value else 127)
+
+    def to_dict(self) -> dict:
+        """
+        Convert step state to dictionary including Flex-specific p-locks.
+
+        Extends sampler to_dict with length, reverse.
+        """
+        result = super().to_dict()
+        # Only include p-locks if set
+        if self.length is not None:
+            result["length"] = self.length
+        if self.reverse is not None:
+            result["reverse"] = self.reverse
+        return result

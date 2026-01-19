@@ -85,3 +85,36 @@ class BasePatternTrack(ABC):
     def trigless_steps(self, value: List[int]):
         offset = self._track_offset() + self._trigless_offset
         _steps_to_trig_mask(self._data, offset, value)
+
+    def to_dict(self, include_steps: bool = False) -> dict:
+        """
+        Convert pattern track to dictionary.
+
+        Args:
+            include_steps: If True, include all steps with p-locks.
+                          If False, only include active_steps and trigless_steps lists.
+
+        Returns:
+            Dict with track number, active_steps, trigless_steps, and optionally steps.
+        """
+        result = {
+            "track": self._track_num,
+            "active_steps": self.active_steps,
+            "trigless_steps": self.trigless_steps,
+        }
+        if include_steps:
+            # Only include steps that have data (active, trigless, or any p-lock)
+            steps = []
+            for step_num in range(1, 65):
+                step = self.step(step_num)
+                step_dict = step.to_dict()
+                # Only include if step has something interesting
+                has_data = (step_dict.get("active") or
+                           step_dict.get("trigless") or
+                           step_dict.get("condition") or
+                           len(step_dict) > 3)  # More than step/active/trigless
+                if has_data:
+                    steps.append(step_dict)
+            if steps:
+                result["steps"] = steps
+        return result

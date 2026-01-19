@@ -300,3 +300,45 @@ class MidiPartTrack(BasePartTrack):
     def arp_note_length(self, value: int):
         quantized = quantize_note_length(value)
         self._data[self._values_offset() + MidiTrackValuesOffset.ARP_NLEN] = quantized
+
+    def to_dict(self) -> dict:
+        """
+        Convert MIDI part track to dictionary.
+
+        Returns dict with MIDI channel, program, note defaults, and arp settings.
+        """
+        # Collect CC numbers and values
+        cc_numbers = {}
+        cc_values = {}
+        for n in range(1, 11):
+            cc_numbers[n] = self.cc_number(n)
+            cc_values[n] = self.cc_value(n)
+
+        return {
+            "track": self._track_num,
+            "channel": self.channel,
+            "bank": self.bank,
+            "program": self.program,
+            "note": {
+                "default_note": self.default_note,
+                "default_velocity": self.default_velocity,
+                "default_length": self.default_length,
+                "default_note2": self.default_note2,
+                "default_note3": self.default_note3,
+                "default_note4": self.default_note4,
+            },
+            "cc": {
+                "pitch_bend": self.pitch_bend,
+                "aftertouch": self.aftertouch,
+                "numbers": cc_numbers,
+                "values": cc_values,
+            },
+            "arp": {
+                "transpose": self.arp_transpose,
+                "legato": self.arp_legato,
+                "mode": self.arp_mode,
+                "speed": self.arp_speed,
+                "range": self.arp_range,
+                "note_length": self.arp_note_length,
+            },
+        }

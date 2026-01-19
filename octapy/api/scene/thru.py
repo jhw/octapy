@@ -61,3 +61,27 @@ class ThruSceneTrack(AudioSceneTrack):
     @vol_cd.setter
     def vol_cd(self, value: Optional[int]):
         self._set_lock(SceneParamsOffset.PLAYBACK_PARAM5, value)
+
+    def to_dict(self) -> dict:
+        """
+        Convert Thru scene track locks to dictionary.
+
+        Extends AudioSceneTrack to_dict with input/volume locks.
+        Only includes locks that are set (not None).
+        """
+        result = super().to_dict()
+
+        # Input/volume locks
+        src = {}
+        if self.in_ab is not None:
+            src["in_ab"] = self.in_ab
+        if self.vol_ab is not None:
+            src["vol_ab"] = self.vol_ab
+        if self.in_cd is not None:
+            src["in_cd"] = self.in_cd
+        if self.vol_cd is not None:
+            src["vol_cd"] = self.vol_cd
+        if src:
+            result["src"] = src
+
+        return result

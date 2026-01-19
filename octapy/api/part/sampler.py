@@ -168,3 +168,28 @@ class SamplerPartTrack(AudioPartTrack):
     @timestretch_sensitivity.setter
     def timestretch_sensitivity(self, value: int):
         self._data[self._setup_offset() + FlexStaticSetupOffset.TSNS] = value & 0x7F
+
+    def to_dict(self) -> dict:
+        """
+        Convert sampler part track to dictionary.
+
+        Extends AudioPartTrack to_dict with sampler-specific SRC and Setup params.
+        """
+        result = super().to_dict()
+        result["src"] = {
+            "pitch": self.pitch,
+            "start": self.start,
+            "length": self.length,
+            "rate": self.rate,
+            "retrig": self.retrig,
+            "retrig_time": self.retrig_time,
+        }
+        result["setup"] = {
+            "loop_mode": self.loop_mode.name,
+            "slice_mode": self.slice_mode.name,
+            "length_mode": self.length_mode.name,
+            "rate_mode": self.rate_mode.name,
+            "timestretch_mode": self.timestretch_mode.name,
+            "timestretch_sensitivity": self.timestretch_sensitivity,
+        }
+        return result

@@ -74,3 +74,19 @@ class SamplerStep(AudioStep):
     @sample_lock.setter
     def sample_lock(self, value: Optional[int]):
         self._set_plock(PlockOffset.FLEX_SLOT_ID, value)
+
+    def to_dict(self) -> dict:
+        """
+        Convert step state to dictionary including sampler p-locks.
+
+        Extends base to_dict with volume, pitch, sample_lock.
+        """
+        result = super().to_dict()
+        # Only include p-locks if set
+        if self.volume is not None:
+            result["volume"] = self.volume
+        if self.pitch is not None:
+            result["pitch"] = self.pitch
+        if self.sample_lock is not None:
+            result["sample_lock"] = self.sample_lock
+        return result

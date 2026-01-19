@@ -215,3 +215,27 @@ class AudioPartTrack(BasePartTrack):
             track.fx2.feedback = 80
         """
         return create_fx(self, slot=2, fx_type=self.fx2_type)
+
+    def to_dict(self) -> dict:
+        """
+        Convert audio part track to dictionary.
+
+        Returns dict with machine type, slots, volume, amp, and FX settings.
+        """
+        return {
+            "track": self._track_num,
+            "machine_type": self.machine_type.name,
+            "flex_slot": self.flex_slot,
+            "static_slot": self.static_slot,
+            "recorder_slot": self.recorder_slot,
+            "volume": {"main": self.volume[0], "cue": self.volume[1]},
+            "amp": {
+                "attack": self.attack,
+                "hold": self.hold,
+                "release": self.release,
+                "volume": self.amp_volume,
+                "balance": self.balance,
+            },
+            "fx1_type": self.fx1_type,
+            "fx2_type": self.fx2_type,
+        }

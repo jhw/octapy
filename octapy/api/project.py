@@ -429,6 +429,39 @@ class Project:
         """Add the 8 recorder buffer slots (129-136)."""
         self._project_file.add_recorder_slots()
 
+    def to_dict(
+        self,
+        include_steps: bool = False,
+        include_scenes: bool = False,
+        include_banks: bool = True,
+    ) -> dict:
+        """
+        Convert project to dictionary.
+
+        Args:
+            include_steps: Include step data in patterns (default False)
+            include_scenes: Include scene locks in parts (default False)
+            include_banks: Include bank data (default True)
+
+        Returns:
+            Dict with project name, settings, sample info, and optionally banks.
+        """
+        result = {
+            "name": self.name,
+            "tempo": self.settings.tempo,
+            "flex_slot_count": self.flex_slot_count,
+            "static_slot_count": self.static_slot_count,
+            "sample_paths": self.sample_paths,
+        }
+
+        if include_banks:
+            result["banks"] = [
+                self.bank(n).to_dict(include_steps=include_steps, include_scenes=include_scenes)
+                for n in range(1, 17)
+            ]
+
+        return result
+
     def _apply_sampler_defaults(self) -> None:
         """
         Apply sensible sampler defaults to all banks/parts/tracks.

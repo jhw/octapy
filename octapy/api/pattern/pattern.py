@@ -75,3 +75,20 @@ class Pattern:
         if track_num not in self._midi_tracks:
             self._midi_tracks[track_num] = MidiPatternTrack(self, track_num)
         return self._midi_tracks[track_num]
+
+    def to_dict(self, include_steps: bool = False) -> dict:
+        """
+        Convert pattern to dictionary.
+
+        Args:
+            include_steps: Include step data in output (default False)
+
+        Returns:
+            Dict with pattern number, part assignment, audio and MIDI tracks.
+        """
+        return {
+            "pattern": self._pattern_num,
+            "part": self.part,
+            "audio_tracks": [self.track(n).to_dict(include_steps=include_steps) for n in range(1, 9)],
+            "midi_tracks": [self.midi_track(n).to_dict(include_steps=include_steps) for n in range(1, 9)],
+        }

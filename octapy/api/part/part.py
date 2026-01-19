@@ -177,3 +177,33 @@ class Part:
     def active_scene_b(self, value: int):
         data = self._bank._bank_file._data
         data[self._part_offset() + PartOffset.ACTIVE_SCENE_B] = value & 0x0F
+
+    def to_dict(self, include_scenes: bool = False) -> dict:
+        """
+        Convert part to dictionary.
+
+        Args:
+            include_scenes: Include scene locks in output (default False)
+
+        Returns:
+            Dict with part number, active scenes, audio tracks, and MIDI tracks.
+        """
+        result = {
+            "part": self._part_num,
+            "active_scene_a": self.active_scene_a,
+            "active_scene_b": self.active_scene_b,
+            "audio_tracks": [self.track(n).to_dict() for n in range(1, 9)],
+            "midi_tracks": [self.midi_track(n).to_dict() for n in range(1, 9)],
+        }
+
+        if include_scenes:
+            scenes = []
+            for n in range(1, 17):
+                scene_dict = self.scene(n).to_dict()
+                # Only include scenes that have locks
+                if scene_dict.get("tracks"):
+                    scenes.append(scene_dict)
+            if scenes:
+                result["scenes"] = scenes
+
+        return result
