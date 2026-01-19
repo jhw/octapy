@@ -243,6 +243,85 @@ class Project:
                     if 1 not in active:
                         track8.active_steps = [1] + active
 
+    def _ensure_thru_track_trigs(self) -> None:
+        """
+        Ensure tracks with Thru machines have trigs.
+
+        Thru machines pass external audio through and need a trig to be active.
+        This method automatically adds a step 1 trig to any track with a Thru
+        machine in patterns that have audio activity on other tracks.
+
+        Controlled by render_settings.auto_thru_trig (default True).
+        """
+        from .enums import MachineType
+
+        if not self.render_settings.auto_thru_trig:
+            return
+
+        # Iterate through all 16 banks
+        for bank_num in range(1, 17):
+            bank = self.bank(bank_num)
+            # Iterate through all 16 patterns per bank
+            for pattern_num in range(1, 17):
+                pattern = bank.pattern(pattern_num)
+                part = bank.part(pattern.part)
+
+                # Check if pattern has any audio activity
+                has_audio_activity = any(
+                    pattern.track(t).active_steps
+                    for t in range(1, 9)
+                )
+                if not has_audio_activity:
+                    continue
+
+                # Check each track for Thru machine
+                for track_num in range(1, 9):
+                    if part.track(track_num).machine_type == MachineType.THRU:
+                        track = pattern.track(track_num)
+                        active = track.active_steps
+                        if 1 not in active:
+                            track.active_steps = [1] + active
+
+    def _propagate_scenes(self) -> None:
+        """
+        Propagate scenes from Part 1 to Parts 2-4 within each bank.
+
+        Scenes belong to Parts, so switching Parts loses scene settings.
+        This method copies any scene with locks defined in Part 1 to the
+        same scene number in Parts 2, 3, and 4.
+
+        Controlled by render_settings.propagate_scenes (default True).
+        """
+        from .._io import SceneOffset, SCENE_SIZE, SCENE_LOCK_DISABLED
+
+        if not self.render_settings.propagate_scenes:
+            return
+
+        # Iterate through all 16 banks
+        for bank_num in range(1, 17):
+            bank_file = self._bank_files.get(bank_num)
+            if bank_file is None:
+                continue
+
+            data = bank_file._data
+            part1_offset = bank_file.part_offset(1)
+
+            # Check each of the 16 scenes
+            for scene_num in range(1, 17):
+                scene_offset = part1_offset + SceneOffset.SCENES + (scene_num - 1) * SCENE_SIZE
+                scene_data = data[scene_offset:scene_offset + SCENE_SIZE]
+
+                # Check if scene has any locks (not all 255)
+                has_locks = any(b != SCENE_LOCK_DISABLED for b in scene_data)
+                if not has_locks:
+                    continue
+
+                # Copy to Parts 2, 3, 4
+                for target_part in [2, 3, 4]:
+                    target_part_offset = bank_file.part_offset(target_part)
+                    target_scene_offset = target_part_offset + SceneOffset.SCENES + (scene_num - 1) * SCENE_SIZE
+                    data[target_scene_offset:target_scene_offset + SCENE_SIZE] = scene_data
+
     def to_directory(self, path: Path) -> None:
         """
         Save the project to a directory.
@@ -252,8 +331,10 @@ class Project:
         Args:
             path: Destination directory (will be created if needed)
         """
-        # Auto-add trigs for master track if enabled
+        # Apply render settings
         self._ensure_master_track_trigs()
+        self._ensure_thru_track_trigs()
+        self._propagate_scenes()
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)

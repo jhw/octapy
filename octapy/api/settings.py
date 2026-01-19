@@ -209,11 +209,15 @@ class RenderSettings:
 
     Usage:
         project.render_settings.auto_master_trig = True
+        project.render_settings.auto_thru_trig = True
+        project.render_settings.propagate_scenes = True
         project.render_settings.sample_duration = NoteLength.QUARTER
     """
 
     def __init__(self):
         self._auto_master_trig = True
+        self._auto_thru_trig = True
+        self._propagate_scenes = True
         self._sample_duration = None
 
     @property
@@ -232,6 +236,40 @@ class RenderSettings:
     @auto_master_trig.setter
     def auto_master_trig(self, value: bool):
         self._auto_master_trig = value
+
+    @property
+    def auto_thru_trig(self) -> bool:
+        """
+        Auto-add trig to tracks with Thru machines.
+
+        When True (default), automatically adds a step 1 trig to any track
+        with a Thru machine in patterns that have audio activity.
+        Thru machines need a trig to process incoming external audio.
+
+        Set to False for manual control over Thru track trigs.
+        """
+        return self._auto_thru_trig
+
+    @auto_thru_trig.setter
+    def auto_thru_trig(self, value: bool):
+        self._auto_thru_trig = value
+
+    @property
+    def propagate_scenes(self) -> bool:
+        """
+        Propagate scenes from Part 1 to Parts 2-4 within each bank.
+
+        When True (default), any scene with locks defined in Part 1 is
+        automatically copied to the same scene number in Parts 2, 3, and 4.
+        This ensures consistent scene behavior when switching Parts.
+
+        Set to False for manual scene configuration per Part.
+        """
+        return self._propagate_scenes
+
+    @propagate_scenes.setter
+    def propagate_scenes(self, value: bool):
+        self._propagate_scenes = value
 
     @property
     def sample_duration(self):

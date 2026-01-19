@@ -558,3 +558,139 @@ class TestRenderSettings:
         project.sample_duration = NoteLength.HALF
         assert project.sample_duration == NoteLength.HALF
         assert project.render_settings.sample_duration == NoteLength.HALF
+
+    def test_auto_thru_trig_default_true(self):
+        """Test auto_thru_trig defaults to True."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.auto_thru_trig is True
+
+    def test_auto_thru_trig_can_be_disabled(self):
+        """Test auto_thru_trig can be set to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.auto_thru_trig = False
+        assert project.render_settings.auto_thru_trig is False
+
+    def test_propagate_scenes_default_true(self):
+        """Test propagate_scenes defaults to True."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.propagate_scenes is True
+
+    def test_propagate_scenes_can_be_disabled(self):
+        """Test propagate_scenes can be set to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_scenes = False
+        assert project.render_settings.propagate_scenes is False
+
+
+class TestAutoThruTrig:
+    """Tests for auto-trig logic for Thru machines."""
+
+    @pytest.mark.slow
+    def test_auto_thru_trig_adds_step1(self, temp_dir):
+        """Thru track should get step 1 trig when pattern has activity."""
+        from octapy import Project, MachineType
+
+        project = Project.from_template("TEST")
+        # Set track 2 to Thru machine
+        project.bank(1).part(1).track(2).machine_type = MachineType.THRU
+        # Add trigs to track 1
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 2 (Thru) should have step 1
+        assert 1 in project.bank(1).pattern(1).track(2).active_steps
+
+    @pytest.mark.slow
+    def test_auto_thru_trig_disabled_prevents_auto_trig(self, temp_dir):
+        """When auto_thru_trig is False, Thru tracks don't get auto-trigs."""
+        from octapy import Project, MachineType
+
+        project = Project.from_template("TEST")
+        project.render_settings.auto_thru_trig = False
+        # Set track 2 to Thru machine
+        project.bank(1).part(1).track(2).machine_type = MachineType.THRU
+        # Add trigs to track 1
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 2 should remain empty
+        assert project.bank(1).pattern(1).track(2).active_steps == []
+
+    @pytest.mark.slow
+    def test_auto_thru_trig_skips_empty_patterns(self, temp_dir):
+        """Patterns with no activity should not get Thru auto-trigs."""
+        from octapy import Project, MachineType
+
+        project = Project.from_template("TEST")
+        # Set track 2 to Thru machine but no trigs anywhere
+        project.bank(1).part(1).track(2).machine_type = MachineType.THRU
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 2 should remain empty
+        assert project.bank(1).pattern(1).track(2).active_steps == []
+
+
+class TestPropagateScenes:
+    """Tests for scene propagation from Part 1 to Parts 2-4."""
+
+    @pytest.mark.slow
+    def test_scene_propagates_to_other_parts(self, temp_dir):
+        """Scene with locks in Part 1 should copy to Parts 2-4."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        # Set a scene lock in Part 1
+        project.bank(1).part(1).scene(3).track(1).amp_volume = 100
+
+        # Save triggers the propagation
+        project.to_directory(temp_dir / "TEST")
+
+        # Scene 3 should be copied to Parts 2, 3, 4
+        assert project.bank(1).part(2).scene(3).track(1).amp_volume == 100
+        assert project.bank(1).part(3).scene(3).track(1).amp_volume == 100
+        assert project.bank(1).part(4).scene(3).track(1).amp_volume == 100
+
+    @pytest.mark.slow
+    def test_scene_propagation_disabled(self, temp_dir):
+        """When propagate_scenes is False, scenes don't copy."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_scenes = False
+        # Set a scene lock in Part 1
+        project.bank(1).part(1).scene(3).track(1).amp_volume = 100
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Other parts should not have the scene lock
+        assert project.bank(1).part(2).scene(3).track(1).amp_volume is None
+
+    @pytest.mark.slow
+    def test_empty_scenes_not_propagated(self, temp_dir):
+        """Scenes without locks should not overwrite target parts."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        # Set lock only in Part 2, scene 5
+        project.bank(1).part(2).scene(5).track(1).amp_volume = 50
+
+        # Save - Part 1's empty scene 5 should NOT overwrite Part 2's
+        project.to_directory(temp_dir / "TEST")
+
+        # Part 2's scene 5 should still have its lock
+        assert project.bank(1).part(2).scene(5).track(1).amp_volume == 50
