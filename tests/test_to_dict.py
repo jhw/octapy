@@ -356,6 +356,9 @@ class TestProjectToDict:
         assert result["render_settings"]["auto_master_trig"] is False
         assert result["render_settings"]["auto_thru_trig"] is False
         assert result["render_settings"]["propagate_scenes"] is False
+        assert result["render_settings"]["propagate_amp"] is False
+        assert result["render_settings"]["propagate_fx1"] is False
+        assert result["render_settings"]["propagate_fx2"] is False
         assert result["render_settings"]["sample_duration"] is None
         assert "banks" not in result
 
@@ -375,12 +378,18 @@ class TestProjectToDict:
         project.render_settings.auto_master_trig = True
         project.render_settings.auto_thru_trig = True
         project.render_settings.propagate_scenes = True
+        project.render_settings.propagate_amp = True
+        project.render_settings.propagate_fx1 = True
+        project.render_settings.propagate_fx2 = True
         project.render_settings.sample_duration = NoteLength.QUARTER
 
         result = project.to_dict(include_banks=False)
         assert result["render_settings"]["auto_master_trig"] is True
         assert result["render_settings"]["auto_thru_trig"] is True
         assert result["render_settings"]["propagate_scenes"] is True
+        assert result["render_settings"]["propagate_amp"] is True
+        assert result["render_settings"]["propagate_fx1"] is True
+        assert result["render_settings"]["propagate_fx2"] is True
         assert result["render_settings"]["sample_duration"] == "QUARTER"
 
     @pytest.mark.slow

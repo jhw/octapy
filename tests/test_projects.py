@@ -704,3 +704,201 @@ class TestPropagateScenes:
 
         # Part 2's scene 5 should still have its lock
         assert project.bank(1).part(2).scene(5).track(1).amp_volume == 50
+
+    @pytest.mark.slow
+    def test_scene_propagation_respects_non_blank_target(self, temp_dir):
+        """Scene propagation should not overwrite non-blank target scenes."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_scenes = True
+
+        # Set different locks in Part 1 and Part 2 for same scene
+        project.bank(1).part(1).scene(3).track(1).amp_volume = 100
+        project.bank(1).part(2).scene(3).track(2).amp_volume = 75  # Different track
+
+        # Save - Part 2's scene 3 is not blank, so should NOT be overwritten
+        project.to_directory(temp_dir / "TEST")
+
+        # Part 2's scene 3 should retain its original lock, not get Part 1's
+        assert project.bank(1).part(2).scene(3).track(2).amp_volume == 75
+        # And should NOT have Part 1's lock
+        assert project.bank(1).part(2).scene(3).track(1).amp_volume is None
+
+
+class TestSceneIsBlank:
+    """Tests for Scene.is_blank property."""
+
+    def test_new_scene_is_blank(self):
+        """A fresh scene should be blank."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        scene = project.bank(1).part(1).scene(1)
+        assert scene.is_blank is True
+
+    def test_scene_with_lock_is_not_blank(self):
+        """A scene with any lock should not be blank."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        scene = project.bank(1).part(1).scene(1)
+        scene.track(1).amp_volume = 100
+        assert scene.is_blank is False
+
+    def test_scene_after_clear_is_blank(self):
+        """A scene after clear_all_locks should be blank."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        scene = project.bank(1).part(1).scene(1)
+        scene.track(1).amp_volume = 100
+        scene.clear_all_locks()
+        assert scene.is_blank is True
+
+
+class TestPropagateFX1:
+    """Tests for FX1 propagation from Part 1 to Parts 2-4."""
+
+    def test_propagate_fx1_default_false(self):
+        """propagate_fx1 defaults to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.propagate_fx1 is False
+
+    @pytest.mark.slow
+    def test_fx1_propagates_when_target_at_default(self, temp_dir):
+        """FX1 settings should propagate when target is at template default."""
+        from octapy import Project, FX1Type
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_fx1 = True
+
+        # Change Part 1 track 1 FX1 to COMPRESSOR
+        project.bank(1).part(1).track(1).fx1_type = FX1Type.COMPRESSOR
+
+        # Save triggers propagation
+        project.to_directory(temp_dir / "TEST")
+
+        # Parts 2-4 track 1 should now have COMPRESSOR
+        assert project.bank(1).part(2).track(1).fx1_type == FX1Type.COMPRESSOR
+        assert project.bank(1).part(3).track(1).fx1_type == FX1Type.COMPRESSOR
+        assert project.bank(1).part(4).track(1).fx1_type == FX1Type.COMPRESSOR
+
+    @pytest.mark.slow
+    def test_fx1_does_not_overwrite_non_default(self, temp_dir):
+        """FX1 should not propagate when target has non-default FX type."""
+        from octapy import Project, FX1Type
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_fx1 = True
+
+        # Change Part 1 track 1 FX1 to COMPRESSOR
+        project.bank(1).part(1).track(1).fx1_type = FX1Type.COMPRESSOR
+        # Change Part 2 track 1 FX1 to CHORUS (different from template default)
+        project.bank(1).part(2).track(1).fx1_type = FX1Type.CHORUS
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Part 2 should keep CHORUS, not get COMPRESSOR
+        assert project.bank(1).part(2).track(1).fx1_type == FX1Type.CHORUS
+
+
+class TestPropagateFX2:
+    """Tests for FX2 propagation from Part 1 to Parts 2-4."""
+
+    def test_propagate_fx2_default_false(self):
+        """propagate_fx2 defaults to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.propagate_fx2 is False
+
+    @pytest.mark.slow
+    def test_fx2_propagates_when_target_at_default(self, temp_dir):
+        """FX2 settings should propagate when target is at template default."""
+        from octapy import Project, FX2Type
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_fx2 = True
+
+        # Change Part 1 track 1 FX2 to PLATE_REVERB
+        project.bank(1).part(1).track(1).fx2_type = FX2Type.PLATE_REVERB
+
+        # Save triggers propagation
+        project.to_directory(temp_dir / "TEST")
+
+        # Parts 2-4 track 1 should now have PLATE_REVERB
+        assert project.bank(1).part(2).track(1).fx2_type == FX2Type.PLATE_REVERB
+        assert project.bank(1).part(3).track(1).fx2_type == FX2Type.PLATE_REVERB
+        assert project.bank(1).part(4).track(1).fx2_type == FX2Type.PLATE_REVERB
+
+    @pytest.mark.slow
+    def test_fx2_does_not_overwrite_non_default(self, temp_dir):
+        """FX2 should not propagate when target has non-default FX type."""
+        from octapy import Project, FX2Type
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_fx2 = True
+
+        # Change Part 1 track 1 FX2 to PLATE_REVERB
+        project.bank(1).part(1).track(1).fx2_type = FX2Type.PLATE_REVERB
+        # Change Part 2 track 1 FX2 to CHORUS (different from template default)
+        project.bank(1).part(2).track(1).fx2_type = FX2Type.CHORUS
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Part 2 should keep CHORUS, not get PLATE_REVERB
+        assert project.bank(1).part(2).track(1).fx2_type == FX2Type.CHORUS
+
+
+class TestPropagateAMP:
+    """Tests for AMP propagation from Part 1 to Parts 2-4."""
+
+    def test_propagate_amp_default_false(self):
+        """propagate_amp defaults to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.propagate_amp is False
+
+    @pytest.mark.slow
+    def test_amp_propagates_when_target_at_default(self, temp_dir):
+        """AMP settings should propagate when target is at template default."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_amp = True
+
+        # Change Part 1 track 1 AMP volume
+        project.bank(1).part(1).track(1).amp_volume = 100
+
+        # Save triggers propagation
+        project.to_directory(temp_dir / "TEST")
+
+        # Parts 2-4 track 1 should now have volume 100
+        assert project.bank(1).part(2).track(1).amp_volume == 100
+        assert project.bank(1).part(3).track(1).amp_volume == 100
+        assert project.bank(1).part(4).track(1).amp_volume == 100
+
+    @pytest.mark.slow
+    def test_amp_does_not_overwrite_non_default(self, temp_dir):
+        """AMP should not propagate when target has non-default values."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_amp = True
+
+        # Change Part 1 track 1 AMP
+        project.bank(1).part(1).track(1).amp_volume = 100
+        # Change Part 2 track 1 AMP (different from template default)
+        project.bank(1).part(2).track(1).amp_volume = 50
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Part 2 should keep 50, not get 100
+        assert project.bank(1).part(2).track(1).amp_volume == 50

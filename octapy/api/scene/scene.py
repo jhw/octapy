@@ -106,6 +106,21 @@ class Scene:
         for track_num in range(1, 9):
             self.track(track_num).clear_all_locks()
 
+    @property
+    def is_blank(self) -> bool:
+        """
+        Check if scene has no locks set on any track.
+
+        Returns:
+            True if scene is blank (no locks), False if any locks are set.
+        """
+        for track_num in range(1, 9):
+            track_dict = self.track(track_num).to_dict()
+            # Track dict with more than just "track" key means locks are set
+            if len(track_dict) > 1:
+                return False
+        return True
+
     def to_dict(self) -> dict:
         """
         Convert scene to dictionary.

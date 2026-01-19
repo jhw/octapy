@@ -337,6 +337,14 @@ class MachineSlotOffset(IntEnum):
 # Audio track params size (LFO + AMP + FX1 + FX2 = 24 bytes)
 AUDIO_TRACK_PARAMS_SIZE = 24
 
+# Template default values for Part page propagation blank-check
+# These are the values from a fresh CLEAN TEMPLATE project
+TEMPLATE_DEFAULT_FX1_TYPE = 4    # FILTER
+TEMPLATE_DEFAULT_FX2_TYPE = 8    # DELAY
+TEMPLATE_DEFAULT_AMP = bytes([0, 127, 127, 64, 64, 127])  # ATK, HOLD, REL, VOL, BAL, unused
+TEMPLATE_DEFAULT_FX1_PARAMS = bytes([0, 127, 0, 64, 0, 64])
+TEMPLATE_DEFAULT_FX2_PARAMS = bytes([47, 0, 127, 0, 127, 0])
+
 
 class AudioTrackParamsOffset(IntEnum):
     """Offsets within AudioTrackParamsValues (24 bytes per track).

@@ -285,9 +285,10 @@ class Project:
 
         Scenes belong to Parts, so switching Parts loses scene settings.
         This method copies any scene with locks defined in Part 1 to the
-        same scene number in Parts 2, 3, and 4.
+        same scene number in Parts 2, 3, and 4, but only if the target
+        scene is blank (has no existing locks).
 
-        Controlled by render_settings.propagate_scenes (default True).
+        Controlled by render_settings.propagate_scenes (default False).
         """
         from .._io import SceneOffset, SCENE_SIZE, SCENE_LOCK_DISABLED
 
@@ -308,16 +309,166 @@ class Project:
                 scene_offset = part1_offset + SceneOffset.SCENES + (scene_num - 1) * SCENE_SIZE
                 scene_data = data[scene_offset:scene_offset + SCENE_SIZE]
 
-                # Check if scene has any locks (not all 255)
+                # Check if source scene has any locks (not all 255)
                 has_locks = any(b != SCENE_LOCK_DISABLED for b in scene_data)
                 if not has_locks:
                     continue
 
-                # Copy to Parts 2, 3, 4
+                # Copy to Parts 2, 3, 4 only if target is blank
                 for target_part in [2, 3, 4]:
                     target_part_offset = bank_file.part_offset(target_part)
                     target_scene_offset = target_part_offset + SceneOffset.SCENES + (scene_num - 1) * SCENE_SIZE
-                    data[target_scene_offset:target_scene_offset + SCENE_SIZE] = scene_data
+                    target_scene_data = data[target_scene_offset:target_scene_offset + SCENE_SIZE]
+
+                    # Only copy if target scene is blank (all 255)
+                    target_is_blank = all(b == SCENE_LOCK_DISABLED for b in target_scene_data)
+                    if target_is_blank:
+                        data[target_scene_offset:target_scene_offset + SCENE_SIZE] = scene_data
+
+    def _propagate_amp(self) -> None:
+        """
+        Propagate AMP page settings from Part 1 to Parts 2-4 within each bank.
+
+        Copies AMP settings for each track from Part 1 to Parts 2-4, but only
+        if the target track's AMP page is at template defaults.
+
+        Controlled by render_settings.propagate_amp (default False).
+        """
+        from .._io import (
+            PartOffset, AudioTrackParamsOffset, AUDIO_TRACK_PARAMS_SIZE,
+            TEMPLATE_DEFAULT_AMP
+        )
+
+        if not self.render_settings.propagate_amp:
+            return
+
+        for bank_num in range(1, 17):
+            bank_file = self._bank_files.get(bank_num)
+            if bank_file is None:
+                continue
+
+            data = bank_file._data
+            part1_offset = bank_file.part_offset(1)
+
+            # Process each track
+            for track_num in range(1, 9):
+                track_idx = track_num - 1
+                # Get Part 1's AMP data (6 bytes at offset 6 within track params)
+                src_params_offset = (part1_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                                     track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.AMP_ATK)
+                src_amp = data[src_params_offset:src_params_offset + 6]
+
+                # Copy to Parts 2, 3, 4 only if target is at template defaults
+                for target_part in [2, 3, 4]:
+                    target_part_offset = bank_file.part_offset(target_part)
+                    target_params_offset = (target_part_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                                            track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.AMP_ATK)
+                    target_amp = data[target_params_offset:target_params_offset + 6]
+
+                    if target_amp == TEMPLATE_DEFAULT_AMP:
+                        data[target_params_offset:target_params_offset + 6] = src_amp
+
+    def _propagate_fx1(self) -> None:
+        """
+        Propagate FX1 page settings from Part 1 to Parts 2-4 within each bank.
+
+        Copies FX1 type and parameters for each track from Part 1 to Parts 2-4,
+        but only if the target track's FX1 type is at template default (FILTER).
+
+        Controlled by render_settings.propagate_fx1 (default False).
+        """
+        from .._io import (
+            PartOffset, AudioTrackParamsOffset, AUDIO_TRACK_PARAMS_SIZE,
+            TEMPLATE_DEFAULT_FX1_TYPE
+        )
+
+        if not self.render_settings.propagate_fx1:
+            return
+
+        for bank_num in range(1, 17):
+            bank_file = self._bank_files.get(bank_num)
+            if bank_file is None:
+                continue
+
+            data = bank_file._data
+            part1_offset = bank_file.part_offset(1)
+
+            # Process each track
+            for track_num in range(1, 9):
+                track_idx = track_num - 1
+
+                # Get Part 1's FX1 type and params
+                src_fx1_type_offset = part1_offset + PartOffset.AUDIO_TRACK_FX1 + track_idx
+                src_fx1_type = data[src_fx1_type_offset]
+
+                src_params_offset = (part1_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                                     track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.FX1_PARAM1)
+                src_fx1_params = data[src_params_offset:src_params_offset + 6]
+
+                # Copy to Parts 2, 3, 4 only if target FX1 type is at template default
+                for target_part in [2, 3, 4]:
+                    target_part_offset = bank_file.part_offset(target_part)
+                    target_fx1_type_offset = target_part_offset + PartOffset.AUDIO_TRACK_FX1 + track_idx
+                    target_fx1_type = data[target_fx1_type_offset]
+
+                    if target_fx1_type == TEMPLATE_DEFAULT_FX1_TYPE:
+                        # Copy FX1 type
+                        data[target_fx1_type_offset] = src_fx1_type
+                        # Copy FX1 params
+                        target_params_offset = (target_part_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                                                track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.FX1_PARAM1)
+                        data[target_params_offset:target_params_offset + 6] = src_fx1_params
+
+    def _propagate_fx2(self) -> None:
+        """
+        Propagate FX2 page settings from Part 1 to Parts 2-4 within each bank.
+
+        Copies FX2 type and parameters for each track from Part 1 to Parts 2-4,
+        but only if the target track's FX2 type is at template default (DELAY).
+
+        Controlled by render_settings.propagate_fx2 (default False).
+        """
+        from .._io import (
+            PartOffset, AudioTrackParamsOffset, AUDIO_TRACK_PARAMS_SIZE,
+            TEMPLATE_DEFAULT_FX2_TYPE
+        )
+
+        if not self.render_settings.propagate_fx2:
+            return
+
+        for bank_num in range(1, 17):
+            bank_file = self._bank_files.get(bank_num)
+            if bank_file is None:
+                continue
+
+            data = bank_file._data
+            part1_offset = bank_file.part_offset(1)
+
+            # Process each track
+            for track_num in range(1, 9):
+                track_idx = track_num - 1
+
+                # Get Part 1's FX2 type and params
+                src_fx2_type_offset = part1_offset + PartOffset.AUDIO_TRACK_FX2 + track_idx
+                src_fx2_type = data[src_fx2_type_offset]
+
+                src_params_offset = (part1_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                                     track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.FX2_PARAM1)
+                src_fx2_params = data[src_params_offset:src_params_offset + 6]
+
+                # Copy to Parts 2, 3, 4 only if target FX2 type is at template default
+                for target_part in [2, 3, 4]:
+                    target_part_offset = bank_file.part_offset(target_part)
+                    target_fx2_type_offset = target_part_offset + PartOffset.AUDIO_TRACK_FX2 + track_idx
+                    target_fx2_type = data[target_fx2_type_offset]
+
+                    if target_fx2_type == TEMPLATE_DEFAULT_FX2_TYPE:
+                        # Copy FX2 type
+                        data[target_fx2_type_offset] = src_fx2_type
+                        # Copy FX2 params
+                        target_params_offset = (target_part_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES +
+                                                track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.FX2_PARAM1)
+                        data[target_params_offset:target_params_offset + 6] = src_fx2_params
 
     def to_directory(self, path: Path) -> None:
         """
@@ -332,6 +483,9 @@ class Project:
         self._ensure_master_track_trigs()
         self._ensure_thru_track_trigs()
         self._propagate_scenes()
+        self._propagate_amp()
+        self._propagate_fx1()
+        self._propagate_fx2()
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -594,6 +748,9 @@ class Project:
                 "auto_master_trig": self.render_settings.auto_master_trig,
                 "auto_thru_trig": self.render_settings.auto_thru_trig,
                 "propagate_scenes": self.render_settings.propagate_scenes,
+                "propagate_amp": self.render_settings.propagate_amp,
+                "propagate_fx1": self.render_settings.propagate_fx1,
+                "propagate_fx2": self.render_settings.propagate_fx2,
                 "sample_duration": sample_duration_name,
             },
         }
