@@ -372,6 +372,7 @@ class TestMasterTrackSettings:
 class TestMasterTrackAutoTrig:
     """Tests for auto-trig logic when master track is enabled."""
 
+    @pytest.mark.slow
     def test_auto_trig_not_added_when_master_disabled(self, temp_dir):
         """Track 8 should NOT get auto-trig when master_track is disabled."""
         from octapy import Project
@@ -386,6 +387,7 @@ class TestMasterTrackAutoTrig:
         # Track 8 should remain empty
         assert project.bank(1).pattern(1).track(8).active_steps == []
 
+    @pytest.mark.slow
     def test_auto_trig_added_when_master_enabled(self, temp_dir):
         """Track 8 should get step 1 trig when master_track is enabled."""
         from octapy import Project
@@ -400,6 +402,7 @@ class TestMasterTrackAutoTrig:
         # Track 8 should have step 1
         assert 1 in project.bank(1).pattern(1).track(8).active_steps
 
+    @pytest.mark.slow
     def test_auto_trig_preserves_existing_track8_steps(self, temp_dir):
         """Auto-trig should preserve existing steps on track 8."""
         from octapy import Project
@@ -418,6 +421,7 @@ class TestMasterTrackAutoTrig:
         assert 5 in active
         assert 9 in active
 
+    @pytest.mark.slow
     def test_auto_trig_no_duplicate_if_step1_exists(self, temp_dir):
         """Auto-trig should not duplicate step 1 if already present."""
         from octapy import Project
@@ -434,6 +438,7 @@ class TestMasterTrackAutoTrig:
         active = project.bank(1).pattern(1).track(8).active_steps
         assert active.count(1) == 1  # No duplicates
 
+    @pytest.mark.slow
     def test_auto_trig_skips_pattern_with_no_trigs(self, temp_dir):
         """Patterns with no trigs on tracks 1-7 should not get auto-trig."""
         from octapy import Project
@@ -448,6 +453,7 @@ class TestMasterTrackAutoTrig:
         # Track 8 should remain empty
         assert project.bank(1).pattern(1).track(8).active_steps == []
 
+    @pytest.mark.slow
     def test_auto_trig_only_audio_tracks_matter(self, temp_dir):
         """Only audio tracks 1-7 should trigger auto-trig, not MIDI."""
         from octapy import Project
@@ -511,6 +517,7 @@ class TestRenderSettings:
         project.render_settings.auto_master_trig = False
         assert project.render_settings.auto_master_trig is False
 
+    @pytest.mark.slow
     def test_auto_master_trig_disabled_prevents_auto_trig(self, temp_dir):
         """When auto_master_trig is False, track 8 trigs are not auto-added."""
         from octapy import Project
