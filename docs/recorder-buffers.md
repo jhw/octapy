@@ -20,7 +20,9 @@ The Octatrack has 8 recorder buffers, one per audio track. These buffers can cap
 
 ## Recording Configuration
 
-Recording setup is **per-track**. Select the track first, then access the setup pages.
+Recording setup is **per-Part, per-track**. Each Part stores 8 RecorderSetup structures (one per track). This means switching Parts can change your recorder configuration.
+
+Select the track first, then access the setup pages.
 
 ### Recording Setup 1 (FUNC + REC1)
 
@@ -119,18 +121,104 @@ This is **unrelated** to audio recording. It controls sequencer trig quantizatio
 - **Enabled**: Trigs snap to nearest 1/16th step
 - **Disabled**: Trigs retain micro-timing (1/384 resolution)
 
+## Binary Structure
+
+### Storage Location
+
+Recorder setup is stored **per-Part** in the bank file:
+- **Offset**: `PartOffset.RECORDER_SETUP = 1547` (relative to Part start)
+- **Size**: 8 tracks × 12 bytes = 96 bytes total
+- **Structure**: Each track has a 12-byte `RecorderSetup` block
+
+### RecorderSetup Structure (12 bytes per track)
+
+From `ot-tools-io/src/parts.rs`:
+
+```
+RecorderSetupSources (6 bytes) - Setup Page 1 (FUNC+REC1):
+  Offset 0: in_ab   (u8)
+  Offset 1: in_cd   (u8)
+  Offset 2: rlen    (u8)  - 64 = MAX, 63 and lower are actual step values
+  Offset 3: trig    (u8)
+  Offset 4: src3    (u8)
+  Offset 5: xloop   (u8)
+
+RecorderSetupProcessing (6 bytes) - Setup Page 2 (FUNC+REC2):
+  Offset 6: fin     (u8)
+  Offset 7: fout    (u8)
+  Offset 8: ab      (u8)  - input gain for AB
+  Offset 9: qrec    (u8)  - 255 = OFF
+  Offset 10: qpl    (u8)  - 255 = OFF
+  Offset 11: cd     (u8)  - input gain for CD
+```
+
+### Default Values
+
+```
+Setup Page 1:
+  in_ab: 1, in_cd: 1, rlen: 64 (MAX), trig: 0, src3: 0, xloop: 1
+
+Setup Page 2:
+  fin: 0, fout: 0, ab: 0, qrec: 255 (OFF), qpl: 255 (OFF), cd: 0
+```
+
+### Parameter Value Ranges
+
+**FIN / FOUT (Fade In / Fade Out)**
+
+These prevent clicks/pops at recording boundaries. Values are in **sequencer steps** with 1/16th step resolution:
+
+| Raw Value | Display Value | Steps |
+|-----------|---------------|-------|
+| 0 | 0 | 0 |
+| 1 | 0.0625 | 1/16 step |
+| 2 | 0.125 | 1/8 step |
+| 4 | 0.25 | 1/4 step |
+| 16 | 1.0 | 1 step |
+| 64 | 4.0 | 4 steps |
+
+Formula: `display_value = raw_value / 16.0` (0-4 steps range)
+
+Note: FOUT adds time *after* the recording stops. If RLEN=16 and FOUT=16 (1 step), total sample length is 17 steps.
+
+### Calculating Track Offset
+
+```python
+def recorder_setup_offset(part_offset: int, track_num: int) -> int:
+    """Get byte offset for a track's RecorderSetup within a Part."""
+    RECORDER_SETUP_SIZE = 12
+    return part_offset + PartOffset.RECORDER_SETUP + (track_num - 1) * RECORDER_SETUP_SIZE
+```
+
 ## API Implementation Roadmap
 
 ### Low-Level API
 
-1. **Identify byte offsets** for Recording Setup 1 & 2 parameters in bank files
-2. **Map parameters** to `RecorderSetupOffset` constants:
-   - INAB, INCD, RLEN, TRIG, SRC3, LOOP (Setup 1)
-   - FIN, FOUT, AB_GAIN, QREC, QPL, CD_GAIN (Setup 2)
-3. **Create enums** for parameter values:
-   - `TrigMode`: ONE, ONE2, HOLD
-   - `QRecMode`: OFF, STEP_1, STEP_4, STEP_8, PLEN
-   - `InputSource`: OFF, A, B, A_PLUS_B, A_B (stereo)
+1. **Add offset constants** to `_io/bank.py`:
+   ```python
+   RECORDER_SETUP_SIZE = 12
+
+   class RecorderSetupOffset:
+       # Setup Page 1 (Sources)
+       IN_AB = 0
+       IN_CD = 1
+       RLEN = 2
+       TRIG = 3
+       SRC3 = 4
+       LOOP = 5
+       # Setup Page 2 (Processing)
+       FIN = 6
+       FOUT = 7
+       AB_GAIN = 8
+       QREC = 9
+       QPL = 10
+       CD_GAIN = 11
+   ```
+
+2. **Create enums** for parameter values:
+   - `RecTrigMode`: ONE (0), ONE2 (1), HOLD (2)
+   - `QRecMode`: OFF (255), PLEN (?), STEP_1 (1), STEP_4 (4), STEP_8 (8)
+   - `InputSource`: OFF (0), A_PLUS_B (1), A (2), B (3), A_B (4) - needs verification
 
 ### High-Level API
 
@@ -177,8 +265,10 @@ This is **unrelated** to audio recording. It controls sequencer trig quantizatio
 
 ### To Investigate
 
-- [ ] Exact byte offsets for recorder setup parameters in bank files
-- [ ] Whether recorder setup is stored per-track or per-part
+- [x] Exact byte offsets for recorder setup parameters in bank files - **DONE** (see Binary Structure section)
+- [x] Whether recorder setup is stored per-track or per-part - **Per-Part** (8 tracks × 12 bytes at PartOffset.RECORDER_SETUP)
+- [ ] Verify QREC enum values (what is PLEN's numeric value?)
+- [ ] Verify InputSource enum values (in_ab/in_cd settings)
 - [ ] How RLEN interacts with different time signatures and scales
-- [ ] MAX value behavior for RLEN
-- [ ] Recorder trig configuration (automated recording via sequencer)
+- [ ] RLEN value 64 = MAX behavior (records for maximum available time)
+- [ ] Recorder trig configuration (automated recording via sequencer trigs)
