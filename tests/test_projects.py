@@ -335,3 +335,152 @@ class TestProjectMidiSettings:
         assert loaded.settings.midi_program_change_send_ch == 10
         assert loaded.settings.midi_program_change_receive is True
         assert loaded.settings.midi_program_change_receive_ch == 5
+
+
+class TestMasterTrackSettings:
+    """Master track settings tests."""
+
+    def test_master_track_default_false(self):
+        """Test master_track defaults to False."""
+        from octapy import Project
+        project = Project.from_template("TEST")
+        assert project.settings.master_track is False
+
+    def test_master_track_set_true(self):
+        """Test setting master_track to True."""
+        from octapy import Project
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        assert project.settings.master_track is True
+
+    @pytest.mark.slow
+    def test_master_track_roundtrip(self, temp_dir):
+        """Test that master_track setting survives save/load."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+
+        # Save and reload
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        # Verify
+        assert loaded.settings.master_track is True
+
+
+class TestMasterTrackAutoTrig:
+    """Tests for auto-trig logic when master track is enabled."""
+
+    def test_auto_trig_not_added_when_master_disabled(self, temp_dir):
+        """Track 8 should NOT get auto-trig when master_track is disabled."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = False
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should remain empty
+        assert project.bank(1).pattern(1).track(8).active_steps == []
+
+    def test_auto_trig_added_when_master_enabled(self, temp_dir):
+        """Track 8 should get step 1 trig when master_track is enabled."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should have step 1
+        assert 1 in project.bank(1).pattern(1).track(8).active_steps
+
+    def test_auto_trig_preserves_existing_track8_steps(self, temp_dir):
+        """Auto-trig should preserve existing steps on track 8."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+        project.bank(1).pattern(1).track(8).active_steps = [5, 9]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should have step 1 plus original steps
+        active = project.bank(1).pattern(1).track(8).active_steps
+        assert 1 in active
+        assert 5 in active
+        assert 9 in active
+
+    def test_auto_trig_no_duplicate_if_step1_exists(self, temp_dir):
+        """Auto-trig should not duplicate step 1 if already present."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
+        project.bank(1).pattern(1).track(8).active_steps = [1, 5, 9]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should still have exactly [1, 5, 9]
+        active = project.bank(1).pattern(1).track(8).active_steps
+        assert active.count(1) == 1  # No duplicates
+
+    def test_auto_trig_skips_pattern_with_no_trigs(self, temp_dir):
+        """Patterns with no trigs on tracks 1-7 should not get auto-trig."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        # Pattern 1 has no trigs on tracks 1-7
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should remain empty
+        assert project.bank(1).pattern(1).track(8).active_steps == []
+
+    def test_auto_trig_only_audio_tracks_matter(self, temp_dir):
+        """Only audio tracks 1-7 should trigger auto-trig, not MIDI."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        # Only set trigs on MIDI track, not audio
+        project.bank(1).pattern(1).midi_track(1).active_steps = [1, 5, 9, 13]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Track 8 should remain empty (MIDI trigs don't count)
+        assert project.bank(1).pattern(1).track(8).active_steps == []
+
+    @pytest.mark.slow
+    def test_auto_trig_across_multiple_banks(self, temp_dir):
+        """Auto-trig should work across all banks."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+
+        # Set trigs in banks 1 and 3
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5]
+        project.bank(3).pattern(5).track(2).active_steps = [1, 9]
+
+        # Save triggers the auto-trig logic
+        project.to_directory(temp_dir / "TEST")
+
+        # Both patterns should have track 8 step 1
+        assert 1 in project.bank(1).pattern(1).track(8).active_steps
+        assert 1 in project.bank(3).pattern(5).track(8).active_steps
+
+        # Pattern with no trigs should remain empty
+        assert project.bank(2).pattern(1).track(8).active_steps == []

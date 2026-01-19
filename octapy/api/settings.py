@@ -182,3 +182,17 @@ class Settings:
     @pattern_tempo_enabled.setter
     def pattern_tempo_enabled(self, value: bool):
         self._settings.pattern_tempo_enabled = int(value)
+
+    @property
+    def master_track(self) -> bool:
+        """
+        Enable/disable track 8 as master track.
+
+        When enabled, track 8 receives the summed output of tracks 1-7
+        and can apply effects/scenes to the entire mix.
+        """
+        return bool(self._settings.master_track)
+
+    @master_track.setter
+    def master_track(self, value: bool):
+        self._settings.master_track = int(value)

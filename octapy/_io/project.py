@@ -73,6 +73,7 @@ class ProjectSettings:
     record_24bit: int = 0
     reserved_recorder_count: int = 8
     reserved_recorder_length: int = 16
+    master_track: int = 0           # 0 = disabled, 1 = track 8 is master
 
 
 @dataclass
@@ -192,6 +193,10 @@ class ProjectFile:
             if midi_pc_receive_ch:
                 self.settings.midi_program_change_receive_ch = int(midi_pc_receive_ch.group(1))
 
+            master_track = re.search(r'MASTER_TRACK=(\d+)', settings_content)
+            if master_track:
+                self.settings.master_track = int(master_track.group(1))
+
         # Parse SAMPLE sections
         sample_matches = re.findall(r'\[SAMPLE\](.*?)\[/SAMPLE\]', content, re.DOTALL)
         for sample_content in sample_matches:
@@ -282,7 +287,7 @@ class ProjectFile:
         lines.append("DIR_CD=0")
         lines.append("PHONES_MIX=64")
         lines.append("MAIN_TO_CUE=0")
-        lines.append("MASTER_TRACK=0")
+        lines.append(f"MASTER_TRACK={self.settings.master_track}")
         lines.append("CUE_STUDIO_MODE=0")
         lines.append("MAIN_LEVEL=64")
         lines.append("CUE_LEVEL=64")

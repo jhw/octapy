@@ -208,6 +208,38 @@ class Project:
 
         return project
 
+    def _ensure_master_track_trigs(self) -> None:
+        """
+        Ensure track 8 has trigs when master track is enabled.
+
+        When master_track is enabled in project settings, track 8 receives
+        the summed output of tracks 1-7. However, track 8 needs an active
+        trig to process audio. This method automatically adds a trig on
+        step 1 of track 8 for any pattern where tracks 1-7 have trigs.
+
+        Only affects audio tracks (MIDI tracks are separate and unaffected).
+        """
+        if not self.settings.master_track:
+            return
+
+        # Iterate through all 16 banks
+        for bank_num in range(1, 17):
+            bank = self.bank(bank_num)
+            # Iterate through all 16 patterns per bank
+            for pattern_num in range(1, 17):
+                pattern = bank.pattern(pattern_num)
+                # Check if any audio tracks 1-7 have active steps
+                has_trigs_1_to_7 = any(
+                    pattern.track(t).active_steps
+                    for t in range(1, 8)
+                )
+                if has_trigs_1_to_7:
+                    # Ensure track 8 has step 1 active
+                    track8 = pattern.track(8)
+                    active = track8.active_steps
+                    if 1 not in active:
+                        track8.active_steps = [1] + active
+
     def to_directory(self, path: Path) -> None:
         """
         Save the project to a directory.
@@ -217,6 +249,9 @@ class Project:
         Args:
             path: Destination directory (will be created if needed)
         """
+        # Auto-add trigs for master track if enabled
+        self._ensure_master_track_trigs()
+
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
