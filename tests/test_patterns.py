@@ -928,3 +928,232 @@ class TestMidiPatternRoundTrip:
         assert loaded_track.step(5).aftertouch == 80
         assert loaded_track.step(9).cc(1) == 64
         assert loaded_track.step(13).cc(5) == 127
+
+
+# =============================================================================
+# Flex Step Tests
+# =============================================================================
+
+class TestFlexStepType:
+    """FlexStep type detection tests."""
+
+    def test_flex_track_returns_flexstep(self):
+        """Test that Flex machine tracks return FlexStep."""
+        from octapy.api.step import FlexStep
+        project = Project.from_template("TEST")
+        # Default machine type is Flex
+        step = project.bank(1).pattern(1).track(1).step(1)
+        assert isinstance(step, FlexStep)
+
+    def test_flexstep_has_sampler_properties(self):
+        """Test that FlexStep inherits SamplerStep properties."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
+        # Should have volume, pitch, sample_lock from SamplerStep
+        assert hasattr(step, 'volume')
+        assert hasattr(step, 'pitch')
+        assert hasattr(step, 'sample_lock')
+
+
+class TestFlexStepLengthPlock:
+    """FlexStep length p-lock tests."""
+
+    def test_length_default_none(self):
+        """Test length p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
+        assert step.length is None
+
+    def test_set_length_full(self):
+        """Test setting length to 1.0 (full sample)."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.length = 1.0
+        assert step.length == 1.0
+
+    def test_set_length_half(self):
+        """Test setting length to 0.5 (half sample)."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.length = 0.5
+        # Should quantize to nearest 0-127 value
+        result = step.length
+        assert 0.49 <= result <= 0.51  # Allow for quantization
+
+    def test_set_length_zero(self):
+        """Test setting length to 0.0."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.length = 0.0
+        assert step.length == 0.0
+
+    def test_set_length_quantization(self):
+        """Test length values are quantized to 0-127."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        # 0.25 should quantize to 32/127 ≈ 0.252
+        step.length = 0.25
+        assert 0.24 <= step.length <= 0.26
+
+    def test_clear_length(self):
+        """Test clearing length p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.length = 0.5
+        step.length = None
+        assert step.length is None
+
+    def test_length_clamps_above_one(self):
+        """Test length values above 1.0 are clamped."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.length = 1.5
+        assert step.length == 1.0
+
+    def test_length_clamps_below_zero(self):
+        """Test length values below 0.0 are clamped."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.length = -0.5
+        assert step.length == 0.0
+
+
+class TestFlexStepReversePlock:
+    """FlexStep reverse p-lock tests."""
+
+    def test_reverse_default_none(self):
+        """Test reverse p-lock defaults to None."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
+        assert step.reverse is None
+
+    def test_set_reverse_true(self):
+        """Test setting reverse to True."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.reverse = True
+        assert step.reverse is True
+
+    def test_set_reverse_false(self):
+        """Test setting reverse to False."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.reverse = False
+        assert step.reverse is False
+
+    def test_clear_reverse(self):
+        """Test clearing reverse p-lock."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.reverse = True
+        step.reverse = None
+        assert step.reverse is None
+
+    def test_reverse_toggle(self):
+        """Test toggling reverse back and forth."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(5)
+
+        step.reverse = True
+        assert step.reverse is True
+
+        step.reverse = False
+        assert step.reverse is False
+
+        step.reverse = True
+        assert step.reverse is True
+
+
+class TestFlexStepPlocksIndependent:
+    """Test FlexStep p-locks are independent per step."""
+
+    def test_length_independent_per_step(self):
+        """Test length p-locks are independent per step."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).pattern(1).track(1)
+
+        track.step(1).length = 0.25
+        track.step(5).length = 0.5
+        track.step(9).length = 0.75
+
+        assert 0.24 <= track.step(1).length <= 0.26
+        assert 0.49 <= track.step(5).length <= 0.51
+        assert 0.74 <= track.step(9).length <= 0.76
+        assert track.step(2).length is None
+
+    def test_reverse_independent_per_step(self):
+        """Test reverse p-locks are independent per step."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).pattern(1).track(1)
+
+        track.step(1).reverse = True
+        track.step(5).reverse = False
+        track.step(9).reverse = True
+
+        assert track.step(1).reverse is True
+        assert track.step(5).reverse is False
+        assert track.step(9).reverse is True
+        assert track.step(2).reverse is None
+
+
+class TestFlexStepRoundTrip:
+    """FlexStep p-lock round-trip tests."""
+
+    @pytest.mark.slow
+    def test_length_survives_save(self, temp_dir):
+        """Test length p-lock survives save/load."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).pattern(1).track(1)
+
+        track.step(5).length = 0.5
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        loaded_length = loaded.bank(1).pattern(1).track(1).step(5).length
+        assert 0.49 <= loaded_length <= 0.51
+
+    @pytest.mark.slow
+    def test_reverse_survives_save(self, temp_dir):
+        """Test reverse p-lock survives save/load."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).pattern(1).track(1)
+
+        track.step(5).reverse = True
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        assert loaded.bank(1).pattern(1).track(1).step(5).reverse is True
+
+    @pytest.mark.slow
+    def test_multiple_flex_plocks_survive_save(self, temp_dir):
+        """Test multiple FlexStep p-locks survive save/load."""
+        project = Project.from_template("TEST")
+        track = project.bank(1).pattern(1).track(1)
+
+        track.step(1).length = 0.25
+        track.step(1).reverse = True
+        track.step(5).length = 0.75
+        track.step(5).reverse = False
+        track.step(9).volume = 100  # Inherited from SamplerStep
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        loaded_track = loaded.bank(1).pattern(1).track(1)
+        assert 0.24 <= loaded_track.step(1).length <= 0.26
+        assert loaded_track.step(1).reverse is True
+        assert 0.74 <= loaded_track.step(5).length <= 0.76
+        assert loaded_track.step(5).reverse is False
+        assert loaded_track.step(9).volume == 100

@@ -433,19 +433,24 @@ class Project:
         """
         Apply sensible sampler defaults to all banks/parts/tracks.
 
-        For Flex machines only, sets:
+        Sets all audio tracks to Flex machine type with sensible defaults:
+        - machine_type = FLEX (enables FlexStep with length/reverse p-locks)
         - loop_mode = OFF (no looping by default)
         - length_mode = TIME so LEN encoder works for truncating samples
         - length = 127 (max) so samples play fully by default
-        """
-        from .enums import LoopMode, LengthMode
 
-        # Apply to all 16 banks, 4 parts, 8 tracks (Flex only)
+        Note: rate defaults to 127 (forward) from template, enabling reverse p-lock to 0.
+        """
+        from .enums import LoopMode, LengthMode, MachineType
+
+        # Apply to all 16 banks, 4 parts, 8 tracks
         for bank_num in range(1, 17):
             bank = self.bank(bank_num)
             for part_num in range(1, 5):
                 part = bank.part(part_num)
                 for track_num in range(1, 9):
+                    track = part.track(track_num)
+                    track.machine_type = MachineType.FLEX
                     flex = part.flex_track(track_num)
                     flex.loop_mode = LoopMode.OFF
                     flex.length_mode = LengthMode.TIME

@@ -30,12 +30,12 @@ class TestAudioPartTrackMachineTypes:
     """AudioPartTrack machine type tests."""
 
     def test_default_machine_type(self):
-        """Test default machine type is STATIC."""
+        """Test default machine type is FLEX (set by from_template)."""
         project = Project.from_template("TEST")
         part = project.bank(1).part(1)
         for track_num in range(1, 9):
             track = part.track(track_num)
-            assert track.machine_type == MachineType.STATIC
+            assert track.machine_type == MachineType.FLEX
 
     def test_set_machine_type(self):
         """Test setting machine type."""
