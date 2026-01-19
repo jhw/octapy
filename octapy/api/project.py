@@ -325,6 +325,65 @@ class Project:
                     if target_is_blank:
                         data[target_scene_offset:target_scene_offset + SCENE_SIZE] = scene_data
 
+    def _propagate_src(self) -> None:
+        """
+        Propagate SRC page settings from Part 1 to Parts 2-4 within each bank.
+
+        Copies SRC (playback) and Setup page settings for Flex/Static machines
+        from Part 1 to Parts 2-4 for each track, but only if the target track's
+        SRC page is at template defaults.
+
+        Controlled by render_settings.propagate_src (default False).
+        """
+        from .._io import (
+            PartOffset, MachineParamsOffset, MACHINE_PARAMS_SIZE,
+            TEMPLATE_DEFAULT_SRC_VALUES, TEMPLATE_DEFAULT_SRC_SETUP
+        )
+
+        if not self.render_settings.propagate_src:
+            return
+
+        for bank_num in range(1, 17):
+            bank_file = self._bank_files.get(bank_num)
+            if bank_file is None:
+                continue
+
+            data = bank_file._data
+            part1_offset = bank_file.part_offset(1)
+
+            # Process each track
+            for track_num in range(1, 9):
+                track_idx = track_num - 1
+
+                # Get Part 1's SRC values (6 bytes) - Flex machine offset
+                src_values_offset = (part1_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_VALUES +
+                                     track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX)
+                src_values = data[src_values_offset:src_values_offset + 6]
+
+                # Get Part 1's SRC setup (6 bytes) - Flex machine offset
+                src_setup_offset = (part1_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_SETUP +
+                                    track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX)
+                src_setup = data[src_setup_offset:src_setup_offset + 6]
+
+                # Copy to Parts 2, 3, 4 only if target is at template defaults
+                for target_part in [2, 3, 4]:
+                    target_part_offset = bank_file.part_offset(target_part)
+
+                    # Check target SRC values
+                    target_values_offset = (target_part_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_VALUES +
+                                            track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX)
+                    target_values = data[target_values_offset:target_values_offset + 6]
+
+                    # Check target SRC setup
+                    target_setup_offset = (target_part_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_SETUP +
+                                           track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX)
+                    target_setup = data[target_setup_offset:target_setup_offset + 6]
+
+                    # Only propagate if both values and setup are at defaults
+                    if target_values == TEMPLATE_DEFAULT_SRC_VALUES and target_setup == TEMPLATE_DEFAULT_SRC_SETUP:
+                        data[target_values_offset:target_values_offset + 6] = src_values
+                        data[target_setup_offset:target_setup_offset + 6] = src_setup
+
     def _propagate_amp(self) -> None:
         """
         Propagate AMP page settings from Part 1 to Parts 2-4 within each bank.
@@ -447,6 +506,7 @@ class Project:
         self._ensure_master_track_trigs()
         self._ensure_thru_track_trigs()
         self._propagate_scenes()
+        self._propagate_src()
         self._propagate_amp()
         self._propagate_fx()
 
@@ -711,6 +771,7 @@ class Project:
                 "auto_master_trig": self.render_settings.auto_master_trig,
                 "auto_thru_trig": self.render_settings.auto_thru_trig,
                 "propagate_scenes": self.render_settings.propagate_scenes,
+                "propagate_src": self.render_settings.propagate_src,
                 "propagate_amp": self.render_settings.propagate_amp,
                 "propagate_fx": self.render_settings.propagate_fx,
                 "sample_duration": sample_duration_name,

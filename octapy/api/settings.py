@@ -218,6 +218,7 @@ class RenderSettings:
         self._auto_master_trig = False
         self._auto_thru_trig = False
         self._propagate_scenes = False
+        self._propagate_src = False
         self._propagate_amp = False
         self._propagate_fx = False
         self._sample_duration = None
@@ -272,6 +273,27 @@ class RenderSettings:
     @propagate_scenes.setter
     def propagate_scenes(self, value: bool):
         self._propagate_scenes = value
+
+    @property
+    def propagate_src(self) -> bool:
+        """
+        Propagate SRC page settings from Part 1 to Parts 2-4 within each bank.
+
+        When True, copies SRC (playback) settings and Setup page settings
+        for Flex/Static machines from Part 1 to Parts 2-4 for each track,
+        but only if the target Part's SRC page is at template defaults.
+
+        SRC page: pitch, start, length, rate, retrig, retrig_time
+        Setup page: loop_mode, slice_mode, length_mode, rate_mode,
+                   timestretch_mode, timestretch_sensitivity
+
+        Default is False (manual SRC configuration per Part).
+        """
+        return self._propagate_src
+
+    @propagate_src.setter
+    def propagate_src(self, value: bool):
+        self._propagate_src = value
 
     @property
     def propagate_amp(self) -> bool:

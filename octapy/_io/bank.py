@@ -344,6 +344,10 @@ TEMPLATE_DEFAULT_FX2_TYPE = 8    # DELAY
 TEMPLATE_DEFAULT_AMP = bytes([0, 127, 127, 64, 64, 127])  # ATK, HOLD, REL, VOL, BAL, unused
 TEMPLATE_DEFAULT_FX1_PARAMS = bytes([0, 127, 0, 64, 0, 64])
 TEMPLATE_DEFAULT_FX2_PARAMS = bytes([47, 0, 127, 0, 127, 0])
+# SRC page defaults for Flex/Static: PTCH, STRT, LEN, RATE, RTRG, RTIM
+TEMPLATE_DEFAULT_SRC_VALUES = bytes([64, 0, 0, 127, 0, 79])
+# Setup page defaults (FUNC+SRC): LOOP, SLIC, LEN, RATE, TSTR, TSNS
+TEMPLATE_DEFAULT_SRC_SETUP = bytes([1, 0, 0, 0, 1, 64])
 
 
 class AudioTrackParamsOffset(IntEnum):

@@ -757,6 +757,59 @@ class TestSceneIsBlank:
         assert scene.is_blank is True
 
 
+class TestPropagateSRC:
+    """Tests for SRC page propagation from Part 1 to Parts 2-4."""
+
+    def test_propagate_src_default_false(self):
+        """propagate_src defaults to False."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.propagate_src is False
+
+    @pytest.mark.slow
+    def test_src_propagates_when_target_at_default(self, temp_dir):
+        """SRC settings should propagate when target is at template default."""
+        from octapy import Project, MachineType
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_src = True
+
+        # Set machine type to Flex and modify SRC settings
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
+        project.bank(1).part(1).flex_track(1).pitch = 72  # Non-default pitch
+
+        # Save triggers propagation
+        project.to_directory(temp_dir / "TEST")
+
+        # Parts 2-4 track 1 should now have pitch 72
+        assert project.bank(1).part(2).flex_track(1).pitch == 72
+        assert project.bank(1).part(3).flex_track(1).pitch == 72
+        assert project.bank(1).part(4).flex_track(1).pitch == 72
+
+    @pytest.mark.slow
+    def test_src_does_not_overwrite_non_default(self, temp_dir):
+        """SRC should not propagate when target has non-default values."""
+        from octapy import Project, MachineType
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_src = True
+
+        # Set Part 1 track 1 SRC settings
+        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
+        project.bank(1).part(1).flex_track(1).pitch = 72
+
+        # Set Part 2 track 1 to different non-default value
+        project.bank(1).part(2).track(1).machine_type = MachineType.FLEX
+        project.bank(1).part(2).flex_track(1).pitch = 60  # Non-default
+
+        # Save
+        project.to_directory(temp_dir / "TEST")
+
+        # Part 2 should keep pitch 60, not get 72
+        assert project.bank(1).part(2).flex_track(1).pitch == 60
+
+
 class TestPropagateFX:
     """Tests for FX propagation from Part 1 to Parts 2-4."""
 

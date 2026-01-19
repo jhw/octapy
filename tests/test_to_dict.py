@@ -356,6 +356,7 @@ class TestProjectToDict:
         assert result["render_settings"]["auto_master_trig"] is False
         assert result["render_settings"]["auto_thru_trig"] is False
         assert result["render_settings"]["propagate_scenes"] is False
+        assert result["render_settings"]["propagate_src"] is False
         assert result["render_settings"]["propagate_amp"] is False
         assert result["render_settings"]["propagate_fx"] is False
         assert result["render_settings"]["sample_duration"] is None
@@ -377,6 +378,7 @@ class TestProjectToDict:
         project.render_settings.auto_master_trig = True
         project.render_settings.auto_thru_trig = True
         project.render_settings.propagate_scenes = True
+        project.render_settings.propagate_src = True
         project.render_settings.propagate_amp = True
         project.render_settings.propagate_fx = True
         project.render_settings.sample_duration = NoteLength.QUARTER
@@ -385,6 +387,7 @@ class TestProjectToDict:
         assert result["render_settings"]["auto_master_trig"] is True
         assert result["render_settings"]["auto_thru_trig"] is True
         assert result["render_settings"]["propagate_scenes"] is True
+        assert result["render_settings"]["propagate_src"] is True
         assert result["render_settings"]["propagate_amp"] is True
         assert result["render_settings"]["propagate_fx"] is True
         assert result["render_settings"]["sample_duration"] == "QUARTER"
