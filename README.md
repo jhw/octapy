@@ -85,7 +85,7 @@ AudioPartTrack returns machine-specific subclasses based on the track's machine 
 
 - `MachineType` — FLEX, STATIC, THRU, NEIGHBOR, PICKUP
 - `TrigCondition` — FILL, PRE, NEI, probability (1-99%), loop patterns (T1_R2, etc.)
-- `NoteLength` — THIRTY_SECOND, SIXTEENTH, EIGHTH, QUARTER, HALF
+- `NoteLength` — SIXTEENTH, EIGHTH, QUARTER, HALF, WHOLE (all integer 16ths)
 - `FX1Type`, `FX2Type` — Effect types for FX slots
 - `ThruInput` — Input routing for Thru machines
 

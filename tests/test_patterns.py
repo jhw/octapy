@@ -737,13 +737,14 @@ class TestMidiStepLengthQuantization:
         project = Project.from_template("TEST")
         step = project.bank(1).pattern(1).midi_track(1).step(5)
 
-        # Test all valid NoteLength values
-        for expected in [3, 6, 12, 24, 48]:
+        # Test all valid NoteLength values: 3, multiples of 6 from 6-126, and 127
+        valid_values = [3, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120, 126, 127]
+        for expected in valid_values:
             step.length = expected
             assert step.length == expected, f"Expected {expected}, got {step.length}"
 
     def test_length_quantizes_to_nearest(self):
-        """Test non-NoteLength values are quantized to nearest."""
+        """Test non-NoteLength values are quantized to nearest valid value."""
         project = Project.from_template("TEST")
         step = project.bank(1).pattern(1).midi_track(1).step(5)
 
@@ -762,20 +763,32 @@ class TestMidiStepLengthQuantization:
         # Values close to 12 (1/8)
         step.length = 10
         assert step.length == 12
-        step.length = 15
+        step.length = 14
         assert step.length == 12
 
-        # Values close to 24 (1/4)
+        # Values close to 18 (3/16)
+        step.length = 16
+        assert step.length == 18
         step.length = 20
+        assert step.length == 18
+
+        # Values close to 24 (1/4)
+        step.length = 22
         assert step.length == 24
-        step.length = 30
+        step.length = 26
         assert step.length == 24
 
         # Values close to 48 (1/2)
-        step.length = 40
+        step.length = 46
         assert step.length == 48
-        step.length = 100
+        step.length = 50
         assert step.length == 48
+
+        # Values close to 96 (whole note)
+        step.length = 94
+        assert step.length == 96
+        step.length = 98
+        assert step.length == 96
 
     def test_length_clear_with_none(self):
         """Test clearing length p-lock with None."""
@@ -796,12 +809,15 @@ class TestMidiStepLengthQuantization:
         assert step.length == 3
 
     def test_length_large_value_quantizes_to_maximum(self):
-        """Test large values quantize to maximum (48)."""
+        """Test large values quantize to maximum (127)."""
         project = Project.from_template("TEST")
         step = project.bank(1).pattern(1).midi_track(1).step(5)
 
         step.length = 127
-        assert step.length == 48
+        assert step.length == 127
+
+        step.length = 200
+        assert step.length == 127
 
 
 class TestMidiStepCondition:

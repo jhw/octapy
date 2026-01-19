@@ -306,8 +306,8 @@ class Project:
         based on BPM when saving the project.
 
         Values: NoteLength.SIXTEENTH (1 step), EIGHTH (2 steps),
-                THIRTY_SECOND (0.5 steps), QUARTER (4 steps),
-                HALF (8 steps), or None (no normalization)
+                QUARTER (4 steps), HALF (8 steps), WHOLE (16 steps),
+                or None (no normalization)
         """
         return self._sample_duration
 

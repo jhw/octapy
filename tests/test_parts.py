@@ -321,8 +321,26 @@ class TestNoteLengthEnum:
         assert NoteLength.THIRTY_SECOND == 3
         assert NoteLength.SIXTEENTH == 6
         assert NoteLength.EIGHTH == 12
+        assert NoteLength.THREE_SIXTEENTHS == 18
         assert NoteLength.QUARTER == 24
+        assert NoteLength.FIVE_SIXTEENTHS == 30
+        assert NoteLength.THREE_EIGHTHS == 36
+        assert NoteLength.SEVEN_SIXTEENTHS == 42
         assert NoteLength.HALF == 48
+        assert NoteLength.NINE_SIXTEENTHS == 54
+        assert NoteLength.FIVE_EIGHTHS == 60
+        assert NoteLength.ELEVEN_SIXTEENTHS == 66
+        assert NoteLength.THREE_QUARTERS == 72
+        assert NoteLength.THIRTEEN_SIXTEENTHS == 78
+        assert NoteLength.SEVEN_EIGHTHS == 84
+        assert NoteLength.FIFTEEN_SIXTEENTHS == 90
+        assert NoteLength.WHOLE == 96
+        assert NoteLength.SEVENTEEN_SIXTEENTHS == 102
+        assert NoteLength.NINE_EIGHTHS == 108
+        assert NoteLength.NINETEEN_SIXTEENTHS == 114
+        assert NoteLength.FIVE_QUARTERS == 120
+        assert NoteLength.TWENTYONE_SIXTEENTHS == 126
+        assert NoteLength.INFINITY == 127
 
     def test_enum_as_int(self):
         """Test NoteLength values work as integers."""
@@ -415,37 +433,36 @@ class TestNoteLengthQuantization:
 
     def test_quantize_exact_values(self):
         """Test that exact NoteLength values remain unchanged."""
-        assert quantize_note_length(3) == 3
-        assert quantize_note_length(6) == 6
-        assert quantize_note_length(12) == 12
-        assert quantize_note_length(24) == 24
-        assert quantize_note_length(48) == 48
+        # All valid values: 3, multiples of 6 from 6-126, and 127
+        valid_values = [3, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120, 126, 127]
+        for value in valid_values:
+            assert quantize_note_length(value) == value
 
     def test_quantize_to_nearest(self):
-        """Test that intermediate values snap to nearest."""
+        """Test that intermediate values snap to nearest valid value."""
         # Between 3 and 6, midpoint is 4.5
-        assert quantize_note_length(4) == 3  # closer to 3
-        assert quantize_note_length(5) == 6  # closer to 6
+        assert quantize_note_length(4) == 3   # closer to 3
+        assert quantize_note_length(5) == 6   # closer to 6
 
         # Between 6 and 12, midpoint is 9
-        assert quantize_note_length(8) == 6  # closer to 6
+        assert quantize_note_length(8) == 6   # closer to 6
         assert quantize_note_length(10) == 12  # closer to 12
 
-        # Between 12 and 24, midpoint is 18
-        assert quantize_note_length(15) == 12  # closer to 12
-        assert quantize_note_length(20) == 24  # closer to 24
+        # Between 12 and 18, midpoint is 15
+        assert quantize_note_length(14) == 12  # closer to 12
+        assert quantize_note_length(16) == 18  # closer to 18
 
-        # Between 24 and 48, midpoint is 36
-        assert quantize_note_length(30) == 24  # closer to 24
-        assert quantize_note_length(40) == 48  # closer to 48
+        # Between 126 and 127
+        assert quantize_note_length(126) == 126
+        assert quantize_note_length(127) == 127
 
     def test_quantize_edge_cases(self):
         """Test boundary values."""
-        assert quantize_note_length(0) == 3  # minimum clamps to THIRTY_SECOND
+        assert quantize_note_length(0) == 3    # minimum clamps to THIRTY_SECOND
         assert quantize_note_length(1) == 3
         assert quantize_note_length(2) == 3
-        assert quantize_note_length(100) == 48  # max clamps to HALF
-        assert quantize_note_length(127) == 48
+        assert quantize_note_length(127) == 127  # INFINITY
+        assert quantize_note_length(200) == 127  # max clamps to INFINITY
 
 
 class TestNoteLengthPropertyQuantization:
@@ -468,12 +485,21 @@ class TestNoteLengthPropertyQuantization:
         assert midi_track.default_length == 6
 
     def test_arp_note_length_quantizes_on_write(self):
-        """Test that arp_note_length writing quantizes."""
+        """Test that arp_note_length writing quantizes to nearest multiple of 6."""
         project = Project.from_template("TEST")
         midi_track = project.bank(1).part(1).midi_track(1)
 
-        midi_track.arp_note_length = 30  # Should quantize to 24
-        assert midi_track.arp_note_length == 24
+        # 30 is now a valid value (FIVE_SIXTEENTHS)
+        midi_track.arp_note_length = 30
+        assert midi_track.arp_note_length == 30
+
+        # 31 should quantize to 30 (nearest multiple of 6)
+        midi_track.arp_note_length = 31
+        assert midi_track.arp_note_length == 30
+
+        # 33 should quantize to 36 (nearest multiple of 6)
+        midi_track.arp_note_length = 34
+        assert midi_track.arp_note_length == 36
 
     def test_note_length_enum_usage(self):
         """Test using NoteLength enum values directly."""

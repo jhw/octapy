@@ -172,24 +172,72 @@ class NoteLength(IntEnum):
     Note length in musical subdivisions.
 
     Values are MIDI ticks at 24 PPQN (pulses per quarter note).
-    These are the only values that map to clean musical fractions.
+    All values that can be expressed as integer 16ths are supported.
 
     Used for:
     - MIDI note length (default_length, arp_note_length)
     - Sample duration normalization (converted to ms based on BPM)
 
-    At 120 BPM:
-      - THIRTY_SECOND = 62.5ms (0.5 steps)
-      - SIXTEENTH = 125ms (1 step)
-      - EIGHTH = 250ms (2 steps)
-      - QUARTER = 500ms (4 steps)
-      - HALF = 1000ms (8 steps)
+    Naming convention:
+    - Common note values use standard names: SIXTEENTH, EIGHTH, QUARTER, HALF, WHOLE
+    - Fractions use X_Y format where X is numerator, Y is denominator
+    - Values > 1 whole note continue the fraction pattern
+
+    At 120 BPM (1 step = 125ms):
+      - THIRTY_SECOND (3) = 62.5ms (0.5 steps)
+      - SIXTEENTH (6) = 125ms (1 step)
+      - EIGHTH (12) = 250ms (2 steps)
+      - QUARTER (24) = 500ms (4 steps)
+      - HALF (48) = 1000ms (8 steps)
+      - WHOLE (96) = 2000ms (16 steps)
+      - INFINITY (127) = note holds until release
     """
-    THIRTY_SECOND = 3   # 1/32 note
-    SIXTEENTH = 6       # 1/16 note
-    EIGHTH = 12         # 1/8 note
-    QUARTER = 24        # 1/4 note
-    HALF = 48           # 1/2 note
+    # 1/32 note (half a sixteenth)
+    THIRTY_SECOND = 3
+    # 1 sixteenth (1/16)
+    SIXTEENTH = 6
+    # 2 sixteenths (1/8)
+    EIGHTH = 12
+    # 3 sixteenths (3/16)
+    THREE_SIXTEENTHS = 18
+    # 4 sixteenths (1/4)
+    QUARTER = 24
+    # 5 sixteenths (5/16)
+    FIVE_SIXTEENTHS = 30
+    # 6 sixteenths (3/8)
+    THREE_EIGHTHS = 36
+    # 7 sixteenths (7/16)
+    SEVEN_SIXTEENTHS = 42
+    # 8 sixteenths (1/2)
+    HALF = 48
+    # 9 sixteenths (9/16)
+    NINE_SIXTEENTHS = 54
+    # 10 sixteenths (5/8)
+    FIVE_EIGHTHS = 60
+    # 11 sixteenths (11/16)
+    ELEVEN_SIXTEENTHS = 66
+    # 12 sixteenths (3/4)
+    THREE_QUARTERS = 72
+    # 13 sixteenths (13/16)
+    THIRTEEN_SIXTEENTHS = 78
+    # 14 sixteenths (7/8)
+    SEVEN_EIGHTHS = 84
+    # 15 sixteenths (15/16)
+    FIFTEEN_SIXTEENTHS = 90
+    # 16 sixteenths (1/1)
+    WHOLE = 96
+    # 17 sixteenths (17/16)
+    SEVENTEEN_SIXTEENTHS = 102
+    # 18 sixteenths (9/8)
+    NINE_EIGHTHS = 108
+    # 19 sixteenths (19/16)
+    NINETEEN_SIXTEENTHS = 114
+    # 20 sixteenths (5/4)
+    FIVE_QUARTERS = 120
+    # 21 sixteenths (21/16)
+    TWENTYONE_SIXTEENTHS = 126
+    # Infinite length (note holds until release)
+    INFINITY = 127
 
 
 # Machine types (for audio tracks in Parts)

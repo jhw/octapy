@@ -88,7 +88,7 @@ class MidiStep(BaseStep):
         Get/set p-locked MIDI note length for this step.
 
         Values are quantized to valid NoteLength values:
-        3 (1/32), 6 (1/16), 12 (1/8), 24 (1/4), 48 (1/2)
+        3 (1/32), 6 (1/16), 12 (1/8), ... 126 (21/16), 127 (infinity)
 
         Returns None if no p-lock is set (uses Part default).
         Set to None to clear the p-lock.

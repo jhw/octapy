@@ -48,20 +48,25 @@ def quantize_to_nearest(
 # =============================================================================
 
 # Valid note length values (MIDI ticks at 24 PPQN)
-NOTE_LENGTH_VALUES = (3, 6, 12, 24, 48)
+# Includes 1/32 (3), all integer 16ths (multiples of 6), and infinity (127)
+NOTE_LENGTH_VALUES = (
+    3, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120, 126, 127
+)
 
 
 def quantize_note_length(value: int) -> int:
     """
     Quantize a raw value to the nearest valid NoteLength.
 
+    Valid values: 3 (1/32), multiples of 6 from 6-126, and 127 (infinity).
+
     Args:
         value: Raw note length value (0-127)
 
     Returns:
-        Nearest valid NoteLength value (3, 6, 12, 24, or 48)
+        Nearest valid NoteLength value (3, 6, 12, ... 126, 127)
     """
-    return int(quantize_to_nearest(value, NOTE_LENGTH_VALUES, clamp=(0, 48)))
+    return int(quantize_to_nearest(value, NOTE_LENGTH_VALUES, clamp=(3, 127)))
 
 
 # =============================================================================
