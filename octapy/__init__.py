@@ -57,7 +57,7 @@ from .api.slot_manager import (
 # High-level API classes
 from .api.project import Project
 from .api.bank import Bank
-from .api.part import Part, AudioPartTrack
+from .api.part import Part, AudioPartTrack, TrackLayout
 from .api.pattern import Pattern, AudioPatternTrack
 from .api.step import AudioStep
 from .api.sample_pool import SamplePool
@@ -74,6 +74,8 @@ __all__ = [
     "Pattern",
     "AudioPatternTrack",
     "AudioStep",
+    # Track layout
+    "TrackLayout",
     # Utilities
     "SamplePool",
     # Enums

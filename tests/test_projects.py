@@ -757,15 +757,15 @@ class TestSceneIsBlank:
         assert scene.is_blank is True
 
 
-class TestPropagateFX1:
-    """Tests for FX1 propagation from Part 1 to Parts 2-4."""
+class TestPropagateFX:
+    """Tests for FX propagation from Part 1 to Parts 2-4."""
 
-    def test_propagate_fx1_default_false(self):
-        """propagate_fx1 defaults to False."""
+    def test_propagate_fx_default_false(self):
+        """propagate_fx defaults to False."""
         from octapy import Project
 
         project = Project.from_template("TEST")
-        assert project.render_settings.propagate_fx1 is False
+        assert project.render_settings.propagate_fx is False
 
     @pytest.mark.slow
     def test_fx1_propagates_when_target_at_default(self, temp_dir):
@@ -773,7 +773,7 @@ class TestPropagateFX1:
         from octapy import Project, FX1Type
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_fx1 = True
+        project.render_settings.propagate_fx = True
 
         # Change Part 1 track 1 FX1 to COMPRESSOR
         project.bank(1).part(1).track(1).fx1_type = FX1Type.COMPRESSOR
@@ -792,7 +792,7 @@ class TestPropagateFX1:
         from octapy import Project, FX1Type
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_fx1 = True
+        project.render_settings.propagate_fx = True
 
         # Change Part 1 track 1 FX1 to COMPRESSOR
         project.bank(1).part(1).track(1).fx1_type = FX1Type.COMPRESSOR
@@ -805,24 +805,13 @@ class TestPropagateFX1:
         # Part 2 should keep CHORUS, not get COMPRESSOR
         assert project.bank(1).part(2).track(1).fx1_type == FX1Type.CHORUS
 
-
-class TestPropagateFX2:
-    """Tests for FX2 propagation from Part 1 to Parts 2-4."""
-
-    def test_propagate_fx2_default_false(self):
-        """propagate_fx2 defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_fx2 is False
-
     @pytest.mark.slow
     def test_fx2_propagates_when_target_at_default(self, temp_dir):
         """FX2 settings should propagate when target is at template default."""
         from octapy import Project, FX2Type
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_fx2 = True
+        project.render_settings.propagate_fx = True
 
         # Change Part 1 track 1 FX2 to PLATE_REVERB
         project.bank(1).part(1).track(1).fx2_type = FX2Type.PLATE_REVERB
@@ -841,7 +830,7 @@ class TestPropagateFX2:
         from octapy import Project, FX2Type
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_fx2 = True
+        project.render_settings.propagate_fx = True
 
         # Change Part 1 track 1 FX2 to PLATE_REVERB
         project.bank(1).part(1).track(1).fx2_type = FX2Type.PLATE_REVERB

@@ -11,6 +11,12 @@ from .thru import ThruPartTrack
 from .neighbor import NeighborPartTrack
 from .midi import MidiPartTrack
 from .part import Part
+from .layout import (
+    TrackLayout,
+    AudioPartTrackManager,
+    MidiPartTrackManager,
+    LayoutAwareTrack,
+)
 
 __all__ = [
     "BasePartTrack",
@@ -22,4 +28,8 @@ __all__ = [
     "NeighborPartTrack",
     "MidiPartTrack",
     "Part",
+    "TrackLayout",
+    "AudioPartTrackManager",
+    "MidiPartTrackManager",
+    "LayoutAwareTrack",
 ]

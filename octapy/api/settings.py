@@ -219,8 +219,7 @@ class RenderSettings:
         self._auto_thru_trig = False
         self._propagate_scenes = False
         self._propagate_amp = False
-        self._propagate_fx1 = False
-        self._propagate_fx2 = False
+        self._propagate_fx = False
         self._sample_duration = None
 
     @property
@@ -292,38 +291,21 @@ class RenderSettings:
         self._propagate_amp = value
 
     @property
-    def propagate_fx1(self) -> bool:
+    def propagate_fx(self) -> bool:
         """
-        Propagate FX1 page settings from Part 1 to Parts 2-4 within each bank.
+        Propagate FX1 and FX2 page settings from Part 1 to Parts 2-4 within each bank.
 
-        When True, copies FX1 type and parameters from Part 1 to Parts 2-4
-        for each track, but only if the target Part's FX1 type matches the
-        template default (FILTER).
+        When True, copies FX type and parameters from Part 1 to Parts 2-4
+        for each track, but only if the target Part's FX type matches the
+        template defaults (FX1=FILTER, FX2=DELAY).
 
-        Default is False (manual FX1 configuration per Part).
+        Default is False (manual FX configuration per Part).
         """
-        return self._propagate_fx1
+        return self._propagate_fx
 
-    @propagate_fx1.setter
-    def propagate_fx1(self, value: bool):
-        self._propagate_fx1 = value
-
-    @property
-    def propagate_fx2(self) -> bool:
-        """
-        Propagate FX2 page settings from Part 1 to Parts 2-4 within each bank.
-
-        When True, copies FX2 type and parameters from Part 1 to Parts 2-4
-        for each track, but only if the target Part's FX2 type matches the
-        template default (DELAY).
-
-        Default is False (manual FX2 configuration per Part).
-        """
-        return self._propagate_fx2
-
-    @propagate_fx2.setter
-    def propagate_fx2(self, value: bool):
-        self._propagate_fx2 = value
+    @propagate_fx.setter
+    def propagate_fx(self, value: bool):
+        self._propagate_fx = value
 
     @property
     def sample_duration(self):
