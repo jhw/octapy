@@ -4,8 +4,8 @@ Tests for standalone objects (Phase 1 of standalone object migration).
 
 import pytest
 from octapy import RecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type
-from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE, AUDIO_TRACK_SIZE, MIDI_TRACK_PATTERN_SIZE
-from octapy.api.objects import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack
+from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE, AUDIO_TRACK_SIZE, MIDI_TRACK_PATTERN_SIZE, SCENE_SIZE, SCENE_PARAMS_SIZE
+from octapy.api.objects import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack, SceneTrack, Scene, Part, Pattern
 from octapy.api.objects.midi_part_track import MIDI_PART_TRACK_SIZE
 
 
@@ -1536,3 +1536,509 @@ class TestMidiPatternTrackRepr:
         assert "MidiPatternTrack" in r
         assert "track=2" in r
         assert "active_steps=3" in r
+
+
+# =============================================================================
+# SceneTrack Tests (Phase 3)
+# =============================================================================
+
+class TestSceneTrackStandalone:
+    """Tests for standalone SceneTrack object."""
+
+    def test_default_construction(self):
+        """SceneTrack() creates object with no locks."""
+        track = SceneTrack()
+
+        assert track.track_num == 1
+        assert track.amp_volume is None
+        assert track.amp_attack is None
+        assert track.fx1_param1 is None
+        assert track.is_blank == True
+
+    def test_constructor_with_locks(self):
+        """SceneTrack accepts lock values in constructor."""
+        track = SceneTrack(
+            track_num=3,
+            amp_volume=100,
+            amp_attack=0,
+            fx1_param1=64,
+        )
+
+        assert track.track_num == 3
+        assert track.amp_volume == 100
+        assert track.amp_attack == 0
+        assert track.fx1_param1 == 64
+        assert track.is_blank == False
+
+    def test_lock_none_clears(self):
+        """Setting lock to None clears it."""
+        track = SceneTrack(amp_volume=100)
+        assert track.amp_volume == 100
+
+        track.amp_volume = None
+        assert track.amp_volume is None
+
+    def test_write_returns_correct_size(self):
+        """write() returns SCENE_PARAMS_SIZE bytes."""
+        track = SceneTrack()
+        data = track.write()
+
+        assert len(data) == SCENE_PARAMS_SIZE
+        assert isinstance(data, bytes)
+
+    def test_read_write_round_trip(self):
+        """read(write(x)) preserves data."""
+        original = SceneTrack(
+            track_num=2,
+            amp_volume=100,
+            amp_attack=10,
+            playback_param1=72,
+            fx2_param1=64,
+        )
+
+        data = original.write()
+        restored = SceneTrack.read(2, data)
+
+        assert restored.track_num == original.track_num
+        assert restored.amp_volume == original.amp_volume
+        assert restored.amp_attack == original.amp_attack
+        assert restored.playback_param1 == original.playback_param1
+        assert restored.fx2_param1 == original.fx2_param1
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = SceneTrack(track_num=1, amp_volume=100)
+        cloned = original.clone()
+
+        assert cloned.amp_volume == original.amp_volume
+
+        cloned.amp_volume = 50
+        assert original.amp_volume == 100
+
+    def test_clear_all_locks(self):
+        """clear_all_locks() clears all locks."""
+        track = SceneTrack(
+            amp_volume=100,
+            amp_attack=10,
+            fx1_param1=64,
+        )
+        assert track.is_blank == False
+
+        track.clear_all_locks()
+        assert track.is_blank == True
+
+    def test_to_dict(self):
+        """to_dict() returns only set locks."""
+        track = SceneTrack(
+            track_num=2,
+            amp_volume=100,
+            fx1_param1=64,
+        )
+
+        d = track.to_dict()
+
+        assert d["track"] == 2
+        assert d["amp"]["volume"] == 100
+        assert d["fx1"]["param1"] == 64
+        assert "fx2" not in d  # No fx2 locks
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = SceneTrack(
+            track_num=3,
+            amp_volume=100,
+            playback_param1=72,
+        )
+
+        d = original.to_dict()
+        restored = SceneTrack.from_dict(d)
+
+        assert restored.track_num == original.track_num
+        assert restored.amp_volume == original.amp_volume
+        assert restored.playback_param1 == original.playback_param1
+
+
+class TestSceneTrackRepr:
+    """Tests for SceneTrack string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        track = SceneTrack(track_num=3, amp_volume=100, fx1_param1=64)
+
+        r = repr(track)
+        assert "SceneTrack" in r
+        assert "track=3" in r
+        assert "locks=2" in r
+
+
+# =============================================================================
+# Scene Tests (Phase 3)
+# =============================================================================
+
+class TestSceneStandalone:
+    """Tests for standalone Scene object."""
+
+    def test_default_construction(self):
+        """Scene() creates object with no locks."""
+        scene = Scene()
+
+        assert scene.scene_num == 1
+        assert scene.is_blank == True
+
+    def test_track_access(self):
+        """track() returns SceneTrack for given position."""
+        scene = Scene()
+
+        track = scene.track(3)
+        assert isinstance(track, SceneTrack)
+        assert track.track_num == 3
+
+    def test_track_modification(self):
+        """Modifying a track affects the scene."""
+        scene = Scene()
+
+        scene.track(1).amp_volume = 100
+        assert scene.track(1).amp_volume == 100
+        assert scene.is_blank == False
+
+    def test_write_returns_correct_size(self):
+        """write() returns SCENE_SIZE bytes."""
+        scene = Scene()
+        data = scene.write()
+
+        assert len(data) == SCENE_SIZE
+        assert isinstance(data, bytes)
+
+    def test_read_write_round_trip(self):
+        """read(write(x)) preserves data."""
+        original = Scene(scene_num=5)
+        original.track(1).amp_volume = 100
+        original.track(3).fx1_param1 = 64
+
+        data = original.write()
+        restored = Scene.read(5, data)
+
+        assert restored.scene_num == original.scene_num
+        assert restored.track(1).amp_volume == 100
+        assert restored.track(3).fx1_param1 == 64
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = Scene(scene_num=1)
+        original.track(1).amp_volume = 100
+
+        cloned = original.clone()
+        assert cloned.track(1).amp_volume == 100
+
+        cloned.track(1).amp_volume = 50
+        assert original.track(1).amp_volume == 100
+
+    def test_clear_all_locks(self):
+        """clear_all_locks() clears all tracks."""
+        scene = Scene()
+        scene.track(1).amp_volume = 100
+        scene.track(5).fx1_param1 = 64
+
+        scene.clear_all_locks()
+        assert scene.is_blank == True
+
+    def test_to_dict(self):
+        """to_dict() returns scene with tracks that have locks."""
+        scene = Scene(scene_num=3)
+        scene.track(1).amp_volume = 100
+        scene.track(5).fx1_param1 = 64
+
+        d = scene.to_dict()
+
+        assert d["scene"] == 3
+        assert len(d["tracks"]) == 2
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = Scene(scene_num=7)
+        original.track(2).amp_volume = 80
+
+        d = original.to_dict()
+        restored = Scene.from_dict(d)
+
+        assert restored.scene_num == original.scene_num
+        assert restored.track(2).amp_volume == 80
+
+
+class TestSceneRepr:
+    """Tests for Scene string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        scene = Scene(scene_num=5)
+        scene.track(1).amp_volume = 100
+        scene.track(3).amp_attack = 10
+
+        r = repr(scene)
+        assert "Scene" in r
+        assert "scene=5" in r
+        assert "tracks_with_locks=2" in r
+
+
+# =============================================================================
+# Part Tests (Phase 3)
+# =============================================================================
+
+class TestPartStandalone:
+    """Tests for standalone Part object."""
+
+    def test_default_construction(self):
+        """Part() creates object with default tracks and scenes."""
+        part = Part()
+
+        assert part.part_num == 1
+        assert part.active_scene_a == 0
+        assert part.active_scene_b == 0
+
+        # Should have 8 audio tracks
+        for i in range(1, 9):
+            assert isinstance(part.audio_track(i), AudioPartTrack)
+
+        # Should have 8 MIDI tracks
+        for i in range(1, 9):
+            assert isinstance(part.midi_track(i), MidiPartTrack)
+
+        # Should have 16 scenes
+        for i in range(1, 17):
+            assert isinstance(part.scene(i), Scene)
+
+    def test_constructor_with_kwargs(self):
+        """Part accepts kwargs."""
+        part = Part(
+            part_num=2,
+            active_scene_a=5,
+            active_scene_b=10,
+        )
+
+        assert part.part_num == 2
+        assert part.active_scene_a == 5
+        assert part.active_scene_b == 10
+
+    def test_audio_track_modification(self):
+        """Modifying audio track works."""
+        part = Part()
+        part.audio_track(1).machine_type = MachineType.STATIC
+        part.audio_track(1).flex_slot = 5
+
+        assert part.audio_track(1).machine_type == MachineType.STATIC
+        assert part.audio_track(1).flex_slot == 5
+
+    def test_midi_track_modification(self):
+        """Modifying MIDI track works."""
+        part = Part()
+        part.midi_track(1).channel = 10
+        part.midi_track(1).default_note = 60
+
+        assert part.midi_track(1).channel == 10
+        assert part.midi_track(1).default_note == 60
+
+    def test_scene_modification(self):
+        """Modifying scene works."""
+        part = Part()
+        part.scene(1).track(1).amp_volume = 100
+
+        assert part.scene(1).track(1).amp_volume == 100
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = Part(part_num=1, active_scene_a=5)
+        original.audio_track(1).flex_slot = 3
+
+        cloned = original.clone()
+        assert cloned.active_scene_a == 5
+        assert cloned.audio_track(1).flex_slot == 3
+
+        cloned.active_scene_a = 10
+        cloned.audio_track(1).flex_slot = 7
+
+        assert original.active_scene_a == 5
+        assert original.audio_track(1).flex_slot == 3
+
+    def test_to_dict(self):
+        """to_dict() returns part properties."""
+        part = Part(
+            part_num=2,
+            active_scene_a=3,
+            active_scene_b=7,
+        )
+
+        d = part.to_dict()
+
+        assert d["part"] == 2
+        assert d["active_scene_a"] == 3
+        assert d["active_scene_b"] == 7
+        assert len(d["audio_tracks"]) == 8
+        assert len(d["midi_tracks"]) == 8
+
+    def test_to_dict_with_scenes(self):
+        """to_dict(include_scenes=True) includes scene data."""
+        part = Part()
+        part.scene(1).track(1).amp_volume = 100
+
+        d = part.to_dict(include_scenes=True)
+
+        assert "scenes" in d
+        assert len(d["scenes"]) == 1
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = Part(
+            part_num=3,
+            active_scene_a=5,
+            active_scene_b=10,
+        )
+
+        d = original.to_dict()
+        restored = Part.from_dict(d)
+
+        assert restored.part_num == original.part_num
+        assert restored.active_scene_a == original.active_scene_a
+        assert restored.active_scene_b == original.active_scene_b
+
+
+class TestPartRepr:
+    """Tests for Part string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        part = Part(part_num=2, active_scene_a=5, active_scene_b=10)
+
+        r = repr(part)
+        assert "Part" in r
+        assert "part=2" in r
+        assert "scene_a=5" in r
+        assert "scene_b=10" in r
+
+
+# =============================================================================
+# Pattern Tests (Phase 3)
+# =============================================================================
+
+class TestPatternStandalone:
+    """Tests for standalone Pattern object."""
+
+    def test_default_construction(self):
+        """Pattern() creates object with default tracks."""
+        pattern = Pattern()
+
+        assert pattern.pattern_num == 1
+        assert pattern.part == 1
+        assert pattern.scale_length == 16
+        assert pattern.scale_mult == 1
+
+        # Should have 8 audio tracks
+        for i in range(1, 9):
+            assert isinstance(pattern.audio_track(i), AudioPatternTrack)
+
+        # Should have 8 MIDI tracks
+        for i in range(1, 9):
+            assert isinstance(pattern.midi_track(i), MidiPatternTrack)
+
+    def test_constructor_with_kwargs(self):
+        """Pattern accepts kwargs."""
+        pattern = Pattern(
+            pattern_num=5,
+            part=3,
+            scale_length=32,
+            scale_mult=2,
+        )
+
+        assert pattern.pattern_num == 5
+        assert pattern.part == 3
+        assert pattern.scale_length == 32
+        assert pattern.scale_mult == 2
+
+    def test_audio_track_modification(self):
+        """Modifying audio track works."""
+        pattern = Pattern()
+        pattern.audio_track(1).active_steps = [1, 5, 9, 13]
+        pattern.audio_track(1).step(5).volume = 100
+
+        assert pattern.audio_track(1).active_steps == [1, 5, 9, 13]
+        assert pattern.audio_track(1).step(5).volume == 100
+
+    def test_midi_track_modification(self):
+        """Modifying MIDI track works."""
+        pattern = Pattern()
+        pattern.midi_track(1).active_steps = [1, 3, 5, 7]
+        pattern.midi_track(1).step(3).note = 60
+
+        assert pattern.midi_track(1).active_steps == [1, 3, 5, 7]
+        assert pattern.midi_track(1).step(3).note == 60
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = Pattern(pattern_num=1, part=2)
+        original.audio_track(1).active_steps = [1, 5]
+
+        cloned = original.clone()
+        assert cloned.part == 2
+        assert cloned.audio_track(1).active_steps == [1, 5]
+
+        cloned.part = 3
+        cloned.audio_track(1).active_steps = [2, 6]
+
+        assert original.part == 2
+        assert original.audio_track(1).active_steps == [1, 5]
+
+    def test_to_dict(self):
+        """to_dict() returns pattern properties."""
+        pattern = Pattern(
+            pattern_num=3,
+            part=2,
+            scale_length=32,
+        )
+
+        d = pattern.to_dict()
+
+        assert d["pattern"] == 3
+        assert d["part"] == 2
+        assert d["scale_length"] == 32
+        assert len(d["audio_tracks"]) == 8
+        assert len(d["midi_tracks"]) == 8
+
+    def test_to_dict_with_steps(self):
+        """to_dict(include_steps=True) includes step data."""
+        pattern = Pattern()
+        pattern.audio_track(1).active_steps = [1, 5]
+        pattern.audio_track(1).step(1).volume = 100
+
+        d = pattern.to_dict(include_steps=True)
+
+        # Should have steps included
+        track_dict = d["audio_tracks"][0]
+        assert "steps" in track_dict or track_dict.get("active_steps")
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = Pattern(
+            pattern_num=7,
+            part=4,
+            scale_length=64,
+        )
+
+        d = original.to_dict()
+        restored = Pattern.from_dict(d)
+
+        assert restored.pattern_num == original.pattern_num
+        assert restored.part == original.part
+        assert restored.scale_length == original.scale_length
+
+
+class TestPatternRepr:
+    """Tests for Pattern string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        pattern = Pattern(pattern_num=5, part=3, scale_length=32)
+
+        r = repr(pattern)
+        assert "Pattern" in r
+        assert "pattern=5" in r
+        assert "part=3" in r
+        assert "length=32" in r
