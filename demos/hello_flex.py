@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength, LoopMode, LengthMode, TrackLayout
+from octapy import Project, MachineType, SamplePool, NoteLength, LoopMode, LengthMode
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -109,9 +109,6 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
     for part_num in range(1, 5):
         part = bank.part(part_num)
 
-        # Use SEVEN_PLUS_MASTER layout (tracks 1-7 for content, track 8 for master)
-        part.audio_tracks.layout = TrackLayout.SEVEN_PLUS_MASTER
-
         # Select random samples for this part
         kick_sample = pools['kicks'].random()
         snare_sample = pools['snares'].random()
@@ -124,15 +121,15 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
 
         print(f"    Part {part_num}: {kick_sample.name}, {snare_sample.name}, {hat_sample.name}")
 
-        # Configure machine types and slots for tracks 1-3 (via layout manager)
+        # Configure machine types and slots for tracks 1-3
         for track_num, slot in [(1, kick_slot), (2, snare_slot), (3, hat_slot)]:
             # Set machine type and slot
-            track = part.audio_tracks.track(track_num)
+            track = part.track(track_num)
             track.machine_type = MachineType.FLEX
             track.flex_slot = slot - 1
 
             # Configure Flex-specific parameters
-            flex = part.audio_tracks.flex_track(track_num)
+            flex = part.flex_track(track_num)
             flex.loop_mode = LoopMode.OFF
             flex.length_mode = LengthMode.TIME
             flex.length = 127  # Full sample length

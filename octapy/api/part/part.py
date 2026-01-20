@@ -4,7 +4,7 @@ Part class - container for track configurations.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Dict
 
 from ..._io import PartOffset
 from ..scene import Scene
@@ -14,7 +14,6 @@ from .static import StaticPartTrack
 from .thru import ThruPartTrack
 from .neighbor import NeighborPartTrack
 from .midi import MidiPartTrack
-from .layout import AudioPartTrackManager, MidiPartTrackManager, TrackLayout
 
 
 class Part:
@@ -47,9 +46,6 @@ class Part:
         self._neighbor_tracks: Dict[int, NeighborPartTrack] = {}
         self._midi_tracks: Dict[int, MidiPartTrack] = {}
         self._scenes: Dict[int, Scene] = {}
-        # Track managers
-        self._audio_track_manager: Optional[AudioPartTrackManager] = None
-        self._midi_track_manager: Optional[MidiPartTrackManager] = None
 
     def _part_offset(self) -> int:
         """Get the byte offset for this part in the bank file."""
@@ -181,37 +177,6 @@ class Part:
     def active_scene_b(self, value: int):
         data = self._bank._bank_file._data
         data[self._part_offset() + PartOffset.ACTIVE_SCENE_B] = value & 0x0F
-
-    @property
-    def audio_tracks(self) -> AudioPartTrackManager:
-        """
-        Get the audio track manager with layout support.
-
-        Use this for layout-aware track access:
-            part.audio_tracks.layout = TrackLayout.SEVEN_PLUS_MASTER
-            track = part.audio_tracks.track(1)
-
-        Returns:
-            AudioPartTrackManager instance
-        """
-        if self._audio_track_manager is None:
-            self._audio_track_manager = AudioPartTrackManager(self)
-        return self._audio_track_manager
-
-    @property
-    def midi_tracks(self) -> MidiPartTrackManager:
-        """
-        Get the MIDI track manager.
-
-        Use this for consistent track access:
-            track = part.midi_tracks.track(1)
-
-        Returns:
-            MidiPartTrackManager instance
-        """
-        if self._midi_track_manager is None:
-            self._midi_track_manager = MidiPartTrackManager(self)
-        return self._midi_track_manager
 
     def to_dict(self, include_scenes: bool = False) -> dict:
         """
