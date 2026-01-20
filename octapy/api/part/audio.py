@@ -13,6 +13,7 @@ from ..._io import (
     MACHINE_SLOT_SIZE,
     MACHINE_PARAMS_SIZE,
     AUDIO_TRACK_PARAMS_SIZE,
+    FX_DEFAULTS,
 )
 from ..enums import MachineType
 from ..fx import create_fx, BaseFX
@@ -97,6 +98,10 @@ class AudioPartTrack(BasePartTrack):
     def fx1_type(self, value: int):
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_FX1 + (self._track_num - 1)
         self._data[offset] = value
+        # Apply FX type defaults
+        if value in FX_DEFAULTS:
+            params_offset = self._track_params_offset() + AudioTrackParamsOffset.FX1_PARAM1
+            self._data[params_offset:params_offset + 6] = FX_DEFAULTS[value]
 
     @property
     def fx2_type(self) -> int:
@@ -108,6 +113,10 @@ class AudioPartTrack(BasePartTrack):
     def fx2_type(self, value: int):
         offset = self._part_offset() + PartOffset.AUDIO_TRACK_FX2 + (self._track_num - 1)
         self._data[offset] = value
+        # Apply FX type defaults
+        if value in FX_DEFAULTS:
+            params_offset = self._track_params_offset() + AudioTrackParamsOffset.FX2_PARAM1
+            self._data[params_offset:params_offset + 6] = FX_DEFAULTS[value]
 
     def _machine_params_values_offset(self, machine_offset: int) -> int:
         """Get offset for machine params values (Playback page)."""

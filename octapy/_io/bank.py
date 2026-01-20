@@ -365,11 +365,53 @@ TEMPLATE_DEFAULT_AMP = bytes([
     TEMPLATE_DEFAULT_AMP_UNUSED,
 ])
 
-# FX1 page defaults (6 bytes)
+# FX1 page defaults (6 bytes) - FILTER is the template default FX1 type
 TEMPLATE_DEFAULT_FX1_PARAMS = bytes([0, 127, 0, 64, 0, 64])
 
-# FX2 page defaults (6 bytes)
-TEMPLATE_DEFAULT_FX2_PARAMS = bytes([47, 0, 127, 0, 127, 0])
+# FX2 page defaults (6 bytes) - DELAY is the template default FX2 type
+TEMPLATE_DEFAULT_FX2_PARAMS = bytes([48, 0, 127, 0, 127, 0])
+
+# =============================================================================
+# Per-FX-Type Default Parameters (A-F / params 1-6)
+# These are the OT defaults when selecting each FX type.
+# Used to reset parameters when FX type changes.
+# =============================================================================
+
+# FX type enum values (for reference)
+FX_TYPE_OFF = 0
+FX_TYPE_FILTER = 4
+FX_TYPE_SPATIALIZER = 5
+FX_TYPE_DELAY = 8
+FX_TYPE_EQ = 12
+FX_TYPE_DJ_EQ = 13
+FX_TYPE_PHASER = 16
+FX_TYPE_FLANGER = 17
+FX_TYPE_CHORUS = 18
+FX_TYPE_COMB_FILTER = 19
+FX_TYPE_PLATE_REVERB = 20
+FX_TYPE_SPRING_REVERB = 21
+FX_TYPE_DARK_REVERB = 22
+FX_TYPE_COMPRESSOR = 24
+FX_TYPE_LOFI = 25
+
+# Per-FX-type default parameters: (A, B, C, D, E, F)
+FX_DEFAULTS = {
+    FX_TYPE_OFF: bytes([0, 0, 0, 0, 0, 0]),
+    FX_TYPE_FILTER: bytes([0, 127, 0, 64, 0, 64]),
+    FX_TYPE_SPATIALIZER: bytes([127, 42, 96, 0, 127, 0]),
+    FX_TYPE_DELAY: bytes([48, 0, 127, 0, 127, 0]),
+    FX_TYPE_EQ: bytes([64, 64, 0, 64, 64, 0]),
+    FX_TYPE_DJ_EQ: bytes([64, 0, 64, 64, 64, 64]),
+    FX_TYPE_PHASER: bytes([64, 64, 32, 64, 90, 0]),
+    FX_TYPE_FLANGER: bytes([64, 64, 32, 45, 0, 0]),
+    FX_TYPE_CHORUS: bytes([64, 64, 13, 0, 127, 0]),
+    FX_TYPE_COMB_FILTER: bytes([0, 64, 127, 96, 0, 0]),  # A=C-3 interpreted as 0 (pitch)
+    FX_TYPE_PLATE_REVERB: bytes([24, 0, 127, 0, 127, 0]),
+    FX_TYPE_SPRING_REVERB: bytes([23, 0, 0, 20, 127, 0]),
+    FX_TYPE_DARK_REVERB: bytes([24, 0, 127, 0, 127, 0]),
+    FX_TYPE_COMPRESSOR: bytes([64, 64, 127, 0, 0, 127]),
+    FX_TYPE_LOFI: bytes([0, 0, 0, 0, 0, 0]),
+}
 
 # SRC page VALUES defaults for Flex/Static (6 bytes): PTCH, STRT, LEN, RATE, RTRG, RTIM
 # From ot-tools-io AudioTrackMachineParamsValuesStd default
@@ -641,7 +683,8 @@ OCTAPY_DEFAULT_RECORDER_IN_CD = 0     # OVERRIDE (was 1)
 OCTAPY_DEFAULT_RECORDER_SRC3 = 0      # OVERRIDE (was 9/MAIN)
 
 # OVERRIDE: Recording length = 16 steps (one bar) instead of MAX
-OCTAPY_DEFAULT_RECORDER_RLEN = 16     # OVERRIDE (was 64/MAX)
+# Note: OT display is 1-indexed, so store 15 to display 16
+OCTAPY_DEFAULT_RECORDER_RLEN = 15     # OVERRIDE (was 64/MAX) - displays as 16
 
 # OVERRIDE: Loop OFF for one-shot workflow
 OCTAPY_DEFAULT_RECORDER_LOOP = 0      # OVERRIDE (was 1)
@@ -661,7 +704,7 @@ OCTAPY_DEFAULT_RECORDER_CD_GAIN = TEMPLATE_DEFAULT_RECORDER_CD_GAIN
 OCTAPY_DEFAULT_RECORDER_SETUP = bytes([
     OCTAPY_DEFAULT_RECORDER_IN_AB,     # 0 - OVERRIDE (was 1)
     OCTAPY_DEFAULT_RECORDER_IN_CD,     # 0 - OVERRIDE (was 1)
-    OCTAPY_DEFAULT_RECORDER_RLEN,      # 16 - OVERRIDE (was 64)
+    OCTAPY_DEFAULT_RECORDER_RLEN,      # 15 - OVERRIDE (was 64) - displays as 16
     OCTAPY_DEFAULT_RECORDER_TRIG,      # 0 - unchanged
     OCTAPY_DEFAULT_RECORDER_SRC3,      # 0 - OVERRIDE (was 9)
     OCTAPY_DEFAULT_RECORDER_LOOP,      # 0 - OVERRIDE (was 1)
