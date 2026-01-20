@@ -17,6 +17,7 @@ from ..._io import (
 from ..enums import MachineType
 from ..fx import create_fx, BaseFX
 from .base import BasePartTrack
+from .recorder import RecorderSetup
 
 
 class AudioPartTrack(BasePartTrack):
@@ -215,6 +216,27 @@ class AudioPartTrack(BasePartTrack):
             track.fx2.feedback = 80
         """
         return create_fx(self, slot=2, fx_type=self.fx2_type)
+
+    # === Recorder Setup ===
+
+    @property
+    def recorder(self) -> RecorderSetup:
+        """
+        Get recorder buffer configuration for this track.
+
+        Returns a RecorderSetup container for configuring recording
+        source, length, trigger mode, and quantization.
+
+        Note: Track N always records to buffer N (fixed binding).
+        Playback is flexible via recorder_slot property.
+
+        Usage:
+            recorder = track.recorder
+            recorder.source = RecordingSource.TRACK_3
+            recorder.rlen = 16
+            recorder.qrec = QRecMode.PLEN
+        """
+        return RecorderSetup(self)
 
     def to_dict(self) -> dict:
         """

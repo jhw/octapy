@@ -221,6 +221,7 @@ class RenderSettings:
         self._propagate_src = False
         self._propagate_amp = False
         self._propagate_fx = False
+        self._propagate_recorder = False
         self._sample_duration = None
 
     @property
@@ -328,6 +329,24 @@ class RenderSettings:
     @propagate_fx.setter
     def propagate_fx(self, value: bool):
         self._propagate_fx = value
+
+    @property
+    def propagate_recorder(self) -> bool:
+        """
+        Propagate recorder setup from Part 1 to Parts 2-4 within each bank.
+
+        When True, copies recorder settings (source, RLEN, TRIG, LOOP,
+        FIN, FOUT, gains, QREC, QPL) from Part 1 to Parts 2-4 for each
+        track, but only if the target Part's recorder setup is at
+        template defaults.
+
+        Default is False (manual recorder configuration per Part).
+        """
+        return self._propagate_recorder
+
+    @propagate_recorder.setter
+    def propagate_recorder(self, value: bool):
+        self._propagate_recorder = value
 
     @property
     def sample_duration(self):

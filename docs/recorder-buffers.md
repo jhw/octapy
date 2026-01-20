@@ -217,58 +217,129 @@ def recorder_setup_offset(part_offset: int, track_num: int) -> int:
 
 2. **Create enums** for parameter values:
    - `RecTrigMode`: ONE (0), ONE2 (1), HOLD (2)
-   - `QRecMode`: OFF (255), PLEN (?), STEP_1 (1), STEP_4 (4), STEP_8 (8)
-   - `InputSource`: OFF (0), A_PLUS_B (1), A (2), B (3), A_B (4) - needs verification
+   - `QRecMode`: OFF (255), PLEN (0), STEP_1 (1), STEP_4 (4), STEP_8 (8)
 
 ### High-Level API
 
-1. **RecorderSetup class** per track:
-   ```python
-   recorder = part.track(1).recorder
-   recorder.rlen = 16
-   recorder.trig = TrigMode.ONE
-   recorder.qrec = QRecMode.PLEN
-   recorder.src3 = 3  # Record track 3
-   recorder.inab = InputSource.OFF
-   ```
+#### Unified RecordingSource Enum
 
-2. **Convenience methods**:
-   ```python
-   # Configure for one-shot internal recording
-   recorder.setup_internal_recording(
-       source_track=3,
-       length=16,
-       quantize=QRecMode.PLEN
-   )
+The low-level format has three separate source parameters (IN_AB, IN_CD, SRC3), but you can only record from one source at a time. The high-level API uses a single `RecordingSource` enum that abstracts over all three:
 
-   # Configure for one-shot external recording
-   recorder.setup_external_recording(
-       input_pair="AB",
-       input_mode=InputSource.A_PLUS_B,
-       length=16,
-       quantize=QRecMode.PLEN
-   )
-   ```
+```python
+class RecordingSource(IntEnum):
+    """Unified recording source selection.
 
-3. **Playback binding** (already partially implemented):
-   ```python
-   # Track 2 plays back recorder buffer 1
-   track2 = part.track(2)
-   track2.machine_type = MachineType.FLEX
-   track2.recorder_slot = 129  # Buffer 1
-   ```
+    Abstracts over IN_AB, IN_CD, and SRC3 low-level parameters.
+    Setting this automatically zeros out the unused source parameters.
+    """
+    OFF = 0
+    # External inputs AB (maps to IN_AB)
+    INPUT_AB = 1       # A+B stereo pair
+    INPUT_A = 2        # Input A only
+    INPUT_B = 3        # Input B only
+    # External inputs CD (maps to IN_CD)
+    INPUT_CD = 4       # C+D stereo pair
+    INPUT_C = 5        # Input C only
+    INPUT_D = 6        # Input D only
+    # Internal track sources (maps to SRC3)
+    TRACK_1 = 11
+    TRACK_2 = 12
+    TRACK_3 = 13
+    TRACK_4 = 14
+    TRACK_5 = 15
+    TRACK_6 = 16
+    TRACK_7 = 17
+    TRACK_8 = 18
+    MAIN = 19          # Main output (SRC3=9, template default)
+```
+
+When setting `recorder.source`, the RecorderSetup class:
+1. Parses the enum value to determine which low-level parameter to use
+2. Sets the appropriate parameter (IN_AB, IN_CD, or SRC3) with the correct value
+3. Zeros out the other two parameters
+
+#### RecorderSetup Class
+
+```python
+recorder = part.track(1).recorder
+
+# Simple source selection (recommended)
+recorder.source = RecordingSource.TRACK_3    # Record from track 3
+recorder.source = RecordingSource.INPUT_AB   # Record from external AB
+
+# Other settings
+recorder.rlen = 16                # Recording length (steps)
+recorder.trig = RecTrigMode.ONE   # One-shot recording
+recorder.qrec = QRecMode.PLEN     # Quantize to pattern start
+recorder.loop = False             # Don't loop
+```
+
+#### Playback Binding
+
+```python
+# Track 2 plays back recorder buffer 1
+track2 = part.track(2)
+track2.machine_type = MachineType.FLEX
+track2.recorder_slot = 129  # Buffer 1
+```
 
 ### Project-Level API
 
 1. **add_recorder_slots()** already exists - adds slots 129-136 to project
 2. Consider **recorder buffer length** in markers.work (sample length metadata)
 
+### Render Settings
+
+Since recorder setup is per-Part, switching Parts changes your recorder configuration. Add a `propagate_recorder` render setting to copy recorder setup from Part 1 to Parts 2-4:
+
+```python
+project.render_settings.propagate_recorder = True
+```
+
+Implementation in `RenderSettings`:
+```python
+@property
+def propagate_recorder(self) -> bool:
+    """
+    Propagate recorder setup from Part 1 to Parts 2-4 within each bank.
+
+    When True, copies recorder settings (INAB, INCD, RLEN, TRIG, SRC3,
+    LOOP, FIN, FOUT, AB/CD gain, QREC, QPL) from Part 1 to Parts 2-4
+    for each track, but only if the target Part's recorder setup is
+    at template defaults.
+
+    Default is False (manual recorder configuration per Part).
+    """
+    return self._propagate_recorder
+```
+
+This follows the same pattern as `propagate_src`, `propagate_amp`, `propagate_fx`, and `propagate_scenes`.
+
+### Octapy Defaults
+
+Octapy overrides some OT template defaults to provide sensible one-shot quantized recording out of the box:
+
+| Parameter | OT Default | Octapy Default | Reason |
+|-----------|------------|----------------|--------|
+| IN_AB | 1 | 0 (Off) | No external input by default |
+| IN_CD | 1 | 0 (Off) | No external input by default |
+| RLEN | 64 (MAX) | 16 | One bar |
+| TRIG | 0 (ONE) | 0 (ONE) | Keep one-shot |
+| SRC3 | 9 (MAIN) | 0 (Off) | Explicit source selection |
+| LOOP | 1 (On) | 0 (Off) | One-shot workflow |
+| FIN | 0 | 0 | Keep |
+| FOUT | 0 | 0 | Keep |
+| AB_GAIN | 0 | 0 | Keep |
+| QREC | 255 (Off) | 0 (PLEN) | Quantize to pattern start |
+| QPL | 255 (Off) | 255 (Off) | Keep off |
+| CD_GAIN | 0 | 0 | Keep |
+
 ### To Investigate
 
 - [x] Exact byte offsets for recorder setup parameters in bank files - **DONE** (see Binary Structure section)
 - [x] Whether recorder setup is stored per-track or per-part - **Per-Part** (8 tracks × 12 bytes at PartOffset.RECORDER_SETUP)
-- [ ] Verify QREC enum values (what is PLEN's numeric value?)
-- [ ] Verify InputSource enum values (in_ab/in_cd settings)
+- [x] Verify QREC enum values - **DONE** (from ot-tools-io TrigQuantizationMode: PLEN=0, OFF=255, OneStep=1, etc.)
+- [x] Verify InputSource enum values - **Superseded** by unified RecordingSource enum (uses same encoding as ThruInput: OFF=0, A_PLUS_B=1, A=2, B=3, A_B=4)
 - [ ] How RLEN interacts with different time signatures and scales
 - [ ] RLEN value 64 = MAX behavior (records for maximum available time)
 - [ ] Recorder trig configuration (automated recording via sequencer trigs)

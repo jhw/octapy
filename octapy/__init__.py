@@ -45,6 +45,10 @@ from .api.enums import (
     LengthMode,
     RateMode,
     TimestretchMode,
+    # Recorder Setup
+    RecordingSource,
+    RecTrigMode,
+    QRecMode,
 )
 
 # Exceptions
@@ -88,6 +92,9 @@ __all__ = [
     "LengthMode",
     "RateMode",
     "TimestretchMode",
+    "RecordingSource",
+    "RecTrigMode",
+    "QRecMode",
     # Exceptions
     "OctapyError",
     "SlotLimitExceeded",

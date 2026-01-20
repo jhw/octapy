@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength
+from octapy import Project, MachineType, SamplePool, NoteLength, FX1Type, FX2Type, RecordingSource
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -126,6 +126,24 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track = part.track(track_num)
             track.machine_type = MachineType.FLEX
             track.flex_slot = slot - 1
+            track.fx1_type = FX1Type.DJ_EQ
+
+        # Configure recorder buffers for tracks 1-3 (listen to their own track)
+        recording_sources = [RecordingSource.TRACK_1, RecordingSource.TRACK_2, RecordingSource.TRACK_3]
+        for track_num, source in zip([1, 2, 3], recording_sources):
+            recorder = part.track(track_num).recorder
+            recorder.source = source
+
+        # Configure tracks 5-7 as Flex machines playing recorder buffers 1-3
+        for track_num, buffer_slot in [(5, 129), (6, 130), (7, 131)]:
+            track = part.track(track_num)
+            track.machine_type = MachineType.FLEX
+            track.recorder_slot = buffer_slot
+
+        # Configure FX on track 8 (master track)
+        track8 = part.track(8)
+        track8.fx1_type = FX1Type.CHORUS
+        track8.fx2_type = FX2Type.DELAY
 
     # Configure all 16 patterns with Euclidean rhythms
     # All patterns default to Part 1; switch parts manually on OT to use Parts 2-4
@@ -195,6 +213,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     project.render_settings.propagate_src = True
     project.render_settings.propagate_amp = True
     project.render_settings.propagate_fx = True
+    project.render_settings.propagate_recorder = True
 
     # Configure Banks 1 and 2
     print(f"\nConfiguring Banks 1-2:")

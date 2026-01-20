@@ -488,3 +488,86 @@ class TimestretchMode(IntEnum):
     AUTO = 1   # Use per-sample settings from audio editor
     NORM = 2   # Normal algorithm (smooth)
     BEAT = 3   # Beat-slicing algorithm (transient-aware)
+
+
+# === Recorder Setup Enums ===
+
+class RecordingSource(IntEnum):
+    """
+    Unified recording source selection for recorder buffers.
+
+    Abstracts over the three low-level source parameters (IN_AB, IN_CD, SRC3).
+    You can only record from one source at a time. Setting this property
+    automatically zeros out the unused source parameters.
+
+    Usage:
+        recorder = part.track(1).recorder
+        recorder.source = RecordingSource.TRACK_3    # Record from track 3
+        recorder.source = RecordingSource.INPUT_AB   # Record from external AB
+    """
+    OFF = 0
+    # External inputs AB (maps to IN_AB parameter)
+    INPUT_AB = 1       # A+B stereo pair
+    INPUT_A = 2        # Input A only
+    INPUT_B = 3        # Input B only
+    # External inputs CD (maps to IN_CD parameter)
+    INPUT_CD = 4       # C+D stereo pair
+    INPUT_C = 5        # Input C only
+    INPUT_D = 6        # Input D only
+    # Internal track sources (maps to SRC3 parameter)
+    TRACK_1 = 11
+    TRACK_2 = 12
+    TRACK_3 = 13
+    TRACK_4 = 14
+    TRACK_5 = 15
+    TRACK_6 = 16
+    TRACK_7 = 17
+    TRACK_8 = 18
+    MAIN = 19          # Main output (SRC3=9, template default)
+
+
+class RecTrigMode(IntEnum):
+    """
+    Recording trigger mode for recorder buffers.
+
+    Controls how recording is triggered and sustained.
+    Set via FUNC+REC1 page, encoder D (TRIG).
+
+    Usage:
+        recorder = part.track(1).recorder
+        recorder.trig = RecTrigMode.ONE  # One-shot recording
+    """
+    ONE = 0     # One-shot: record once for RLEN duration
+    ONE2 = 1    # One-shot releasable: can stop early by releasing
+    HOLD = 2    # Hold: records while button is held
+
+
+class QRecMode(IntEnum):
+    """
+    Quantize recording start mode for recorder buffers.
+
+    Controls when recording actually starts after being triggered.
+    Set via FUNC+REC2 page, encoder D (QREC).
+
+    Usage:
+        recorder = part.track(1).recorder
+        recorder.qrec = QRecMode.PLEN  # Start recording at pattern loop
+    """
+    PLEN = 0        # Start at pattern loop (most useful for loops)
+    STEP_1 = 1      # Start on next 1/16th step
+    STEP_2 = 2      # Start on next 2 steps
+    STEP_3 = 3      # Start on next 3 steps
+    STEP_4 = 4      # Start on next beat (quarter note)
+    STEP_6 = 5      # Start on next 6 steps
+    STEP_8 = 6      # Start on next half-bar
+    STEP_12 = 7     # Start on next 12 steps
+    STEP_16 = 8     # Start on next bar
+    STEP_24 = 9     # Start on next 24 steps
+    STEP_32 = 10    # Start on next 2 bars
+    STEP_48 = 11    # Start on next 3 bars
+    STEP_64 = 12    # Start on next 4 bars
+    STEP_96 = 13    # Start on next 6 bars
+    STEP_128 = 14   # Start on next 8 bars
+    STEP_192 = 15   # Start on next 12 bars
+    STEP_256 = 16   # Start on next 16 bars
+    OFF = 255       # No quantization (immediate start)

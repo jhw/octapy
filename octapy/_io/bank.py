@@ -256,6 +256,8 @@ class PartOffset(IntEnum):
     # Machine params setup: 8 tracks * 30 bytes = 240 bytes
     AUDIO_TRACK_MACHINE_PARAMS_SETUP = 483
     AUDIO_TRACK_MACHINE_SLOTS = 723 # 40 bytes: 8 tracks * 5 bytes
+    # Recorder setup: 8 tracks * 12 bytes = 96 bytes
+    RECORDER_SETUP = 1547
 
 
 # Machine params sizes
@@ -337,17 +339,104 @@ class MachineSlotOffset(IntEnum):
 # Audio track params size (LFO + AMP + FX1 + FX2 = 24 bytes)
 AUDIO_TRACK_PARAMS_SIZE = 24
 
-# Template default values for Part page propagation blank-check
-# These are the values from a fresh CLEAN TEMPLATE project
+# =============================================================================
+# Template Default Values (from ot-tools-io / OT CLEAN TEMPLATE)
+# These match the Octatrack's factory defaults exactly.
+# Used for propagation blank-checking (only propagate if target is at default).
+# =============================================================================
+
+# FX type defaults
 TEMPLATE_DEFAULT_FX1_TYPE = 4    # FILTER
 TEMPLATE_DEFAULT_FX2_TYPE = 8    # DELAY
-TEMPLATE_DEFAULT_AMP = bytes([0, 127, 127, 64, 64, 127])  # ATK, HOLD, REL, VOL, BAL, unused
+
+# AMP page defaults (6 bytes): ATK, HOLD, REL, VOL, BAL, unused
+TEMPLATE_DEFAULT_AMP_ATK = 0
+TEMPLATE_DEFAULT_AMP_HOLD = 127
+TEMPLATE_DEFAULT_AMP_REL = 127
+TEMPLATE_DEFAULT_AMP_VOL = 64
+TEMPLATE_DEFAULT_AMP_BAL = 64
+TEMPLATE_DEFAULT_AMP_UNUSED = 127
+TEMPLATE_DEFAULT_AMP = bytes([
+    TEMPLATE_DEFAULT_AMP_ATK,
+    TEMPLATE_DEFAULT_AMP_HOLD,
+    TEMPLATE_DEFAULT_AMP_REL,
+    TEMPLATE_DEFAULT_AMP_VOL,
+    TEMPLATE_DEFAULT_AMP_BAL,
+    TEMPLATE_DEFAULT_AMP_UNUSED,
+])
+
+# FX1 page defaults (6 bytes)
 TEMPLATE_DEFAULT_FX1_PARAMS = bytes([0, 127, 0, 64, 0, 64])
+
+# FX2 page defaults (6 bytes)
 TEMPLATE_DEFAULT_FX2_PARAMS = bytes([47, 0, 127, 0, 127, 0])
-# SRC page defaults for Flex/Static: PTCH, STRT, LEN, RATE, RTRG, RTIM
-TEMPLATE_DEFAULT_SRC_VALUES = bytes([64, 0, 0, 127, 0, 79])
-# Setup page defaults (FUNC+SRC): LOOP, SLIC, LEN, RATE, TSTR, TSNS
-TEMPLATE_DEFAULT_SRC_SETUP = bytes([1, 0, 0, 0, 1, 64])
+
+# SRC page VALUES defaults for Flex/Static (6 bytes): PTCH, STRT, LEN, RATE, RTRG, RTIM
+# From ot-tools-io AudioTrackMachineParamsValuesStd default
+TEMPLATE_DEFAULT_SRC_PTCH = 64   # No transpose
+TEMPLATE_DEFAULT_SRC_STRT = 0    # Start at beginning
+TEMPLATE_DEFAULT_SRC_LEN = 0     # Length mode dependent
+TEMPLATE_DEFAULT_SRC_RATE = 127  # Full speed forward
+TEMPLATE_DEFAULT_SRC_RTRG = 0    # No retrig
+TEMPLATE_DEFAULT_SRC_RTIM = 79   # Retrig time
+TEMPLATE_DEFAULT_SRC_VALUES = bytes([
+    TEMPLATE_DEFAULT_SRC_PTCH,
+    TEMPLATE_DEFAULT_SRC_STRT,
+    TEMPLATE_DEFAULT_SRC_LEN,
+    TEMPLATE_DEFAULT_SRC_RATE,
+    TEMPLATE_DEFAULT_SRC_RTRG,
+    TEMPLATE_DEFAULT_SRC_RTIM,
+])
+
+# SRC SETUP page defaults for Flex/Static (6 bytes): LOOP, SLIC, LEN, RATE, TSTR, TSNS
+# From ot-tools-io AudioTrackMachineParamsSetupStd default
+TEMPLATE_DEFAULT_SETUP_LOOP = 1   # Loop ON
+TEMPLATE_DEFAULT_SETUP_SLIC = 0   # Slice OFF
+TEMPLATE_DEFAULT_SETUP_LEN = 0    # Length mode OFF
+TEMPLATE_DEFAULT_SETUP_RATE = 0   # Rate mode PITCH
+TEMPLATE_DEFAULT_SETUP_TSTR = 1   # Timestretch AUTO
+TEMPLATE_DEFAULT_SETUP_TSNS = 64  # Timestretch sensitivity
+TEMPLATE_DEFAULT_SRC_SETUP = bytes([
+    TEMPLATE_DEFAULT_SETUP_LOOP,
+    TEMPLATE_DEFAULT_SETUP_SLIC,
+    TEMPLATE_DEFAULT_SETUP_LEN,
+    TEMPLATE_DEFAULT_SETUP_RATE,
+    TEMPLATE_DEFAULT_SETUP_TSTR,
+    TEMPLATE_DEFAULT_SETUP_TSNS,
+])
+
+# =============================================================================
+# Octapy Default Overrides
+# These differ from OT template defaults to provide better workflows.
+# Applied in BankFile.new() when creating projects from template.
+# =============================================================================
+
+# SRC page VALUES overrides for Flex machines
+# OVERRIDE: length=127 (full sample) instead of 0 (length mode dependent)
+# Reason: With length_mode=TIME, length=127 ensures full sample playback
+OCTAPY_DEFAULT_SRC_LEN = 127  # OVERRIDE: Full sample length
+OCTAPY_DEFAULT_SRC_VALUES = bytes([
+    TEMPLATE_DEFAULT_SRC_PTCH,   # 64 - unchanged
+    TEMPLATE_DEFAULT_SRC_STRT,   # 0 - unchanged
+    OCTAPY_DEFAULT_SRC_LEN,      # 127 - OVERRIDE (was 0)
+    TEMPLATE_DEFAULT_SRC_RATE,   # 127 - unchanged
+    TEMPLATE_DEFAULT_SRC_RTRG,   # 0 - unchanged
+    TEMPLATE_DEFAULT_SRC_RTIM,   # 79 - unchanged
+])
+
+# SRC SETUP page overrides for Flex machines
+# OVERRIDE: loop=OFF, length_mode=TIME
+# Reason: One-shot sample playback with LEN encoder active
+OCTAPY_DEFAULT_SETUP_LOOP = 0  # OVERRIDE: Loop OFF (was 1)
+OCTAPY_DEFAULT_SETUP_LEN = 1   # OVERRIDE: Length mode TIME (was 0/OFF)
+OCTAPY_DEFAULT_SRC_SETUP = bytes([
+    OCTAPY_DEFAULT_SETUP_LOOP,   # 0 - OVERRIDE (was 1)
+    TEMPLATE_DEFAULT_SETUP_SLIC, # 0 - unchanged
+    OCTAPY_DEFAULT_SETUP_LEN,    # 1 - OVERRIDE (was 0)
+    TEMPLATE_DEFAULT_SETUP_RATE, # 0 - unchanged
+    TEMPLATE_DEFAULT_SETUP_TSTR, # 1 - unchanged
+    TEMPLATE_DEFAULT_SETUP_TSNS, # 64 - unchanged
+])
 
 
 class AudioTrackParamsOffset(IntEnum):
@@ -469,6 +558,120 @@ class SceneParamsOffset(IntEnum):
 
 # Scene lock disabled value (255 = no lock, use Part default)
 SCENE_LOCK_DISABLED = 255
+
+
+# =============================================================================
+# Recorder Setup Offsets
+# =============================================================================
+
+# Recorder setup size per track
+RECORDER_SETUP_SIZE = 12
+
+
+class RecorderSetupOffset(IntEnum):
+    """Offsets within RecorderSetup (12 bytes per track).
+
+    Structure from ot-tools-io/src/parts.rs:
+    - RecorderSetupSources (6 bytes): Setup Page 1 (FUNC+REC1)
+    - RecorderSetupProcessing (6 bytes): Setup Page 2 (FUNC+REC2)
+    """
+    # Setup Page 1 - Sources (FUNC+REC1)
+    IN_AB = 0       # External input AB source selection
+    IN_CD = 1       # External input CD source selection
+    RLEN = 2        # Recording length (64 = MAX, 63 and lower are step values)
+    TRIG = 3        # Recording mode: ONE (0), ONE2 (1), HOLD (2)
+    SRC3 = 4        # Internal source track selection
+    LOOP = 5        # Loop recording on/off
+
+    # Setup Page 2 - Processing (FUNC+REC2)
+    FIN = 6         # Fade in duration
+    FOUT = 7        # Fade out duration
+    AB_GAIN = 8     # Input gain for AB
+    QREC = 9        # Quantize recording start (255 = OFF)
+    QPL = 10        # Quantize manual playback triggering (255 = OFF)
+    CD_GAIN = 11    # Input gain for CD
+
+
+# =============================================================================
+# Recorder Setup Template Defaults (from ot-tools-io / OT CLEAN TEMPLATE)
+# Note: OT template has SRC3=9 (MAIN), but ot-tools-io default is SRC3=0.
+# We use the actual OT template values for propagation blank-checking.
+# =============================================================================
+
+# Sources page defaults (FUNC+REC1)
+TEMPLATE_DEFAULT_RECORDER_IN_AB = 1   # A+B stereo
+TEMPLATE_DEFAULT_RECORDER_IN_CD = 1   # C+D stereo
+TEMPLATE_DEFAULT_RECORDER_RLEN = 64   # MAX (continuous recording)
+TEMPLATE_DEFAULT_RECORDER_TRIG = 0    # ONE (one-shot)
+TEMPLATE_DEFAULT_RECORDER_SRC3 = 9    # MAIN (internal routing) - differs from ot-tools-io default of 0
+TEMPLATE_DEFAULT_RECORDER_LOOP = 1    # Loop ON
+
+# Processing page defaults (FUNC+REC2)
+TEMPLATE_DEFAULT_RECORDER_FIN = 0
+TEMPLATE_DEFAULT_RECORDER_FOUT = 0
+TEMPLATE_DEFAULT_RECORDER_AB_GAIN = 0
+TEMPLATE_DEFAULT_RECORDER_QREC = 255  # OFF (no quantization)
+TEMPLATE_DEFAULT_RECORDER_QPL = 255   # OFF
+TEMPLATE_DEFAULT_RECORDER_CD_GAIN = 0
+
+# Combined template default bytes for blank-check during propagation
+TEMPLATE_DEFAULT_RECORDER_SETUP = bytes([
+    TEMPLATE_DEFAULT_RECORDER_IN_AB,
+    TEMPLATE_DEFAULT_RECORDER_IN_CD,
+    TEMPLATE_DEFAULT_RECORDER_RLEN,
+    TEMPLATE_DEFAULT_RECORDER_TRIG,
+    TEMPLATE_DEFAULT_RECORDER_SRC3,
+    TEMPLATE_DEFAULT_RECORDER_LOOP,
+    TEMPLATE_DEFAULT_RECORDER_FIN,
+    TEMPLATE_DEFAULT_RECORDER_FOUT,
+    TEMPLATE_DEFAULT_RECORDER_AB_GAIN,
+    TEMPLATE_DEFAULT_RECORDER_QREC,
+    TEMPLATE_DEFAULT_RECORDER_QPL,
+    TEMPLATE_DEFAULT_RECORDER_CD_GAIN,
+])
+
+# =============================================================================
+# Recorder Setup Octapy Overrides
+# Optimized for one-shot quantized recording workflow.
+# =============================================================================
+
+# OVERRIDE: All sources OFF - use unified RecordingSource enum to select
+OCTAPY_DEFAULT_RECORDER_IN_AB = 0     # OVERRIDE (was 1)
+OCTAPY_DEFAULT_RECORDER_IN_CD = 0     # OVERRIDE (was 1)
+OCTAPY_DEFAULT_RECORDER_SRC3 = 0      # OVERRIDE (was 9/MAIN)
+
+# OVERRIDE: Recording length = 16 steps (one bar) instead of MAX
+OCTAPY_DEFAULT_RECORDER_RLEN = 16     # OVERRIDE (was 64/MAX)
+
+# OVERRIDE: Loop OFF for one-shot workflow
+OCTAPY_DEFAULT_RECORDER_LOOP = 0      # OVERRIDE (was 1)
+
+# OVERRIDE: QREC = PLEN (quantize to pattern start) instead of OFF
+OCTAPY_DEFAULT_RECORDER_QREC = 0      # OVERRIDE (was 255/OFF) - 0 = PLEN
+
+# Unchanged from template
+OCTAPY_DEFAULT_RECORDER_TRIG = TEMPLATE_DEFAULT_RECORDER_TRIG    # ONE
+OCTAPY_DEFAULT_RECORDER_FIN = TEMPLATE_DEFAULT_RECORDER_FIN
+OCTAPY_DEFAULT_RECORDER_FOUT = TEMPLATE_DEFAULT_RECORDER_FOUT
+OCTAPY_DEFAULT_RECORDER_AB_GAIN = TEMPLATE_DEFAULT_RECORDER_AB_GAIN
+OCTAPY_DEFAULT_RECORDER_QPL = TEMPLATE_DEFAULT_RECORDER_QPL      # OFF
+OCTAPY_DEFAULT_RECORDER_CD_GAIN = TEMPLATE_DEFAULT_RECORDER_CD_GAIN
+
+# Combined octapy default bytes
+OCTAPY_DEFAULT_RECORDER_SETUP = bytes([
+    OCTAPY_DEFAULT_RECORDER_IN_AB,     # 0 - OVERRIDE (was 1)
+    OCTAPY_DEFAULT_RECORDER_IN_CD,     # 0 - OVERRIDE (was 1)
+    OCTAPY_DEFAULT_RECORDER_RLEN,      # 16 - OVERRIDE (was 64)
+    OCTAPY_DEFAULT_RECORDER_TRIG,      # 0 - unchanged
+    OCTAPY_DEFAULT_RECORDER_SRC3,      # 0 - OVERRIDE (was 9)
+    OCTAPY_DEFAULT_RECORDER_LOOP,      # 0 - OVERRIDE (was 1)
+    OCTAPY_DEFAULT_RECORDER_FIN,       # 0 - unchanged
+    OCTAPY_DEFAULT_RECORDER_FOUT,      # 0 - unchanged
+    OCTAPY_DEFAULT_RECORDER_AB_GAIN,   # 0 - unchanged
+    OCTAPY_DEFAULT_RECORDER_QREC,      # 0 - OVERRIDE (was 255)
+    OCTAPY_DEFAULT_RECORDER_QPL,       # 255 - unchanged
+    OCTAPY_DEFAULT_RECORDER_CD_GAIN,   # 0 - unchanged
+])
 
 
 class MidiTrackValuesOffset(IntEnum):
@@ -610,11 +813,66 @@ class BankFile(OTBlock):
 
     @classmethod
     def new(cls, bank_num: int = 1) -> "BankFile":
-        """Create a new bank file from the embedded template."""
+        """Create a new bank file from the embedded template.
+
+        Applies octapy default overrides for better workflows:
+        - SRC page: loop_mode=OFF, length_mode=TIME, length=127
+        - Recorder: RLEN=16, QREC=PLEN, all sources OFF
+        """
         from .project import read_template_file
         filename = f"bank{bank_num:02d}.work"
         data = read_template_file(filename)
-        return cls.read(data)
+        bank = cls.read(data)
+        bank._apply_octapy_defaults()
+        return bank
+
+    def _apply_octapy_defaults(self) -> None:
+        """Apply all octapy default overrides to the bank.
+
+        This applies overrides that differ from OT template defaults:
+        - SRC VALUES: length=127 (full sample) instead of 0
+        - SRC SETUP: loop_mode=OFF, length_mode=TIME
+        - Recorder: sources OFF, RLEN=16, loop OFF, QREC=PLEN
+        """
+        self._apply_octapy_src_defaults()
+        self._apply_octapy_recorder_defaults()
+
+    def _apply_octapy_src_defaults(self) -> None:
+        """Apply octapy SRC page defaults for Flex machines.
+
+        OVERRIDES from OT template:
+        - SRC VALUES: length = 127 (was 0)
+        - SRC SETUP: loop_mode = OFF (was ON), length_mode = TIME (was OFF)
+        """
+        for part_num in range(1, 5):
+            part_offset = self.part_offset(part_num)
+            for track_idx in range(8):
+                # Machine params values offset (for Flex machine SRC page)
+                # Structure: 5 machines * 6 bytes = 30 bytes per track
+                # Flex is at offset 6 within each track's params
+                values_base = part_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_VALUES
+                flex_values_offset = values_base + track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX
+                self._data[flex_values_offset:flex_values_offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
+
+                # Machine params setup offset (for Flex machine FUNC+SRC page)
+                setup_base = part_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_SETUP
+                flex_setup_offset = setup_base + track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX
+                self._data[flex_setup_offset:flex_setup_offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
+
+    def _apply_octapy_recorder_defaults(self) -> None:
+        """Apply octapy recorder defaults for one-shot quantized recording.
+
+        OVERRIDES from OT template:
+        - in_ab, in_cd, src3 = OFF (was on)
+        - rlen = 16 (was 64/MAX)
+        - loop = OFF (was ON)
+        - qrec = PLEN (was OFF)
+        """
+        for part_num in range(1, 5):
+            part_offset = self.part_offset(part_num)
+            for track_idx in range(8):
+                recorder_offset = part_offset + PartOffset.RECORDER_SETUP + track_idx * RECORDER_SETUP_SIZE
+                self._data[recorder_offset:recorder_offset + RECORDER_SETUP_SIZE] = OCTAPY_DEFAULT_RECORDER_SETUP
 
     # === Header and version ===
 

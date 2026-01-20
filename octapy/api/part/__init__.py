@@ -10,6 +10,7 @@ from .static import StaticPartTrack
 from .thru import ThruPartTrack
 from .neighbor import NeighborPartTrack
 from .midi import MidiPartTrack
+from .recorder import RecorderSetup
 from .part import Part
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "ThruPartTrack",
     "NeighborPartTrack",
     "MidiPartTrack",
+    "RecorderSetup",
     "Part",
 ]

@@ -735,10 +735,12 @@ class TestFlexPartTrack:
         assert flex.start == 32
 
     def test_flex_length_default(self):
-        """Test default length value from template."""
+        """Test default length value (octapy override)."""
         project = Project.from_template("TEST")
         flex = project.bank(1).part(1).flex_track(1)
-        assert flex.length == 0  # Template default
+        # Octapy default is 127 (full sample) instead of OT template default of 0
+        # This ensures full sample playback when length_mode=TIME
+        assert flex.length == 127
 
     def test_flex_rate_default(self):
         """Test default rate value."""

@@ -493,6 +493,50 @@ class Project:
                                                     track_idx * AUDIO_TRACK_PARAMS_SIZE + AudioTrackParamsOffset.FX2_PARAM1)
                         data[target_fx2_params_offset:target_fx2_params_offset + 6] = src_fx2_params
 
+    def _propagate_recorder(self) -> None:
+        """
+        Propagate recorder setup from Part 1 to Parts 2-4 within each bank.
+
+        Copies recorder settings (source, RLEN, TRIG, LOOP, FIN, FOUT, gains,
+        QREC, QPL) for each track from Part 1 to Parts 2-4, but only if the
+        target track's recorder setup is at template defaults.
+
+        Controlled by render_settings.propagate_recorder (default False).
+        """
+        from .._io import (
+            PartOffset, RECORDER_SETUP_SIZE, TEMPLATE_DEFAULT_RECORDER_SETUP
+        )
+
+        if not self.render_settings.propagate_recorder:
+            return
+
+        for bank_num in range(1, 17):
+            bank_file = self._bank_files.get(bank_num)
+            if bank_file is None:
+                continue
+
+            data = bank_file._data
+            part1_offset = bank_file.part_offset(1)
+
+            # Process each track
+            for track_num in range(1, 9):
+                track_idx = track_num - 1
+
+                # Get Part 1's recorder setup (12 bytes)
+                src_recorder_offset = (part1_offset + PartOffset.RECORDER_SETUP +
+                                       track_idx * RECORDER_SETUP_SIZE)
+                src_recorder = data[src_recorder_offset:src_recorder_offset + RECORDER_SETUP_SIZE]
+
+                # Copy to Parts 2, 3, 4 only if target is at template defaults
+                for target_part in [2, 3, 4]:
+                    target_part_offset = bank_file.part_offset(target_part)
+                    target_recorder_offset = (target_part_offset + PartOffset.RECORDER_SETUP +
+                                              track_idx * RECORDER_SETUP_SIZE)
+                    target_recorder = data[target_recorder_offset:target_recorder_offset + RECORDER_SETUP_SIZE]
+
+                    if target_recorder == TEMPLATE_DEFAULT_RECORDER_SETUP:
+                        data[target_recorder_offset:target_recorder_offset + RECORDER_SETUP_SIZE] = src_recorder
+
     def to_directory(self, path: Path) -> None:
         """
         Save the project to a directory.
@@ -509,6 +553,7 @@ class Project:
         self._propagate_src()
         self._propagate_amp()
         self._propagate_fx()
+        self._propagate_recorder()
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -774,6 +819,7 @@ class Project:
                 "propagate_src": self.render_settings.propagate_src,
                 "propagate_amp": self.render_settings.propagate_amp,
                 "propagate_fx": self.render_settings.propagate_fx,
+                "propagate_recorder": self.render_settings.propagate_recorder,
                 "sample_duration": sample_duration_name,
             },
         }

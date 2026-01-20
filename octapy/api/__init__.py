@@ -18,6 +18,9 @@ from .enums import (
     PatternScale,
     TrigCondition,
     NoteLength,
+    RecordingSource,
+    RecTrigMode,
+    QRecMode,
 )
 from .slot_manager import (
     OctapyError,
