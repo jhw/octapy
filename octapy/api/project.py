@@ -337,7 +337,7 @@ class Project:
         """
         from .._io import (
             PartOffset, MachineParamsOffset, MACHINE_PARAMS_SIZE,
-            TEMPLATE_DEFAULT_SRC_VALUES, TEMPLATE_DEFAULT_SRC_SETUP
+            OCTAPY_DEFAULT_SRC_VALUES, OCTAPY_DEFAULT_SRC_SETUP
         )
 
         if not self.render_settings.propagate_src:
@@ -379,8 +379,9 @@ class Project:
                                            track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX)
                     target_setup = data[target_setup_offset:target_setup_offset + 6]
 
-                    # Only propagate if both values and setup are at defaults
-                    if target_values == TEMPLATE_DEFAULT_SRC_VALUES and target_setup == TEMPLATE_DEFAULT_SRC_SETUP:
+                    # Only propagate if both values and setup are at octapy defaults
+                    # (BankFile.new() applies octapy defaults, not OT template defaults)
+                    if target_values == OCTAPY_DEFAULT_SRC_VALUES and target_setup == OCTAPY_DEFAULT_SRC_SETUP:
                         data[target_values_offset:target_values_offset + 6] = src_values
                         data[target_setup_offset:target_setup_offset + 6] = src_setup
 
