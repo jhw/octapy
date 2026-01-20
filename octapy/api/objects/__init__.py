@@ -9,9 +9,17 @@ or attached to container objects.
 from .recorder import RecorderSetup
 from .step import AudioStep
 from .midi_step import MidiStep
+from .audio_part_track import AudioPartTrack
+from .audio_pattern_track import AudioPatternTrack
+from .midi_part_track import MidiPartTrack
+from .midi_pattern_track import MidiPatternTrack
 
 __all__ = [
     "RecorderSetup",
     "AudioStep",
     "MidiStep",
+    "AudioPartTrack",
+    "AudioPatternTrack",
+    "MidiPartTrack",
+    "MidiPatternTrack",
 ]

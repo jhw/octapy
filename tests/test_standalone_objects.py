@@ -3,9 +3,10 @@ Tests for standalone objects (Phase 1 of standalone object migration).
 """
 
 import pytest
-from octapy import RecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition
-from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE
-from octapy.api.objects import AudioStep, MidiStep
+from octapy import RecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type
+from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE, AUDIO_TRACK_SIZE, MIDI_TRACK_PATTERN_SIZE
+from octapy.api.objects import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack
+from octapy.api.objects.midi_part_track import MIDI_PART_TRACK_SIZE
 
 
 class TestRecorderSetupStandalone:
@@ -738,3 +739,800 @@ class TestMidiStepRepr:
         assert "MidiStep" in r
         assert "step=5" in r
         assert "active=True" in r
+
+
+# =============================================================================
+# AudioPartTrack Tests (Phase 2)
+# =============================================================================
+
+class TestAudioPartTrackStandalone:
+    """Tests for standalone AudioPartTrack object."""
+
+    def test_default_construction(self):
+        """AudioPartTrack() creates object with defaults."""
+        track = AudioPartTrack()
+
+        assert track.track_num == 1
+        assert track.machine_type == MachineType.FLEX
+        assert track.flex_slot == 0
+        assert track.static_slot == 0
+        assert track.recorder_slot == 0
+        assert track.volume == (108, 108)
+        assert track.attack == 0
+        assert track.hold == 127
+        assert track.release == 24
+        assert track.amp_volume == 108
+        assert track.balance == 64
+
+    def test_constructor_with_kwargs(self):
+        """AudioPartTrack accepts kwargs for all properties."""
+        track = AudioPartTrack(
+            track_num=3,
+            machine_type=MachineType.STATIC,
+            flex_slot=5,
+            static_slot=10,
+            recorder_slot=2,
+            main_volume=100,
+            cue_volume=90,
+            fx1_type=FX1Type.EQ,
+            fx2_type=FX2Type.PLATE_REVERB,
+            attack=10,
+            hold=100,
+            release=50,
+            amp_volume=80,
+            balance=70,
+        )
+
+        assert track.track_num == 3
+        assert track.machine_type == MachineType.STATIC
+        assert track.flex_slot == 5
+        assert track.static_slot == 10
+        assert track.recorder_slot == 2
+        assert track.volume == (100, 90)
+        assert track.fx1_type == FX1Type.EQ
+        assert track.fx2_type == FX2Type.PLATE_REVERB
+        assert track.attack == 10
+        assert track.hold == 100
+        assert track.release == 50
+        assert track.amp_volume == 80
+        assert track.balance == 70
+
+    def test_partial_kwargs(self):
+        """AudioPartTrack with partial kwargs uses defaults for others."""
+        track = AudioPartTrack(
+            track_num=2,
+            machine_type=MachineType.FLEX,
+            flex_slot=3,
+        )
+
+        assert track.track_num == 2
+        assert track.machine_type == MachineType.FLEX
+        assert track.flex_slot == 3
+        # Other defaults
+        assert track.static_slot == 0
+        assert track.volume == (108, 108)
+
+    def test_recorder_property(self):
+        """AudioPartTrack has embedded RecorderSetup."""
+        track = AudioPartTrack()
+
+        recorder = track.recorder
+        assert isinstance(recorder, RecorderSetup)
+
+        # Modify recorder
+        recorder.source = RecordingSource.TRACK_3
+        recorder.rlen = 32
+
+        assert track.recorder.source == RecordingSource.TRACK_3
+        assert track.recorder.rlen == 32
+
+    def test_recorder_in_constructor(self):
+        """AudioPartTrack accepts RecorderSetup in constructor."""
+        recorder = RecorderSetup(
+            source=RecordingSource.INPUT_AB,
+            rlen=16,
+        )
+        track = AudioPartTrack(recorder=recorder)
+
+        assert track.recorder.source == RecordingSource.INPUT_AB
+        assert track.recorder.rlen == 16
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = AudioPartTrack(
+            track_num=1,
+            machine_type=MachineType.FLEX,
+            flex_slot=5,
+        )
+        original.recorder.source = RecordingSource.TRACK_2
+
+        cloned = original.clone()
+
+        # Should be equal
+        assert cloned.track_num == original.track_num
+        assert cloned.machine_type == original.machine_type
+        assert cloned.flex_slot == original.flex_slot
+        assert cloned.recorder.source == original.recorder.source
+
+        # But independent
+        cloned.flex_slot = 10
+        cloned.recorder.source = RecordingSource.TRACK_5
+
+        assert original.flex_slot == 5
+        assert original.recorder.source == RecordingSource.TRACK_2
+
+    def test_equality(self):
+        """AudioPartTrack objects with same data are equal."""
+        a = AudioPartTrack(track_num=1, machine_type=MachineType.FLEX, flex_slot=5)
+        b = AudioPartTrack(track_num=1, machine_type=MachineType.FLEX, flex_slot=5)
+        c = AudioPartTrack(track_num=1, machine_type=MachineType.STATIC, flex_slot=5)
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns track properties."""
+        track = AudioPartTrack(
+            track_num=1,
+            machine_type=MachineType.FLEX,
+            flex_slot=5,
+            fx1_type=FX1Type.FILTER,
+        )
+
+        d = track.to_dict()
+
+        assert d["track"] == 1
+        assert d["machine_type"] == "FLEX"
+        assert d["flex_slot"] == 5
+        assert d["fx1_type"] == FX1Type.FILTER
+        assert "recorder" in d
+        assert "volume" in d
+        assert "amp" in d
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = AudioPartTrack(
+            track_num=2,
+            machine_type=MachineType.STATIC,
+            static_slot=10,
+            fx1_type=FX1Type.EQ,
+        )
+        original.recorder.source = RecordingSource.TRACK_1
+
+        d = original.to_dict()
+        restored = AudioPartTrack.from_dict(d)
+
+        assert restored.track_num == original.track_num
+        assert restored.machine_type == original.machine_type
+        assert restored.static_slot == original.static_slot
+        assert restored.fx1_type == original.fx1_type
+        assert restored.recorder.source == original.recorder.source
+
+    def test_fx_type_applies_defaults(self):
+        """Setting FX type applies per-type default parameters."""
+        track = AudioPartTrack()
+
+        # Setting FX1 type should apply defaults
+        track.fx1_type = FX1Type.CHORUS
+        # The defaults are applied internally - just verify no error
+
+        track.fx2_type = FX2Type.DARK_REVERB
+        # Again, just verify no error
+
+
+class TestAudioPartTrackSRCPage:
+    """Tests for AudioPartTrack SRC/Playback page properties."""
+
+    def test_pitch_property(self):
+        """pitch property works."""
+        track = AudioPartTrack()
+        track.pitch = 72
+
+        assert track.pitch == 72
+
+    def test_start_property(self):
+        """start property works."""
+        track = AudioPartTrack()
+        track.start = 32
+
+        assert track.start == 32
+
+    def test_length_property(self):
+        """length property works."""
+        track = AudioPartTrack()
+        track.length = 64
+
+        assert track.length == 64
+
+    def test_rate_property(self):
+        """rate property works."""
+        track = AudioPartTrack()
+        track.rate = 100
+
+        assert track.rate == 100
+
+
+class TestAudioPartTrackRepr:
+    """Tests for AudioPartTrack string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        track = AudioPartTrack(track_num=3, machine_type=MachineType.STATIC)
+
+        r = repr(track)
+        assert "AudioPartTrack" in r
+        assert "track=3" in r
+        assert "STATIC" in r
+
+
+# =============================================================================
+# AudioPatternTrack Tests (Phase 2)
+# =============================================================================
+
+class TestAudioPatternTrackStandalone:
+    """Tests for standalone AudioPatternTrack object."""
+
+    def test_default_construction(self):
+        """AudioPatternTrack() creates object with defaults."""
+        track = AudioPatternTrack()
+
+        assert track.track_num == 1
+        assert track.active_steps == []
+        assert track.trigless_steps == []
+
+    def test_constructor_with_active_steps(self):
+        """AudioPatternTrack accepts active_steps in constructor."""
+        track = AudioPatternTrack(
+            track_num=2,
+            active_steps=[1, 5, 9, 13],
+        )
+
+        assert track.track_num == 2
+        assert track.active_steps == [1, 5, 9, 13]
+
+    def test_constructor_with_trigless_steps(self):
+        """AudioPatternTrack accepts trigless_steps in constructor."""
+        track = AudioPatternTrack(
+            track_num=1,
+            trigless_steps=[3, 7, 11, 15],
+        )
+
+        assert track.trigless_steps == [3, 7, 11, 15]
+
+    def test_step_access(self):
+        """step() returns AudioStep for given position."""
+        track = AudioPatternTrack()
+
+        step = track.step(5)
+        assert isinstance(step, AudioStep)
+        assert step.step_num == 5
+
+    def test_step_modification(self):
+        """Modifying a step affects the track."""
+        track = AudioPatternTrack()
+
+        step = track.step(5)
+        step.active = True
+        step.volume = 100
+
+        # Step should retain modifications
+        assert track.step(5).active == True
+        assert track.step(5).volume == 100
+
+    def test_active_steps_setter(self):
+        """Setting active_steps updates the track."""
+        track = AudioPatternTrack()
+
+        track.active_steps = [1, 2, 3, 4]
+        assert track.active_steps == [1, 2, 3, 4]
+
+        # Verify steps are marked active
+        assert track.step(1).active == True
+        assert track.step(5).active == False
+
+    def test_write_returns_correct_size(self):
+        """write() returns AUDIO_TRACK_SIZE bytes."""
+        track = AudioPatternTrack()
+        data = track.write()
+
+        assert len(data) == AUDIO_TRACK_SIZE
+        assert isinstance(data, bytes)
+
+    def test_read_write_round_trip(self):
+        """read(write(x)) preserves data."""
+        original = AudioPatternTrack(
+            track_num=3,
+            active_steps=[1, 5, 9, 13],
+            trigless_steps=[2, 6],
+        )
+        original.step(5).volume = 100
+        original.step(5).condition = TrigCondition.FILL
+
+        data = original.write()
+        restored = AudioPatternTrack.read(3, data)
+
+        assert restored.track_num == original.track_num
+        assert restored.active_steps == original.active_steps
+        assert restored.trigless_steps == original.trigless_steps
+        assert restored.step(5).volume == 100
+        assert restored.step(5).condition == TrigCondition.FILL
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = AudioPatternTrack(
+            track_num=1,
+            active_steps=[1, 5, 9],
+        )
+
+        cloned = original.clone()
+
+        # Should have same data
+        assert cloned.active_steps == original.active_steps
+
+        # But be independent
+        cloned.active_steps = [2, 6, 10]
+        assert original.active_steps == [1, 5, 9]
+
+    def test_equality(self):
+        """AudioPatternTrack objects with same data are equal."""
+        a = AudioPatternTrack(track_num=1, active_steps=[1, 5, 9])
+        b = AudioPatternTrack(track_num=1, active_steps=[1, 5, 9])
+        c = AudioPatternTrack(track_num=1, active_steps=[1, 5, 13])
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns track properties."""
+        track = AudioPatternTrack(
+            track_num=1,
+            active_steps=[1, 5, 9, 13],
+        )
+
+        d = track.to_dict()
+
+        assert d["track"] == 1
+        assert d["active_steps"] == [1, 5, 9, 13]
+        assert d["trigless_steps"] == []
+
+    def test_to_dict_with_steps(self):
+        """to_dict(include_steps=True) includes step data."""
+        track = AudioPatternTrack(active_steps=[1, 5])
+        track.step(1).volume = 100
+        track.step(5).condition = TrigCondition.FILL
+
+        d = track.to_dict(include_steps=True)
+
+        assert "steps" in d
+        assert len(d["steps"]) >= 2
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = AudioPatternTrack(
+            track_num=2,
+            active_steps=[1, 5, 9],
+        )
+
+        d = original.to_dict()
+        restored = AudioPatternTrack.from_dict(d)
+
+        assert restored.track_num == original.track_num
+        assert restored.active_steps == original.active_steps
+
+
+class TestAudioPatternTrackRepr:
+    """Tests for AudioPatternTrack string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        track = AudioPatternTrack(track_num=2, active_steps=[1, 5, 9])
+
+        r = repr(track)
+        assert "AudioPatternTrack" in r
+        assert "track=2" in r
+        assert "active_steps=3" in r
+
+
+# =============================================================================
+# MidiPartTrack Tests (Phase 2)
+# =============================================================================
+
+class TestMidiPartTrackStandalone:
+    """Tests for standalone MidiPartTrack object."""
+
+    def test_default_construction(self):
+        """MidiPartTrack() creates object with defaults."""
+        track = MidiPartTrack()
+
+        assert track.track_num == 1
+        assert track.channel == 0  # Channel 1 (0-indexed)
+        assert track.bank == 128  # Off
+        assert track.program == 128  # Off
+        assert track.default_note == 48  # C3
+        assert track.default_velocity == 100
+        assert track.default_length == 6  # 1/16
+        assert track.default_note2 == 64  # No offset
+        assert track.default_note3 == 64
+        assert track.default_note4 == 64
+        assert track.pitch_bend == 64  # Center
+        assert track.aftertouch == 0
+
+    def test_constructor_with_kwargs(self):
+        """MidiPartTrack accepts kwargs for all properties."""
+        track = MidiPartTrack(
+            track_num=3,
+            channel=5,
+            bank=32,
+            program=64,
+            default_note=60,
+            default_velocity=80,
+            default_length=12,
+            pitch_bend=70,
+            aftertouch=50,
+            arp_transpose=60,
+            arp_mode=2,
+        )
+
+        assert track.track_num == 3
+        assert track.channel == 5
+        assert track.bank == 32
+        assert track.program == 64
+        assert track.default_note == 60
+        assert track.default_velocity == 80
+        assert track.default_length == 12
+        assert track.pitch_bend == 70
+        assert track.aftertouch == 50
+        assert track.arp_transpose == 60
+        assert track.arp_mode == 2
+
+    def test_partial_kwargs(self):
+        """MidiPartTrack with partial kwargs uses defaults for others."""
+        track = MidiPartTrack(
+            track_num=2,
+            channel=10,
+            default_note=72,
+        )
+
+        assert track.track_num == 2
+        assert track.channel == 10
+        assert track.default_note == 72
+        # Other defaults
+        assert track.bank == 128
+        assert track.default_velocity == 100
+
+    def test_cc_number_get_set(self):
+        """CC number assignments can be get/set."""
+        track = MidiPartTrack()
+
+        track.set_cc_number(1, 74)  # CC74 (filter cutoff)
+        track.set_cc_number(5, 71)  # CC71 (resonance)
+
+        assert track.cc_number(1) == 74
+        assert track.cc_number(5) == 71
+
+    def test_cc_value_get_set(self):
+        """CC default values can be get/set."""
+        track = MidiPartTrack()
+
+        track.set_cc_value(1, 64)
+        track.set_cc_value(3, 100)
+
+        assert track.cc_value(1) == 64
+        assert track.cc_value(3) == 100
+
+    def test_cc_invalid_slot(self):
+        """Invalid CC slot raises ValueError."""
+        track = MidiPartTrack()
+
+        with pytest.raises(ValueError):
+            track.cc_number(0)
+
+        with pytest.raises(ValueError):
+            track.cc_number(11)
+
+        with pytest.raises(ValueError):
+            track.set_cc_number(0, 64)
+
+    def test_write_returns_correct_size(self):
+        """write() returns MIDI_PART_TRACK_SIZE bytes."""
+        track = MidiPartTrack()
+        data = track.write()
+
+        assert len(data) == MIDI_PART_TRACK_SIZE
+        assert isinstance(data, bytes)
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = MidiPartTrack(
+            track_num=1,
+            channel=5,
+            default_note=60,
+        )
+
+        cloned = original.clone()
+
+        # Should have same data
+        assert cloned.channel == original.channel
+        assert cloned.default_note == original.default_note
+
+        # But be independent
+        cloned.channel = 10
+        cloned.default_note = 72
+
+        assert original.channel == 5
+        assert original.default_note == 60
+
+    def test_equality(self):
+        """MidiPartTrack objects with same data are equal."""
+        a = MidiPartTrack(track_num=1, channel=5, default_note=60)
+        b = MidiPartTrack(track_num=1, channel=5, default_note=60)
+        c = MidiPartTrack(track_num=1, channel=5, default_note=72)
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns track properties."""
+        track = MidiPartTrack(
+            track_num=2,
+            channel=5,
+            default_note=60,
+            default_velocity=80,
+        )
+
+        d = track.to_dict()
+
+        assert d["track"] == 2
+        assert d["channel"] == 5
+        assert d["note"]["default_note"] == 60
+        assert d["note"]["default_velocity"] == 80
+        assert "cc" in d
+        assert "arp" in d
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = MidiPartTrack(
+            track_num=3,
+            channel=10,
+            program=32,
+            default_note=48,
+        )
+
+        d = original.to_dict()
+        restored = MidiPartTrack.from_dict(d)
+
+        assert restored.track_num == original.track_num
+        assert restored.channel == original.channel
+        assert restored.program == original.program
+        assert restored.default_note == original.default_note
+
+
+class TestMidiPartTrackArp:
+    """Tests for MidiPartTrack arpeggiator settings."""
+
+    def test_arp_transpose(self):
+        """arp_transpose property works."""
+        track = MidiPartTrack()
+        track.arp_transpose = 72
+
+        assert track.arp_transpose == 72
+
+    def test_arp_legato(self):
+        """arp_legato property works."""
+        track = MidiPartTrack()
+        track.arp_legato = 64
+
+        assert track.arp_legato == 64
+
+    def test_arp_mode(self):
+        """arp_mode property works."""
+        track = MidiPartTrack()
+        track.arp_mode = 3
+
+        assert track.arp_mode == 3
+
+    def test_arp_speed(self):
+        """arp_speed property works."""
+        track = MidiPartTrack()
+        track.arp_speed = 24
+
+        assert track.arp_speed == 24
+
+    def test_arp_range(self):
+        """arp_range property works."""
+        track = MidiPartTrack()
+        track.arp_range = 2
+
+        assert track.arp_range == 2
+
+    def test_arp_note_length(self):
+        """arp_note_length property works."""
+        track = MidiPartTrack()
+        track.arp_note_length = 12
+
+        assert track.arp_note_length == 12
+
+
+class TestMidiPartTrackRepr:
+    """Tests for MidiPartTrack string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        track = MidiPartTrack(track_num=3, channel=5)
+
+        r = repr(track)
+        assert "MidiPartTrack" in r
+        assert "track=3" in r
+        assert "channel=5" in r
+
+
+# =============================================================================
+# MidiPatternTrack Tests (Phase 2)
+# =============================================================================
+
+class TestMidiPatternTrackStandalone:
+    """Tests for standalone MidiPatternTrack object."""
+
+    def test_default_construction(self):
+        """MidiPatternTrack() creates object with defaults."""
+        track = MidiPatternTrack()
+
+        assert track.track_num == 1
+        assert track.active_steps == []
+        assert track.trigless_steps == []
+
+    def test_constructor_with_active_steps(self):
+        """MidiPatternTrack accepts active_steps in constructor."""
+        track = MidiPatternTrack(
+            track_num=2,
+            active_steps=[1, 5, 9, 13],
+        )
+
+        assert track.track_num == 2
+        assert track.active_steps == [1, 5, 9, 13]
+
+    def test_constructor_with_trigless_steps(self):
+        """MidiPatternTrack accepts trigless_steps in constructor."""
+        track = MidiPatternTrack(
+            track_num=1,
+            trigless_steps=[3, 7, 11, 15],
+        )
+
+        assert track.trigless_steps == [3, 7, 11, 15]
+
+    def test_step_access(self):
+        """step() returns MidiStep for given position."""
+        track = MidiPatternTrack()
+
+        step = track.step(5)
+        assert isinstance(step, MidiStep)
+        assert step.step_num == 5
+
+    def test_step_modification(self):
+        """Modifying a step affects the track."""
+        track = MidiPatternTrack()
+
+        step = track.step(5)
+        step.active = True
+        step.note = 60
+        step.velocity = 100
+
+        # Step should retain modifications
+        assert track.step(5).active == True
+        assert track.step(5).note == 60
+        assert track.step(5).velocity == 100
+
+    def test_active_steps_setter(self):
+        """Setting active_steps updates the track."""
+        track = MidiPatternTrack()
+
+        track.active_steps = [1, 2, 3, 4]
+        assert track.active_steps == [1, 2, 3, 4]
+
+        # Verify steps are marked active
+        assert track.step(1).active == True
+        assert track.step(5).active == False
+
+    def test_write_returns_correct_size(self):
+        """write() returns MIDI_TRACK_PATTERN_SIZE bytes."""
+        track = MidiPatternTrack()
+        data = track.write()
+
+        assert len(data) == MIDI_TRACK_PATTERN_SIZE
+        assert isinstance(data, bytes)
+
+    def test_read_write_round_trip(self):
+        """read(write(x)) preserves data."""
+        original = MidiPatternTrack(
+            track_num=3,
+            active_steps=[1, 5, 9, 13],
+            trigless_steps=[2, 6],
+        )
+        original.step(5).note = 60
+        original.step(5).velocity = 100
+        original.step(5).condition = TrigCondition.FILL
+
+        data = original.write()
+        restored = MidiPatternTrack.read(3, data)
+
+        assert restored.track_num == original.track_num
+        assert restored.active_steps == original.active_steps
+        assert restored.trigless_steps == original.trigless_steps
+        assert restored.step(5).note == 60
+        assert restored.step(5).velocity == 100
+        assert restored.step(5).condition == TrigCondition.FILL
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = MidiPatternTrack(
+            track_num=1,
+            active_steps=[1, 5, 9],
+        )
+
+        cloned = original.clone()
+
+        # Should have same data
+        assert cloned.active_steps == original.active_steps
+
+        # But be independent
+        cloned.active_steps = [2, 6, 10]
+        assert original.active_steps == [1, 5, 9]
+
+    def test_equality(self):
+        """MidiPatternTrack objects with same data are equal."""
+        a = MidiPatternTrack(track_num=1, active_steps=[1, 5, 9])
+        b = MidiPatternTrack(track_num=1, active_steps=[1, 5, 9])
+        c = MidiPatternTrack(track_num=1, active_steps=[1, 5, 13])
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns track properties."""
+        track = MidiPatternTrack(
+            track_num=1,
+            active_steps=[1, 5, 9, 13],
+        )
+
+        d = track.to_dict()
+
+        assert d["track"] == 1
+        assert d["active_steps"] == [1, 5, 9, 13]
+        assert d["trigless_steps"] == []
+
+    def test_to_dict_with_steps(self):
+        """to_dict(include_steps=True) includes step data."""
+        track = MidiPatternTrack(active_steps=[1, 5])
+        track.step(1).note = 60
+        track.step(5).condition = TrigCondition.FILL
+
+        d = track.to_dict(include_steps=True)
+
+        assert "steps" in d
+        assert len(d["steps"]) >= 2
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = MidiPatternTrack(
+            track_num=2,
+            active_steps=[1, 5, 9],
+        )
+
+        d = original.to_dict()
+        restored = MidiPatternTrack.from_dict(d)
+
+        assert restored.track_num == original.track_num
+        assert restored.active_steps == original.active_steps
+
+
+class TestMidiPatternTrackRepr:
+    """Tests for MidiPatternTrack string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        track = MidiPatternTrack(track_num=2, active_steps=[1, 5, 9])
+
+        r = repr(track)
+        assert "MidiPatternTrack" in r
+        assert "track=2" in r
+        assert "active_steps=3" in r
