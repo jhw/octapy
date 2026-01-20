@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength, LoopMode, LengthMode
+from octapy import Project, MachineType, SamplePool, NoteLength
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -123,25 +123,15 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
 
         # Configure machine types and slots for tracks 1-3
         for track_num, slot in [(1, kick_slot), (2, snare_slot), (3, hat_slot)]:
-            # Set machine type and slot
             track = part.track(track_num)
             track.machine_type = MachineType.FLEX
             track.flex_slot = slot - 1
 
-            # Configure Flex-specific parameters
-            flex = part.flex_track(track_num)
-            flex.loop_mode = LoopMode.OFF
-            flex.length_mode = LengthMode.TIME
-            flex.length = 127  # Full sample length
-
     # Configure all 16 patterns with Euclidean rhythms
+    # All patterns default to Part 1; switch parts manually on OT to use Parts 2-4
     print(f"\n  Bank {bank_num} ({bank_letter}) Patterns 1-16:")
     for pattern_num in range(1, 17):
         pattern = bank.pattern(pattern_num)
-
-        # Assign to a random part (1-4)
-        part_num = rng.randint(1, 4)
-        pattern.part = part_num
 
         # Generate Euclidean patterns
         kick_name, kick_pattern = get_random_euclidean_pattern('kick', rng)
@@ -161,7 +151,7 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
         configure_pattern_track(pattern, 2, snare_steps, use_volume=False, use_probability=False)
         configure_pattern_track(pattern, 3, hat_steps, use_volume=True, use_probability=True)
 
-        print(f"    Pattern {pattern_num:2d}: Part {part_num}, kick={kick_name}, snare={snare_name}, hat={hat_name}")
+        print(f"    Pattern {pattern_num:2d}: kick={kick_name}, snare={snare_name}, hat={hat_name}")
 
 
 def create_project(name: str, output_dir: Path) -> Path:
@@ -198,8 +188,12 @@ def create_project(name: str, output_dir: Path) -> Path:
     project.settings.master_track = True
 
     # Configure render settings (octapy-specific, not saved to OT files)
+    # Enable propagation so all 4 parts are consistent when switching
     project.render_settings.sample_duration = NoteLength.SIXTEENTH
     project.render_settings.auto_master_trig = True
+    project.render_settings.propagate_scenes = True
+    project.render_settings.propagate_src = True
+    project.render_settings.propagate_amp = True
     project.render_settings.propagate_fx = True
 
     # Configure Banks 1 and 2
