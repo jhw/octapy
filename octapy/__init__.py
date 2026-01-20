@@ -66,6 +66,9 @@ from .api.pattern import Pattern, AudioPatternTrack
 from .api.step import AudioStep
 from .api.sample_pool import SamplePool
 
+# Standalone objects (Phase 1 of standalone object migration)
+from .api.objects import RecorderSetup
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -99,4 +102,6 @@ __all__ = [
     "OctapyError",
     "SlotLimitExceeded",
     "InvalidSlotNumber",
+    # Standalone objects
+    "RecorderSetup",
 ]

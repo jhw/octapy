@@ -43,3 +43,6 @@ from .part import (
 from .pattern import Pattern, AudioPatternTrack, MidiPatternTrack
 from .step import AudioStep, SamplerStep, MidiStep
 from .sample_pool import SamplePool
+
+# Standalone objects (Phase 1 of standalone object migration)
+from .objects import RecorderSetup
