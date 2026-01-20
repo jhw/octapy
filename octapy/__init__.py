@@ -49,6 +49,8 @@ from .api.enums import (
     RecordingSource,
     RecTrigMode,
     QRecMode,
+    ScaleMode,
+    PatternScale,
 )
 
 # Exceptions
@@ -58,31 +60,67 @@ from .api.slot_manager import (
     InvalidSlotNumber,
 )
 
-# High-level API classes
-from .api.project import Project
-from .api.bank import Bank
-from .api.part import Part, AudioPartTrack
-from .api.pattern import Pattern, AudioPatternTrack
-from .api.step import AudioStep
-from .api.sample_pool import SamplePool
-
-# Standalone objects (Phase 1 of standalone object migration)
-from .api.objects import RecorderSetup
+# High-level API classes (from standalone objects)
+from .api import (
+    # Leaf objects
+    RecorderSetup,
+    AudioStep,
+    MidiStep,
+    # Track objects
+    AudioPartTrack,
+    AudioPatternTrack,
+    MidiPartTrack,
+    MidiPatternTrack,
+    # Container objects
+    SceneTrack,
+    Scene,
+    Part,
+    Pattern,
+    # Top-level objects
+    Bank,
+    Project,
+    # Settings
+    Settings,
+    RenderSettings,
+    # Utilities
+    SamplePool,
+    # Backward compatibility aliases
+    FlexPartTrack,
+    StaticPartTrack,
+    ThruPartTrack,
+    NeighborPartTrack,
+    SamplerStep,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
-    # Core class
+    # Core classes
     "Project",
-    # Wrapper classes
     "Bank",
     "Part",
-    "AudioPartTrack",
     "Pattern",
+    "Scene",
+    "SceneTrack",
+    # Track classes
+    "AudioPartTrack",
     "AudioPatternTrack",
+    "MidiPartTrack",
+    "MidiPatternTrack",
+    # Step classes
     "AudioStep",
+    "MidiStep",
     # Utilities
     "SamplePool",
+    "RecorderSetup",
+    "Settings",
+    "RenderSettings",
+    # Backward compatibility aliases
+    "FlexPartTrack",
+    "StaticPartTrack",
+    "ThruPartTrack",
+    "NeighborPartTrack",
+    "SamplerStep",
     # Enums
     "MachineType",
     "ThruInput",
@@ -98,10 +136,10 @@ __all__ = [
     "RecordingSource",
     "RecTrigMode",
     "QRecMode",
+    "ScaleMode",
+    "PatternScale",
     # Exceptions
     "OctapyError",
     "SlotLimitExceeded",
     "InvalidSlotNumber",
-    # Standalone objects
-    "RecorderSetup",
 ]

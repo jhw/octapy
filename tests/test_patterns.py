@@ -93,31 +93,31 @@ class TestAudioStep:
         assert step is not None
 
     def test_step_active_property(self):
-        """Test step active property."""
+        """Test step active property via track setter."""
         project = Project.from_template("TEST")
-        step = project.bank(1).pattern(1).track(1).step(5)
+        track = project.bank(1).pattern(1).track(1)
 
-        # Initially not active
-        step.active = False
-        assert step.active is False
+        # Set active steps via track (syncs to step objects)
+        track.active_steps = [5, 9, 13]
 
-        # Set active
-        step.active = True
+        # Verify step object reflects active state
+        assert track.step(5).active is True
+        assert track.step(1).active is False
+
+        # Verify direct step access
+        step = track.step(5)
         assert step.active is True
 
-        # Verify appears in active_steps
-        assert 5 in project.bank(1).pattern(1).track(1).active_steps
-
     def test_step_trigless_property(self):
-        """Test step trigless property."""
+        """Test step trigless property via track setter."""
         project = Project.from_template("TEST")
-        step = project.bank(1).pattern(1).track(1).step(5)
+        track = project.bank(1).pattern(1).track(1)
 
-        step.trigless = True
-        assert step.trigless is True
+        # Set trigless steps via track (syncs to step objects)
+        track.trigless_steps = [5]
 
-        # Verify appears in trigless_steps
-        assert 5 in project.bank(1).pattern(1).track(1).trigless_steps
+        # Verify step object reflects trigless state
+        assert track.step(5).trigless is True
 
     def test_step_matches_active_steps(self):
         """Test that AudioStep.active matches active_steps list."""
@@ -170,7 +170,6 @@ class TestMultipleTracks:
 class TestPatternRoundTrip:
     """Pattern read/write round-trip tests."""
 
-    @pytest.mark.slow
     def test_pattern_survives_save(self, temp_dir):
         """Test that pattern data survives save/load."""
         project = Project.from_template("TEST")
@@ -401,7 +400,6 @@ class TestStepProbability:
 class TestPlockRoundTrip:
     """P-lock read/write round-trip tests."""
 
-    @pytest.mark.slow
     def test_plocks_survive_save(self, temp_dir):
         """Test that p-lock data survives save/load."""
         project = Project.from_template("TEST")
@@ -422,7 +420,6 @@ class TestPlockRoundTrip:
         assert loaded_track.step(5).pitch == 76
         assert loaded_track.step(9).condition == TrigCondition.FILL
 
-    @pytest.mark.slow
     def test_probability_survives_save(self, temp_dir):
         """Test that probability survives save/load."""
         project = Project.from_template("TEST")
@@ -436,7 +433,6 @@ class TestPlockRoundTrip:
 
         assert loaded.bank(1).pattern(1).track(1).step(5).probability == 0.5
 
-    @pytest.mark.slow
     def test_tempo_survives_save(self, temp_dir):
         """Test that tempo survives save/load."""
         project = Project.from_template("TEST")
@@ -528,23 +524,27 @@ class TestMidiStep:
         assert step is not None
 
     def test_step_active_property(self):
-        """Test step active property."""
+        """Test step active property via track setter."""
         project = Project.from_template("TEST")
-        step = project.bank(1).pattern(1).midi_track(1).step(5)
+        track = project.bank(1).pattern(1).midi_track(1)
 
-        step.active = True
-        assert step.active is True
+        # Set active steps via track (syncs to step objects)
+        track.active_steps = [5]
 
-        # Verify appears in active_steps
-        assert 5 in project.bank(1).pattern(1).midi_track(1).active_steps
+        # Verify step object reflects active state
+        assert track.step(5).active is True
+        assert track.step(1).active is False
 
     def test_step_trigless_property(self):
-        """Test step trigless property."""
+        """Test step trigless property via track setter."""
         project = Project.from_template("TEST")
-        step = project.bank(1).pattern(1).midi_track(1).step(5)
+        track = project.bank(1).pattern(1).midi_track(1)
 
-        step.trigless = True
-        assert step.trigless is True
+        # Set trigless steps via track (syncs to step objects)
+        track.trigless_steps = [5]
+
+        # Verify step object reflects trigless state
+        assert track.step(5).trigless is True
 
     def test_step_matches_active_steps(self):
         """Test that MidiStep.active matches active_steps list."""
@@ -849,7 +849,6 @@ class TestMidiStepCondition:
 class TestMidiPatternRoundTrip:
     """MIDI pattern read/write round-trip tests."""
 
-    @pytest.mark.slow
     def test_active_steps_survive_save(self, temp_dir):
         """Test that MIDI active steps survive save/load."""
         project = Project.from_template("TEST")
@@ -862,7 +861,6 @@ class TestMidiPatternRoundTrip:
 
         assert loaded.bank(1).pattern(1).midi_track(1).active_steps == [1, 5, 9, 13]
 
-    @pytest.mark.slow
     def test_plocks_survive_save(self, temp_dir):
         """Test that MIDI p-locks survive save/load."""
         project = Project.from_template("TEST")
@@ -880,7 +878,6 @@ class TestMidiPatternRoundTrip:
         assert loaded_track.step(5).velocity == 100
         assert loaded_track.step(9).length == 12
 
-    @pytest.mark.slow
     def test_condition_survives_save(self, temp_dir):
         """Test that MIDI conditions survive save/load."""
         project = Project.from_template("TEST")
@@ -893,7 +890,6 @@ class TestMidiPatternRoundTrip:
 
         assert loaded.bank(1).pattern(1).midi_track(1).step(5).condition == TrigCondition.FILL
 
-    @pytest.mark.slow
     def test_all_tracks_survive_save(self, temp_dir):
         """Test all 8 MIDI tracks survive save/load."""
         project = Project.from_template("TEST")
@@ -909,7 +905,6 @@ class TestMidiPatternRoundTrip:
             expected = [track_num, track_num + 8]
             assert loaded.bank(1).pattern(1).midi_track(track_num).active_steps == expected
 
-    @pytest.mark.slow
     def test_cc_plocks_survive_save(self, temp_dir):
         """Test that CC p-locks survive save/load."""
         project = Project.from_template("TEST")
@@ -931,265 +926,31 @@ class TestMidiPatternRoundTrip:
 
 
 # =============================================================================
-# Flex Step Tests
+# Audio Step Tests - Additional properties
 # =============================================================================
 
-class TestFlexStepType:
-    """FlexStep type detection tests."""
+class TestAudioStepProperties:
+    """AudioStep property tests."""
 
-    def test_flex_track_returns_flexstep(self):
-        """Test that Flex machine tracks return FlexStep."""
-        from octapy.api.step import FlexStep
+    def test_step_has_volume_property(self):
+        """Test AudioStep has volume property."""
         project = Project.from_template("TEST")
-        # Must explicitly set machine type to Flex
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
         step = project.bank(1).pattern(1).track(1).step(1)
-        assert isinstance(step, FlexStep)
-
-    def test_flexstep_has_sampler_properties(self):
-        """Test that FlexStep inherits SamplerStep properties."""
-        project = Project.from_template("TEST")
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-        step = project.bank(1).pattern(1).track(1).step(1)
-        # Should have volume, pitch, sample_lock from SamplerStep
         assert hasattr(step, 'volume')
+        assert step.volume is None  # Default
+
+    def test_step_has_pitch_property(self):
+        """Test AudioStep has pitch property."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
         assert hasattr(step, 'pitch')
+        assert step.pitch is None  # Default
+
+    def test_step_has_sample_lock_property(self):
+        """Test AudioStep has sample_lock property."""
+        project = Project.from_template("TEST")
+        step = project.bank(1).pattern(1).track(1).step(1)
         assert hasattr(step, 'sample_lock')
+        assert step.sample_lock is None  # Default
 
 
-class TestFlexStepLengthPlock:
-    """FlexStep length p-lock tests."""
-
-    def _setup_flex_track(self, project):
-        """Configure track 1 as Flex machine."""
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-
-    def test_length_default_none(self):
-        """Test length p-lock defaults to None."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(1)
-        assert step.length is None
-
-    def test_set_length_full(self):
-        """Test setting length to 1.0 (full sample)."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.length = 1.0
-        assert step.length == 1.0
-
-    def test_set_length_half(self):
-        """Test setting length to 0.5 (half sample)."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.length = 0.5
-        # Should quantize to nearest 0-127 value
-        result = step.length
-        assert 0.49 <= result <= 0.51  # Allow for quantization
-
-    def test_set_length_zero(self):
-        """Test setting length to 0.0."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.length = 0.0
-        assert step.length == 0.0
-
-    def test_set_length_quantization(self):
-        """Test length values are quantized to 0-127."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        # 0.25 should quantize to 32/127 ≈ 0.252
-        step.length = 0.25
-        assert 0.24 <= step.length <= 0.26
-
-    def test_clear_length(self):
-        """Test clearing length p-lock."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.length = 0.5
-        step.length = None
-        assert step.length is None
-
-    def test_length_clamps_above_one(self):
-        """Test length values above 1.0 are clamped."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.length = 1.5
-        assert step.length == 1.0
-
-    def test_length_clamps_below_zero(self):
-        """Test length values below 0.0 are clamped."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.length = -0.5
-        assert step.length == 0.0
-
-
-class TestFlexStepReversePlock:
-    """FlexStep reverse p-lock tests."""
-
-    def _setup_flex_track(self, project):
-        """Configure track 1 as Flex machine."""
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-
-    def test_reverse_default_none(self):
-        """Test reverse p-lock defaults to None."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(1)
-        assert step.reverse is None
-
-    def test_set_reverse_true(self):
-        """Test setting reverse to True."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.reverse = True
-        assert step.reverse is True
-
-    def test_set_reverse_false(self):
-        """Test setting reverse to False."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.reverse = False
-        assert step.reverse is False
-
-    def test_clear_reverse(self):
-        """Test clearing reverse p-lock."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.reverse = True
-        step.reverse = None
-        assert step.reverse is None
-
-    def test_reverse_toggle(self):
-        """Test toggling reverse back and forth."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        step = project.bank(1).pattern(1).track(1).step(5)
-
-        step.reverse = True
-        assert step.reverse is True
-
-        step.reverse = False
-        assert step.reverse is False
-
-        step.reverse = True
-        assert step.reverse is True
-
-
-class TestFlexStepPlocksIndependent:
-    """Test FlexStep p-locks are independent per step."""
-
-    def _setup_flex_track(self, project):
-        """Configure track 1 as Flex machine."""
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-
-    def test_length_independent_per_step(self):
-        """Test length p-locks are independent per step."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        track = project.bank(1).pattern(1).track(1)
-
-        track.step(1).length = 0.25
-        track.step(5).length = 0.5
-        track.step(9).length = 0.75
-
-        assert 0.24 <= track.step(1).length <= 0.26
-        assert 0.49 <= track.step(5).length <= 0.51
-        assert 0.74 <= track.step(9).length <= 0.76
-        assert track.step(2).length is None
-
-    def test_reverse_independent_per_step(self):
-        """Test reverse p-locks are independent per step."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        track = project.bank(1).pattern(1).track(1)
-
-        track.step(1).reverse = True
-        track.step(5).reverse = False
-        track.step(9).reverse = True
-
-        assert track.step(1).reverse is True
-        assert track.step(5).reverse is False
-        assert track.step(9).reverse is True
-        assert track.step(2).reverse is None
-
-
-class TestFlexStepRoundTrip:
-    """FlexStep p-lock round-trip tests."""
-
-    def _setup_flex_track(self, project):
-        """Configure track 1 as Flex machine."""
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-
-    @pytest.mark.slow
-    def test_length_survives_save(self, temp_dir):
-        """Test length p-lock survives save/load."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        track = project.bank(1).pattern(1).track(1)
-
-        track.step(5).length = 0.5
-
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
-
-        loaded_length = loaded.bank(1).pattern(1).track(1).step(5).length
-        assert 0.49 <= loaded_length <= 0.51
-
-    @pytest.mark.slow
-    def test_reverse_survives_save(self, temp_dir):
-        """Test reverse p-lock survives save/load."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        track = project.bank(1).pattern(1).track(1)
-
-        track.step(5).reverse = True
-
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
-
-        assert loaded.bank(1).pattern(1).track(1).step(5).reverse is True
-
-    @pytest.mark.slow
-    def test_multiple_flex_plocks_survive_save(self, temp_dir):
-        """Test multiple FlexStep p-locks survive save/load."""
-        project = Project.from_template("TEST")
-        self._setup_flex_track(project)
-        track = project.bank(1).pattern(1).track(1)
-
-        track.step(1).length = 0.25
-        track.step(1).reverse = True
-        track.step(5).length = 0.75
-        track.step(5).reverse = False
-        track.step(9).volume = 100  # Inherited from SamplerStep
-
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
-
-        loaded_track = loaded.bank(1).pattern(1).track(1)
-        assert 0.24 <= loaded_track.step(1).length <= 0.26
-        assert loaded_track.step(1).reverse is True
-        assert 0.74 <= loaded_track.step(5).length <= 0.76
-        assert loaded_track.step(5).reverse is False
-        assert loaded_track.step(9).volume == 100

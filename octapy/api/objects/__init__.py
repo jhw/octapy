@@ -23,6 +23,10 @@ from .scene import Scene
 from .part import Part
 from .pattern import Pattern
 
+# Phase 4: Top-level objects
+from .bank import Bank
+from .project import Project
+
 __all__ = [
     # Phase 1
     "RecorderSetup",
@@ -38,4 +42,7 @@ __all__ = [
     "Scene",
     "Part",
     "Pattern",
+    # Phase 4
+    "Bank",
+    "Project",
 ]

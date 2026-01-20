@@ -114,7 +114,6 @@ class TestProjectZip:
         assert (unzip_dir / "project" / "bank01.work").exists()
         assert (unzip_dir / "project" / "markers.work").exists()
 
-    @pytest.mark.slow
     def test_zip_unzip_roundtrip(self, template_project, temp_dir):
         """Test that zip/unzip preserves file contents."""
         # Read original bank

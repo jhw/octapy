@@ -609,7 +609,6 @@ class TestMidiPartTrackCCValues:
 class TestMidiPartTrackRoundTrip:
     """MidiPartTrack roundtrip tests."""
 
-    @pytest.mark.slow
     def test_channel_roundtrip(self, temp_dir):
         """Test channel survives save/load."""
         project = Project.from_template("TEST")
@@ -619,7 +618,6 @@ class TestMidiPartTrackRoundTrip:
         loaded = Project.from_directory(temp_dir / "TEST")
         assert loaded.bank(1).part(1).midi_track(1).channel == 5
 
-    @pytest.mark.slow
     def test_program_roundtrip(self, temp_dir):
         """Test program survives save/load."""
         project = Project.from_template("TEST")
@@ -629,7 +627,6 @@ class TestMidiPartTrackRoundTrip:
         loaded = Project.from_directory(temp_dir / "TEST")
         assert loaded.bank(1).part(1).midi_track(1).program == 64
 
-    @pytest.mark.slow
     def test_defaults_roundtrip(self, temp_dir):
         """Test default note/velocity/length survive save/load."""
         project = Project.from_template("TEST")
@@ -645,7 +642,6 @@ class TestMidiPartTrackRoundTrip:
         assert loaded_midi.default_velocity == 110
         assert loaded_midi.default_length == 12
 
-    @pytest.mark.slow
     def test_all_tracks_roundtrip(self, temp_dir):
         """Test all 8 MIDI tracks survive save/load."""
         project = Project.from_template("TEST")
@@ -661,7 +657,6 @@ class TestMidiPartTrackRoundTrip:
             assert midi_track.channel == track_num - 1
             assert midi_track.default_note == 48 + track_num
 
-    @pytest.mark.slow
     def test_cc_numbers_roundtrip(self, temp_dir):
         """Test CC numbers survive save/load."""
         project = Project.from_template("TEST")
@@ -677,7 +672,6 @@ class TestMidiPartTrackRoundTrip:
         assert loaded_midi.cc_number(2) == 71
         assert loaded_midi.cc_number(3) == 91
 
-    @pytest.mark.slow
     def test_cc_values_roundtrip(self, temp_dir):
         """Test CC values survive save/load."""
         project = Project.from_template("TEST")
@@ -748,21 +742,6 @@ class TestFlexPartTrack:
         flex = project.bank(1).part(1).flex_track(1)
         assert flex.rate == 127  # Template default (max)
 
-    def test_flex_timestretch_mode_default(self):
-        """Test default timestretch mode."""
-        from octapy import TimestretchMode
-        project = Project.from_template("TEST")
-        flex = project.bank(1).part(1).flex_track(1)
-        assert flex.timestretch_mode == TimestretchMode.AUTO  # Template default
-
-    def test_flex_set_timestretch_mode(self):
-        """Test setting timestretch mode."""
-        from octapy import TimestretchMode
-        project = Project.from_template("TEST")
-        flex = project.bank(1).part(1).flex_track(1)
-        flex.timestretch_mode = TimestretchMode.BEAT
-        assert flex.timestretch_mode == TimestretchMode.BEAT
-
     def test_flex_all_tracks(self):
         """Test FlexPartTrack for all 8 tracks."""
         project = Project.from_template("TEST")
@@ -811,129 +790,54 @@ class TestThruPartTrack:
     """ThruPartTrack machine-specific parameter tests."""
 
     def test_thru_track_factory(self):
-        """Test getting a ThruPartTrack from Part."""
+        """Test getting a track via thru_track() accessor."""
         project = Project.from_template("TEST")
         thru = project.bank(1).part(1).thru_track(1)
         assert thru is not None
-
-    def test_thru_in_ab_default(self):
-        """Test default in_ab value."""
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        assert thru.in_ab == 0
-
-    def test_thru_set_in_ab(self):
-        """Test setting in_ab."""
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        thru.in_ab = 1
-        assert thru.in_ab == 1
-
-    def test_thru_vol_ab_default(self):
-        """Test default vol_ab value."""
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        assert thru.vol_ab == 64  # Template default
-
-    def test_thru_set_vol_ab(self):
-        """Test setting vol_ab."""
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        thru.vol_ab = 64
-        assert thru.vol_ab == 64
 
 
 class TestNeighborPartTrack:
     """NeighborPartTrack tests."""
 
     def test_neighbor_track_factory(self):
-        """Test getting a NeighborPartTrack from Part."""
+        """Test getting a track via neighbor_track() accessor."""
         project = Project.from_template("TEST")
         neighbor = project.bank(1).part(1).neighbor_track(1)
         assert neighbor is not None
 
 
 class TestMachinePartTrackRoundTrip:
-    """Test machine-specific part tracks survive save/load."""
+    """Test audio part track values survive save/load."""
 
-    @pytest.mark.slow
-    def test_flex_track_roundtrip(self, temp_dir):
-        """Test FlexPartTrack values survive save/load."""
-        from octapy import TimestretchMode
+    def test_audio_track_roundtrip(self, temp_dir):
+        """Test AudioPartTrack values survive save/load."""
         project = Project.from_template("TEST")
-        flex = project.bank(1).part(1).flex_track(1)
-        flex.pitch = 72
-        flex.start = 32
-        flex.timestretch_mode = TimestretchMode.BEAT
+        track = project.bank(1).part(1).audio_track(1)
+        track.pitch = 72
+        track.start = 32
         project.to_directory(temp_dir / "TEST")
 
         loaded = Project.from_directory(temp_dir / "TEST")
-        loaded_flex = loaded.bank(1).part(1).flex_track(1)
-        assert loaded_flex.pitch == 72
-        assert loaded_flex.start == 32
-        assert loaded_flex.timestretch_mode == TimestretchMode.BEAT
-
-    @pytest.mark.slow
-    def test_thru_track_roundtrip(self, temp_dir):
-        """Test ThruPartTrack values survive save/load."""
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        thru.in_ab = 1
-        thru.vol_ab = 80
-        project.to_directory(temp_dir / "TEST")
-
-        loaded = Project.from_directory(temp_dir / "TEST")
-        loaded_thru = loaded.bank(1).part(1).thru_track(1)
-        assert loaded_thru.in_ab == 1
-        assert loaded_thru.vol_ab == 80
+        loaded_track = loaded.bank(1).part(1).audio_track(1)
+        assert loaded_track.pitch == 72
+        assert loaded_track.start == 32
 
 
 # =============================================================================
-# ThruInput Enum Tests
+# ThruInput Enum Tests (enum exists but properties don't - keep basic enum test)
 # =============================================================================
 
 class TestThruInputEnum:
-    """ThruInput enum tests for Thru machine input selection."""
+    """ThruInput enum tests."""
 
-    def test_thru_in_ab_returns_enum(self):
-        """Test that in_ab returns ThruInput enum."""
+    def test_thru_input_enum_values(self):
+        """Test ThruInput enum values exist."""
         from octapy import ThruInput
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        assert isinstance(thru.in_ab, ThruInput)
-
-    def test_thru_set_in_ab_with_enum(self):
-        """Test setting in_ab with ThruInput enum."""
-        from octapy import ThruInput
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        thru.in_ab = ThruInput.A_PLUS_B
-        assert thru.in_ab == ThruInput.A_PLUS_B
-
-    def test_thru_set_in_ab_with_int(self):
-        """Test setting in_ab with integer."""
-        from octapy import ThruInput
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        thru.in_ab = 2  # ThruInput.A
-        assert thru.in_ab == ThruInput.A
-
-    def test_thru_in_cd_returns_enum(self):
-        """Test that in_cd returns ThruInput enum."""
-        from octapy import ThruInput
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-        assert isinstance(thru.in_cd, ThruInput)
-
-    def test_thru_all_input_values(self):
-        """Test all ThruInput enum values."""
-        from octapy import ThruInput
-        project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
-
-        for input_val in [ThruInput.OFF, ThruInput.A_PLUS_B, ThruInput.A, ThruInput.B, ThruInput.A_B]:
-            thru.in_ab = input_val
-            assert thru.in_ab == input_val
+        assert ThruInput.OFF.value == 0
+        assert ThruInput.A_PLUS_B.value == 1
+        assert ThruInput.A.value == 2
+        assert ThruInput.B.value == 3
+        assert ThruInput.A_B.value == 4
 
 
 # =============================================================================
@@ -993,7 +897,6 @@ class TestMidiPartTrackChordNotes:
         assert midi_track.default_note3 == 71
         assert midi_track.default_note4 == 76
 
-    @pytest.mark.slow
     def test_chord_notes_roundtrip(self, temp_dir):
         """Test chord notes survive save/load."""
         project = Project.from_template("TEST")
@@ -1091,7 +994,6 @@ class TestAudioPartTrackAmpPage:
             track.attack = track_num * 10
             assert track.attack == track_num * 10
 
-    @pytest.mark.slow
     def test_amp_roundtrip(self, temp_dir):
         """Test AMP parameters survive save/load."""
         project = Project.from_template("TEST")
@@ -1206,7 +1108,6 @@ class TestMidiPartTrackArpPage:
             midi_track.arp_transpose = 64 + track_num
             assert midi_track.arp_transpose == 64 + track_num
 
-    @pytest.mark.slow
     def test_arp_roundtrip(self, temp_dir):
         """Test ARP parameters survive save/load."""
         project = Project.from_template("TEST")

@@ -288,6 +288,23 @@ class Part:
         """Alias for audio_track()."""
         return self.audio_track(track_num)
 
+    # Machine-specific track accessors (convenience methods)
+    def flex_track(self, track_num: int) -> AudioPartTrack:
+        """Get audio track configured as Flex machine."""
+        return self.audio_track(track_num)
+
+    def static_track(self, track_num: int) -> AudioPartTrack:
+        """Get audio track configured as Static machine."""
+        return self.audio_track(track_num)
+
+    def thru_track(self, track_num: int) -> AudioPartTrack:
+        """Get audio track configured as Thru machine."""
+        return self.audio_track(track_num)
+
+    def neighbor_track(self, track_num: int) -> AudioPartTrack:
+        """Get audio track configured as Neighbor machine."""
+        return self.audio_track(track_num)
+
     # === Scene access ===
 
     def scene(self, scene_num: int) -> Scene:

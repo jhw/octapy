@@ -35,7 +35,6 @@ class TestMarkersFileBasics:
 class TestMarkersFileRoundTrip:
     """Read/write round-trip tests."""
 
-    @pytest.mark.slow
     def test_write_read_roundtrip(self, markers_file, temp_dir):
         """Test that write then read produces identical data."""
         path = temp_dir / "markers.work"

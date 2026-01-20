@@ -3,14 +3,7 @@ Tests for Scene module.
 """
 
 import pytest
-from octapy import Project
-from octapy.api.scene import (
-    Scene,
-    AudioSceneTrack,
-    SamplerSceneTrack,
-    ThruSceneTrack,
-    NeighborSceneTrack,
-)
+from octapy import Project, Scene, SceneTrack
 
 
 @pytest.fixture
@@ -63,28 +56,13 @@ class TestSceneTrackAccess:
     def test_track_access(self, scene):
         """Test accessing a track from a scene."""
         track = scene.track(1)
-        assert isinstance(track, AudioSceneTrack)
-
-    def test_sampler_track_access(self, scene):
-        """Test accessing a sampler track."""
-        track = scene.sampler_track(1)
-        assert isinstance(track, SamplerSceneTrack)
-
-    def test_thru_track_access(self, scene):
-        """Test accessing a thru track."""
-        track = scene.thru_track(1)
-        assert isinstance(track, ThruSceneTrack)
-
-    def test_neighbor_track_access(self, scene):
-        """Test accessing a neighbor track."""
-        track = scene.neighbor_track(1)
-        assert isinstance(track, NeighborSceneTrack)
+        assert isinstance(track, SceneTrack)
 
     def test_track_range(self, scene):
         """Test all 8 tracks are accessible."""
         for i in range(1, 9):
             track = scene.track(i)
-            assert isinstance(track, AudioSceneTrack)
+            assert isinstance(track, SceneTrack)
 
     def test_track_caching(self, scene):
         """Test track instances are cached."""
@@ -129,15 +107,13 @@ class TestDefaultValues:
         assert track.fx2_param5 is None
         assert track.fx2_param6 is None
 
-    def test_sampler_playback_defaults_none(self, scene):
-        """Test sampler playback params default to None (no lock)."""
-        track = scene.sampler_track(1)
+    def test_playback_defaults_none(self, scene):
+        """Test playback params default to None (no lock)."""
+        track = scene.track(1)
         assert track.pitch is None
         assert track.start is None
         assert track.length is None
         assert track.rate is None
-        assert track.retrig is None
-        assert track.retrig_time is None
 
 
 # =============================================================================
@@ -230,100 +206,52 @@ class TestFxLocks:
 # Sampler Playback Lock Tests
 # =============================================================================
 
-class TestSamplerPlaybackLocks:
-    """Test Sampler playback page locks."""
+class TestPlaybackLocks:
+    """Test playback page locks."""
 
     def test_pitch(self, scene):
         """Test pitch lock."""
-        track = scene.sampler_track(1)
+        track = scene.track(1)
         track.pitch = 72
         assert track.pitch == 72
 
     def test_start(self, scene):
         """Test start lock."""
-        track = scene.sampler_track(1)
+        track = scene.track(1)
         track.start = 32
         assert track.start == 32
 
     def test_length(self, scene):
         """Test length lock."""
-        track = scene.sampler_track(1)
+        track = scene.track(1)
         track.length = 127
         assert track.length == 127
 
     def test_rate(self, scene):
         """Test rate lock."""
-        track = scene.sampler_track(1)
+        track = scene.track(1)
         track.rate = 64
         assert track.rate == 64
 
-    def test_retrig(self, scene):
-        """Test retrig lock."""
-        track = scene.sampler_track(1)
-        track.retrig = 4
-        assert track.retrig == 4
-
-    def test_retrig_time(self, scene):
-        """Test retrig time lock."""
-        track = scene.sampler_track(1)
-        track.retrig_time = 79
-        assert track.retrig_time == 79
-
 
 # =============================================================================
-# Thru Playback Lock Tests
+# Playback Parameter Lock Tests
 # =============================================================================
 
-class TestThruPlaybackLocks:
-    """Test Thru playback page locks."""
+class TestPlaybackParamLocks:
+    """Test playback parameter locks (generic params 1-6)."""
 
-    def test_in_ab(self, scene):
-        """Test in_ab lock."""
-        track = scene.thru_track(1)
-        track.in_ab = 1
-        assert track.in_ab == 1
+    def test_playback_param1(self, scene):
+        """Test playback param1 lock."""
+        track = scene.track(1)
+        track.playback_param1 = 64
+        assert track.playback_param1 == 64
 
-    def test_vol_ab(self, scene):
-        """Test vol_ab lock."""
-        track = scene.thru_track(1)
-        track.vol_ab = 64
-        assert track.vol_ab == 64
-
-    def test_in_cd(self, scene):
-        """Test in_cd lock."""
-        track = scene.thru_track(1)
-        track.in_cd = 2
-        assert track.in_cd == 2
-
-    def test_vol_cd(self, scene):
-        """Test vol_cd lock."""
-        track = scene.thru_track(1)
-        track.vol_cd = 80
-        assert track.vol_cd == 80
-
-
-# =============================================================================
-# Neighbor Lock Tests
-# =============================================================================
-
-class TestNeighborLocks:
-    """Test Neighbor scene locks (AMP/FX only, no playback)."""
-
-    def test_neighbor_amp_locks(self, scene):
-        """Test neighbor AMP locks work."""
-        track = scene.neighbor_track(1)
-        track.amp_volume = 100
-        track.amp_balance = 32
-        assert track.amp_volume == 100
-        assert track.amp_balance == 32
-
-    def test_neighbor_fx_locks(self, scene):
-        """Test neighbor FX locks work."""
-        track = scene.neighbor_track(1)
-        track.fx1_param1 = 64
-        track.fx2_param1 = 80
-        assert track.fx1_param1 == 64
-        assert track.fx2_param1 == 80
+    def test_playback_param2(self, scene):
+        """Test playback param2 lock."""
+        track = scene.track(1)
+        track.playback_param2 = 80
+        assert track.playback_param2 == 80
 
 
 # =============================================================================
@@ -335,7 +263,7 @@ class TestClearAllLocks:
 
     def test_clear_track_locks(self, scene):
         """Test clearing all locks for a track."""
-        track = scene.sampler_track(1)
+        track = scene.track(1)
 
         # Set some locks
         track.pitch = 72
@@ -355,7 +283,7 @@ class TestClearAllLocks:
         # Set locks on multiple tracks
         scene.track(1).amp_volume = 100
         scene.track(2).amp_volume = 80
-        scene.sampler_track(3).pitch = 72
+        scene.track(3).pitch = 72
 
         # Clear all
         scene.clear_all_locks()
@@ -363,7 +291,7 @@ class TestClearAllLocks:
         # Verify all cleared
         assert scene.track(1).amp_volume is None
         assert scene.track(2).amp_volume is None
-        assert scene.sampler_track(3).pitch is None
+        assert scene.track(3).pitch is None
 
 
 # =============================================================================
@@ -428,7 +356,6 @@ class TestActiveScenes:
 class TestSceneRoundtrip:
     """Test scene locks survive save/load."""
 
-    @pytest.mark.slow
     def test_scene_locks_roundtrip(self, project, temp_dir):
         """Test scene locks survive save/load."""
         part = project.bank(1).part(1)
@@ -440,9 +367,9 @@ class TestSceneRoundtrip:
         scene.track(1).fx1_param1 = 64
         scene.track(1).fx2_param3 = 80
 
-        scene.sampler_track(2).pitch = 72
-        scene.sampler_track(2).start = 16
-        scene.sampler_track(2).length = 127
+        scene.track(2).pitch = 72
+        scene.track(2).start = 16
+        scene.track(2).length = 127
 
         # Save and reload
         project.to_directory(temp_dir / "TEST")
@@ -457,9 +384,9 @@ class TestSceneRoundtrip:
         assert loaded_scene.track(1).fx2_param3 == 80
 
         # Verify playback locks
-        assert loaded_scene.sampler_track(2).pitch == 72
-        assert loaded_scene.sampler_track(2).start == 16
-        assert loaded_scene.sampler_track(2).length == 127
+        assert loaded_scene.track(2).pitch == 72
+        assert loaded_scene.track(2).start == 16
+        assert loaded_scene.track(2).length == 127
 
         # Verify unlocked params are still None
         assert loaded_scene.track(3).amp_volume is None

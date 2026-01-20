@@ -16,7 +16,7 @@ from ..._io import (
     NUM_STEPS,
     PLOCK_DISABLED,
 )
-from ..step import _trig_mask_to_steps, _steps_to_trig_mask, _step_to_bit_position
+from .trig_utils import _trig_mask_to_steps, _steps_to_trig_mask, _step_to_bit_position
 from .step import AudioStep
 
 

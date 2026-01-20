@@ -2042,3 +2042,349 @@ class TestPatternRepr:
         assert "pattern=5" in r
         assert "part=3" in r
         assert "length=32" in r
+
+
+# =============================================================================
+# Bank Tests (Phase 4)
+# =============================================================================
+
+from octapy.api.objects import Bank
+
+
+class TestBankStandalone:
+    """Tests for standalone Bank object."""
+
+    def test_default_construction(self):
+        """Bank() creates object with defaults."""
+        bank = Bank()
+
+        assert bank.bank_num == 1
+        assert bank.flex_count == 0
+
+    def test_constructor_with_kwargs(self):
+        """Bank accepts kwargs for bank_num and flex_count."""
+        bank = Bank(bank_num=5, flex_count=10)
+
+        assert bank.bank_num == 5
+        assert bank.flex_count == 10
+
+    def test_contains_4_parts(self):
+        """Bank contains 4 Parts."""
+        bank = Bank()
+
+        for i in range(1, 5):
+            part = bank.part(i)
+            assert part is not None
+            assert part.part_num == i
+
+    def test_contains_16_patterns(self):
+        """Bank contains 16 Patterns."""
+        bank = Bank()
+
+        for i in range(1, 17):
+            pattern = bank.pattern(i)
+            assert pattern is not None
+            assert pattern.pattern_num == i
+
+    def test_part_access_bounds(self):
+        """Part access is bounded to 1-4."""
+        bank = Bank()
+
+        with pytest.raises(ValueError):
+            bank.part(0)
+
+        with pytest.raises(ValueError):
+            bank.part(5)
+
+    def test_pattern_access_bounds(self):
+        """Pattern access is bounded to 1-16."""
+        bank = Bank()
+
+        with pytest.raises(ValueError):
+            bank.pattern(0)
+
+        with pytest.raises(ValueError):
+            bank.pattern(17)
+
+    def test_set_part(self):
+        """set_part() replaces the part at given position."""
+        bank = Bank()
+        new_part = Part(part_num=2, active_scene_a=5)
+
+        bank.set_part(2, new_part)
+
+        assert bank.part(2).active_scene_a == 5
+
+    def test_set_pattern(self):
+        """set_pattern() replaces the pattern at given position."""
+        bank = Bank()
+        new_pattern = Pattern(pattern_num=1, part=3, scale_length=32)
+
+        bank.set_pattern(1, new_pattern)
+
+        assert bank.pattern(1).part == 3
+        assert bank.pattern(1).scale_length == 32
+
+    def test_flex_count_setter(self):
+        """flex_count is writable."""
+        bank = Bank()
+        bank.flex_count = 25
+
+        assert bank.flex_count == 25
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = Bank(bank_num=2, flex_count=5)
+        original.part(1).active_scene_a = 3
+        original.pattern(1).scale_length = 32
+
+        cloned = original.clone()
+
+        # Should be equal
+        assert cloned.bank_num == original.bank_num
+        assert cloned.flex_count == original.flex_count
+        assert cloned.part(1).active_scene_a == 3
+        assert cloned.pattern(1).scale_length == 32
+
+        # But independent
+        cloned.flex_count = 10
+        cloned.part(1).active_scene_a = 7
+
+        assert original.flex_count == 5
+        assert original.part(1).active_scene_a == 3
+
+    def test_equality(self):
+        """Bank objects with same data are equal."""
+        a = Bank(bank_num=1, flex_count=5)
+        b = Bank(bank_num=1, flex_count=5)
+        c = Bank(bank_num=1, flex_count=10)
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns bank properties."""
+        bank = Bank(bank_num=3, flex_count=7)
+        bank.part(1).active_scene_a = 5
+        bank.pattern(1).part = 2
+
+        d = bank.to_dict()
+
+        assert d["bank"] == 3
+        assert d["flex_count"] == 7
+        assert len(d["parts"]) == 4
+        assert len(d["patterns"]) == 16
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = Bank(bank_num=5, flex_count=8)
+        original.pattern(1).part = 3
+        original.pattern(1).scale_length = 32
+
+        d = original.to_dict()
+        restored = Bank.from_dict(d)
+
+        assert restored.bank_num == original.bank_num
+        assert restored.flex_count == original.flex_count
+        assert restored.pattern(1).part == 3
+        assert restored.pattern(1).scale_length == 32
+
+
+class TestBankFromTemplate:
+    """Tests for Bank.from_template()."""
+
+    def test_from_template(self):
+        """from_template() creates Bank with octapy defaults."""
+        bank = Bank.from_template(bank_num=1)
+
+        assert bank.bank_num == 1
+        # Should have loaded parts and patterns from template
+        assert bank.part(1) is not None
+        assert bank.pattern(1) is not None
+
+
+class TestBankRepr:
+    """Tests for Bank string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        bank = Bank(bank_num=3, flex_count=5)
+
+        r = repr(bank)
+        assert "Bank" in r
+        assert "bank=3" in r
+        assert "flex_count=5" in r
+
+
+# =============================================================================
+# Project Tests (Phase 4)
+# =============================================================================
+
+from octapy.api.objects import Project
+
+
+class TestProjectStandalone:
+    """Tests for standalone Project object."""
+
+    def test_default_construction(self):
+        """Project() creates object with defaults."""
+        project = Project()
+
+        assert project.name == "UNTITLED"
+        assert project.tempo == 120.0
+
+    def test_constructor_with_kwargs(self):
+        """Project accepts kwargs for name and tempo."""
+        project = Project(name="My Project", tempo=140.0)
+
+        assert project.name == "MY PROJECT"  # uppercased
+        assert project.tempo == 140.0
+
+    def test_contains_16_banks(self):
+        """Project contains 16 Banks."""
+        project = Project()
+
+        for i in range(1, 17):
+            bank = project.bank(i)
+            assert bank is not None
+            assert bank.bank_num == i
+
+    def test_bank_access_bounds(self):
+        """Bank access is bounded to 1-16."""
+        project = Project()
+
+        with pytest.raises(ValueError):
+            project.bank(0)
+
+        with pytest.raises(ValueError):
+            project.bank(17)
+
+    def test_set_bank(self):
+        """set_bank() replaces the bank at given position."""
+        project = Project()
+        new_bank = Bank(bank_num=1, flex_count=15)
+
+        project.set_bank(1, new_bank)
+
+        assert project.bank(1).flex_count == 15
+
+    def test_name_setter(self):
+        """name is writable and uppercased."""
+        project = Project()
+        project.name = "new name"
+
+        assert project.name == "NEW NAME"
+
+    def test_tempo_setter(self):
+        """tempo is writable."""
+        project = Project()
+        project.tempo = 90.0
+
+        assert project.tempo == 90.0
+
+    def test_master_track_property(self):
+        """master_track property is readable and writable."""
+        project = Project()
+
+        assert project.master_track == False
+
+        project.master_track = True
+        assert project.master_track == True
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = Project(name="TEST", tempo=125.0)
+        original.bank(1).flex_count = 5
+        original.bank(1).pattern(1).scale_length = 32
+
+        cloned = original.clone()
+
+        # Should be equal
+        assert cloned.name == original.name
+        assert cloned.tempo == original.tempo
+        assert cloned.bank(1).flex_count == 5
+        assert cloned.bank(1).pattern(1).scale_length == 32
+
+        # But independent
+        cloned.tempo = 130.0
+        cloned.bank(1).flex_count = 10
+
+        assert original.tempo == 125.0
+        assert original.bank(1).flex_count == 5
+
+    def test_equality(self):
+        """Project objects with same data are equal."""
+        a = Project(name="TEST", tempo=120.0)
+        b = Project(name="TEST", tempo=120.0)
+        c = Project(name="TEST", tempo=140.0)
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns project properties."""
+        project = Project(name="MY PROJECT", tempo=130.0)
+        project.bank(1).pattern(1).part = 2
+
+        d = project.to_dict()
+
+        assert d["name"] == "MY PROJECT"
+        assert d["tempo"] == 130.0
+        assert len(d["banks"]) == 16
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = Project(name="RESTORED", tempo=145.0)
+        original.bank(1).flex_count = 7
+
+        d = original.to_dict()
+        restored = Project.from_dict(d)
+
+        assert restored.name == original.name
+        assert restored.tempo == original.tempo
+        assert restored.bank(1).flex_count == 7
+
+
+class TestProjectFromTemplate:
+    """Tests for Project.from_template()."""
+
+    def test_from_template(self):
+        """from_template() creates Project with octapy defaults."""
+        project = Project.from_template("MY PROJECT")
+
+        assert project.name == "MY PROJECT"
+        # Should have loaded all 16 banks from template
+        for i in range(1, 17):
+            assert project.bank(i) is not None
+
+
+class TestProjectSampleManagement:
+    """Tests for Project sample management."""
+
+    def test_flex_slot_count_initial(self):
+        """flex_slot_count is 0 initially."""
+        project = Project()
+        assert project.flex_slot_count == 0
+
+    def test_static_slot_count_initial(self):
+        """static_slot_count is 0 initially."""
+        project = Project()
+        assert project.static_slot_count == 0
+
+    def test_sample_pool_initial(self):
+        """sample_pool is empty initially."""
+        project = Project()
+        assert project.sample_pool == {}
+
+
+class TestProjectRepr:
+    """Tests for Project string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        project = Project(name="MY PROJECT", tempo=125.0)
+
+        r = repr(project)
+        assert "Project" in r
+        assert "MY PROJECT" in r
+        assert "125.0" in r

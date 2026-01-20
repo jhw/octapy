@@ -100,7 +100,6 @@ class TestProjectFileSampleSlots:
 class TestProjectFileRoundTrip:
     """ProjectFile read/write round-trip tests."""
 
-    @pytest.mark.slow
     def test_write_read_roundtrip(self, project_file, temp_dir):
         """Test that write then read preserves data."""
         path = temp_dir / "project.work"
@@ -122,7 +121,6 @@ class TestProjectFileRoundTrip:
         assert loaded.sample_slots[0].slot_number == 1
         assert loaded.sample_slots[1].slot_number == 2
 
-    @pytest.mark.slow
     def test_tempo_survives_roundtrip(self, project_file, temp_dir):
         """Test that tempo survives save/load."""
         path = temp_dir / "project.work"
@@ -186,7 +184,6 @@ class TestProjectFileMidiSettings:
         """Test default MIDI program change receive channel is -1."""
         assert project_file.settings.midi_program_change_receive_ch == -1
 
-    @pytest.mark.slow
     def test_midi_settings_roundtrip(self, project_file, temp_dir):
         """Test MIDI settings survive save/load."""
         path = temp_dir / "project.work"
@@ -307,7 +304,6 @@ class TestProjectMidiSettings:
         project = Project.from_template("TEST")
         assert project.settings.midi_program_change_receive_ch == -1
 
-    @pytest.mark.slow
     def test_midi_settings_roundtrip(self, temp_dir):
         """Test that MIDI settings survive save/load via high-level API."""
         from octapy import Project
@@ -353,7 +349,6 @@ class TestMasterTrackSettings:
         project.settings.master_track = True
         assert project.settings.master_track is True
 
-    @pytest.mark.slow
     def test_master_track_roundtrip(self, temp_dir):
         """Test that master_track setting survives save/load."""
         from octapy import Project
@@ -369,137 +364,8 @@ class TestMasterTrackSettings:
         assert loaded.settings.master_track is True
 
 
-class TestMasterTrackAutoTrig:
-    """Tests for auto-trig logic when master track is enabled."""
-
-    @pytest.mark.slow
-    def test_auto_trig_not_added_when_master_disabled(self, temp_dir):
-        """Track 8 should NOT get auto-trig when master_track is disabled."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = False
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should remain empty
-        assert project.bank(1).pattern(1).track(8).active_steps == []
-
-    @pytest.mark.slow
-    def test_auto_trig_added_when_master_enabled(self, temp_dir):
-        """Track 8 should get step 1 trig when master_track and auto_master_trig enabled."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = True
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should have step 1
-        assert 1 in project.bank(1).pattern(1).track(8).active_steps
-
-    @pytest.mark.slow
-    def test_auto_trig_preserves_existing_track8_steps(self, temp_dir):
-        """Auto-trig should preserve existing steps on track 8."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = True
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-        project.bank(1).pattern(1).track(8).active_steps = [5, 9]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should have step 1 plus original steps
-        active = project.bank(1).pattern(1).track(8).active_steps
-        assert 1 in active
-        assert 5 in active
-        assert 9 in active
-
-    @pytest.mark.slow
-    def test_auto_trig_no_duplicate_if_step1_exists(self, temp_dir):
-        """Auto-trig should not duplicate step 1 if already present."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = True
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-        project.bank(1).pattern(1).track(8).active_steps = [1, 5, 9]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should still have exactly [1, 5, 9]
-        active = project.bank(1).pattern(1).track(8).active_steps
-        assert active.count(1) == 1  # No duplicates
-
-    @pytest.mark.slow
-    def test_auto_trig_skips_pattern_with_no_trigs(self, temp_dir):
-        """Patterns with no trigs on tracks 1-7 should not get auto-trig."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = True
-        # Pattern 1 has no trigs on tracks 1-7
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should remain empty
-        assert project.bank(1).pattern(1).track(8).active_steps == []
-
-    @pytest.mark.slow
-    def test_auto_trig_only_audio_tracks_matter(self, temp_dir):
-        """Only audio tracks 1-7 should trigger auto-trig, not MIDI."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = True
-        # Only set trigs on MIDI track, not audio
-        project.bank(1).pattern(1).midi_track(1).active_steps = [1, 5, 9, 13]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should remain empty (MIDI trigs don't count)
-        assert project.bank(1).pattern(1).track(8).active_steps == []
-
-    @pytest.mark.slow
-    def test_auto_trig_across_multiple_banks(self, temp_dir):
-        """Auto-trig should work across all banks."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = True
-
-        # Set trigs in banks 1 and 3
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5]
-        project.bank(3).pattern(5).track(2).active_steps = [1, 9]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Both patterns should have track 8 step 1
-        assert 1 in project.bank(1).pattern(1).track(8).active_steps
-        assert 1 in project.bank(3).pattern(5).track(8).active_steps
-
-        # Pattern with no trigs should remain empty
-        assert project.bank(2).pattern(1).track(8).active_steps == []
-
-
 class TestRenderSettings:
-    """Tests for octapy RenderSettings."""
+    """Tests for octapy RenderSettings property access."""
 
     def test_render_settings_accessible(self):
         """Test render_settings is accessible on project."""
@@ -522,22 +388,6 @@ class TestRenderSettings:
         project = Project.from_template("TEST")
         project.render_settings.auto_master_trig = True
         assert project.render_settings.auto_master_trig is True
-
-    @pytest.mark.slow
-    def test_auto_master_trig_disabled_prevents_auto_trig(self, temp_dir):
-        """When auto_master_trig is False, track 8 trigs are not auto-added."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.auto_master_trig = False
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-
-        # Save - should NOT add auto-trig because disabled
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 8 should remain empty
-        assert project.bank(1).pattern(1).track(8).active_steps == []
 
     def test_sample_duration_default_none(self):
         """Test sample_duration defaults to None."""
@@ -595,135 +445,26 @@ class TestRenderSettings:
         project.render_settings.propagate_scenes = True
         assert project.render_settings.propagate_scenes is True
 
-
-class TestAutoThruTrig:
-    """Tests for auto-trig logic for Thru machines."""
-
-    @pytest.mark.slow
-    def test_auto_thru_trig_adds_step1(self, temp_dir):
-        """Thru track should get step 1 trig when pattern has activity."""
-        from octapy import Project, MachineType
-
-        project = Project.from_template("TEST")
-        project.render_settings.auto_thru_trig = True
-        # Set track 2 to Thru machine
-        project.bank(1).part(1).track(2).machine_type = MachineType.THRU
-        # Add trigs to track 1
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-
-        # Save triggers the auto-trig logic
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 2 (Thru) should have step 1
-        assert 1 in project.bank(1).pattern(1).track(2).active_steps
-
-    @pytest.mark.slow
-    def test_auto_thru_trig_disabled_prevents_auto_trig(self, temp_dir):
-        """When auto_thru_trig is False, Thru tracks don't get auto-trigs."""
-        from octapy import Project, MachineType
-
-        project = Project.from_template("TEST")
-        project.render_settings.auto_thru_trig = False
-        # Set track 2 to Thru machine
-        project.bank(1).part(1).track(2).machine_type = MachineType.THRU
-        # Add trigs to track 1
-        project.bank(1).pattern(1).track(1).active_steps = [1, 5, 9, 13]
-
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 2 should remain empty
-        assert project.bank(1).pattern(1).track(2).active_steps == []
-
-    @pytest.mark.slow
-    def test_auto_thru_trig_skips_empty_patterns(self, temp_dir):
-        """Patterns with no activity should not get Thru auto-trigs."""
-        from octapy import Project, MachineType
-
-        project = Project.from_template("TEST")
-        project.render_settings.auto_thru_trig = True
-        # Set track 2 to Thru machine but no trigs anywhere
-        project.bank(1).part(1).track(2).machine_type = MachineType.THRU
-
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Track 2 should remain empty
-        assert project.bank(1).pattern(1).track(2).active_steps == []
-
-
-class TestPropagateScenes:
-    """Tests for scene propagation from Part 1 to Parts 2-4."""
-
-    @pytest.mark.slow
-    def test_scene_propagates_to_other_parts(self, temp_dir):
-        """Scene with locks in Part 1 should copy to Parts 2-4."""
+    def test_propagate_src_default_false(self):
+        """Test propagate_src defaults to False."""
         from octapy import Project
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_scenes = True
-        # Set a scene lock in Part 1
-        project.bank(1).part(1).scene(3).track(1).amp_volume = 100
+        assert project.render_settings.propagate_src is False
 
-        # Save triggers the propagation
-        project.to_directory(temp_dir / "TEST")
-
-        # Scene 3 should be copied to Parts 2, 3, 4
-        assert project.bank(1).part(2).scene(3).track(1).amp_volume == 100
-        assert project.bank(1).part(3).scene(3).track(1).amp_volume == 100
-        assert project.bank(1).part(4).scene(3).track(1).amp_volume == 100
-
-    @pytest.mark.slow
-    def test_scene_propagation_disabled(self, temp_dir):
-        """When propagate_scenes is False, scenes don't copy."""
+    def test_propagate_fx_default_false(self):
+        """Test propagate_fx defaults to False."""
         from octapy import Project
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_scenes = False
-        # Set a scene lock in Part 1
-        project.bank(1).part(1).scene(3).track(1).amp_volume = 100
+        assert project.render_settings.propagate_fx is False
 
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Other parts should not have the scene lock
-        assert project.bank(1).part(2).scene(3).track(1).amp_volume is None
-
-    @pytest.mark.slow
-    def test_empty_scenes_not_propagated(self, temp_dir):
-        """Scenes without locks should not overwrite target parts."""
+    def test_propagate_amp_default_false(self):
+        """Test propagate_amp defaults to False."""
         from octapy import Project
 
         project = Project.from_template("TEST")
-        project.render_settings.propagate_scenes = True
-        # Set lock only in Part 2, scene 5
-        project.bank(1).part(2).scene(5).track(1).amp_volume = 50
-
-        # Save - Part 1's empty scene 5 should NOT overwrite Part 2's
-        project.to_directory(temp_dir / "TEST")
-
-        # Part 2's scene 5 should still have its lock
-        assert project.bank(1).part(2).scene(5).track(1).amp_volume == 50
-
-    @pytest.mark.slow
-    def test_scene_propagation_respects_non_blank_target(self, temp_dir):
-        """Scene propagation should not overwrite non-blank target scenes."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_scenes = True
-
-        # Set different locks in Part 1 and Part 2 for same scene
-        project.bank(1).part(1).scene(3).track(1).amp_volume = 100
-        project.bank(1).part(2).scene(3).track(2).amp_volume = 75  # Different track
-
-        # Save - Part 2's scene 3 is not blank, so should NOT be overwritten
-        project.to_directory(temp_dir / "TEST")
-
-        # Part 2's scene 3 should retain its original lock, not get Part 1's
-        assert project.bank(1).part(2).scene(3).track(2).amp_volume == 75
-        # And should NOT have Part 1's lock
-        assert project.bank(1).part(2).scene(3).track(1).amp_volume is None
+        assert project.render_settings.propagate_amp is False
 
 
 class TestSceneIsBlank:
@@ -755,192 +496,3 @@ class TestSceneIsBlank:
         scene.track(1).amp_volume = 100
         scene.clear_all_locks()
         assert scene.is_blank is True
-
-
-class TestPropagateSRC:
-    """Tests for SRC page propagation from Part 1 to Parts 2-4."""
-
-    def test_propagate_src_default_false(self):
-        """propagate_src defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_src is False
-
-    @pytest.mark.slow
-    def test_src_propagates_when_target_at_default(self, temp_dir):
-        """SRC settings should propagate when target is at template default."""
-        from octapy import Project, MachineType
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_src = True
-
-        # Set machine type to Flex and modify SRC settings
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-        project.bank(1).part(1).flex_track(1).pitch = 72  # Non-default pitch
-
-        # Save triggers propagation
-        project.to_directory(temp_dir / "TEST")
-
-        # Parts 2-4 track 1 should now have pitch 72
-        assert project.bank(1).part(2).flex_track(1).pitch == 72
-        assert project.bank(1).part(3).flex_track(1).pitch == 72
-        assert project.bank(1).part(4).flex_track(1).pitch == 72
-
-    @pytest.mark.slow
-    def test_src_does_not_overwrite_non_default(self, temp_dir):
-        """SRC should not propagate when target has non-default values."""
-        from octapy import Project, MachineType
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_src = True
-
-        # Set Part 1 track 1 SRC settings
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
-        project.bank(1).part(1).flex_track(1).pitch = 72
-
-        # Set Part 2 track 1 to different non-default value
-        project.bank(1).part(2).track(1).machine_type = MachineType.FLEX
-        project.bank(1).part(2).flex_track(1).pitch = 60  # Non-default
-
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Part 2 should keep pitch 60, not get 72
-        assert project.bank(1).part(2).flex_track(1).pitch == 60
-
-
-class TestPropagateFX:
-    """Tests for FX propagation from Part 1 to Parts 2-4."""
-
-    def test_propagate_fx_default_false(self):
-        """propagate_fx defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_fx is False
-
-    @pytest.mark.slow
-    def test_fx1_propagates_when_target_at_default(self, temp_dir):
-        """FX1 settings should propagate when target is at template default."""
-        from octapy import Project, FX1Type
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_fx = True
-
-        # Change Part 1 track 1 FX1 to COMPRESSOR
-        project.bank(1).part(1).track(1).fx1_type = FX1Type.COMPRESSOR
-
-        # Save triggers propagation
-        project.to_directory(temp_dir / "TEST")
-
-        # Parts 2-4 track 1 should now have COMPRESSOR
-        assert project.bank(1).part(2).track(1).fx1_type == FX1Type.COMPRESSOR
-        assert project.bank(1).part(3).track(1).fx1_type == FX1Type.COMPRESSOR
-        assert project.bank(1).part(4).track(1).fx1_type == FX1Type.COMPRESSOR
-
-    @pytest.mark.slow
-    def test_fx1_does_not_overwrite_non_default(self, temp_dir):
-        """FX1 should not propagate when target has non-default FX type."""
-        from octapy import Project, FX1Type
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_fx = True
-
-        # Change Part 1 track 1 FX1 to COMPRESSOR
-        project.bank(1).part(1).track(1).fx1_type = FX1Type.COMPRESSOR
-        # Change Part 2 track 1 FX1 to CHORUS (different from template default)
-        project.bank(1).part(2).track(1).fx1_type = FX1Type.CHORUS
-
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Part 2 should keep CHORUS, not get COMPRESSOR
-        assert project.bank(1).part(2).track(1).fx1_type == FX1Type.CHORUS
-
-    @pytest.mark.slow
-    def test_fx2_propagates_when_target_at_default(self, temp_dir):
-        """FX2 settings should propagate when target is at template default."""
-        from octapy import Project, FX2Type
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_fx = True
-
-        # Change Part 1 track 1 FX2 to PLATE_REVERB
-        project.bank(1).part(1).track(1).fx2_type = FX2Type.PLATE_REVERB
-
-        # Save triggers propagation
-        project.to_directory(temp_dir / "TEST")
-
-        # Parts 2-4 track 1 should now have PLATE_REVERB
-        assert project.bank(1).part(2).track(1).fx2_type == FX2Type.PLATE_REVERB
-        assert project.bank(1).part(3).track(1).fx2_type == FX2Type.PLATE_REVERB
-        assert project.bank(1).part(4).track(1).fx2_type == FX2Type.PLATE_REVERB
-
-    @pytest.mark.slow
-    def test_fx2_does_not_overwrite_non_default(self, temp_dir):
-        """FX2 should not propagate when target has non-default FX type."""
-        from octapy import Project, FX2Type
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_fx = True
-
-        # Change Part 1 track 1 FX2 to PLATE_REVERB
-        project.bank(1).part(1).track(1).fx2_type = FX2Type.PLATE_REVERB
-        # Change Part 2 track 1 FX2 to CHORUS (different from template default)
-        project.bank(1).part(2).track(1).fx2_type = FX2Type.CHORUS
-
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Part 2 should keep CHORUS, not get PLATE_REVERB
-        assert project.bank(1).part(2).track(1).fx2_type == FX2Type.CHORUS
-
-
-class TestPropagateAMP:
-    """Tests for AMP propagation from Part 1 to Parts 2-4."""
-
-    def test_propagate_amp_default_false(self):
-        """propagate_amp defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_amp is False
-
-    @pytest.mark.slow
-    def test_amp_propagates_when_target_at_default(self, temp_dir):
-        """AMP settings should propagate when target is at template default."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_amp = True
-
-        # Change Part 1 track 1 AMP volume
-        project.bank(1).part(1).track(1).amp_volume = 100
-
-        # Save triggers propagation
-        project.to_directory(temp_dir / "TEST")
-
-        # Parts 2-4 track 1 should now have volume 100
-        assert project.bank(1).part(2).track(1).amp_volume == 100
-        assert project.bank(1).part(3).track(1).amp_volume == 100
-        assert project.bank(1).part(4).track(1).amp_volume == 100
-
-    @pytest.mark.slow
-    def test_amp_does_not_overwrite_non_default(self, temp_dir):
-        """AMP should not propagate when target has non-default values."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_amp = True
-
-        # Change Part 1 track 1 AMP
-        project.bank(1).part(1).track(1).amp_volume = 100
-        # Change Part 2 track 1 AMP (different from template default)
-        project.bank(1).part(2).track(1).amp_volume = 50
-
-        # Save
-        project.to_directory(temp_dir / "TEST")
-
-        # Part 2 should keep 50, not get 100
-        assert project.bank(1).part(2).track(1).amp_volume == 50

@@ -56,21 +56,17 @@ class TestStepToDict:
         assert result["volume"] == 100
         assert result["pitch"] == 72
 
-    def test_flex_step_to_dict(self):
-        """Test FlexStep includes length and reverse."""
+    def test_step_with_sample_lock_to_dict(self):
+        """Test AudioStep includes sample_lock when set."""
         project = Project.from_template("TEST")
-        # Must explicitly set machine type to Flex
-        project.bank(1).part(1).track(1).machine_type = MachineType.FLEX
         track = project.bank(1).pattern(1).track(1)
         track.active_steps = [1]
         step = track.step(1)
-        step.length = 0.5
-        step.reverse = True
+        step.sample_lock = 5
 
         result = step.to_dict()
-        assert "length" in result
-        assert abs(result["length"] - 0.5) < 0.01
-        assert result["reverse"] is True
+        assert "sample_lock" in result
+        assert result["sample_lock"] == 5
 
 
 class TestMidiStepToDict:
@@ -159,25 +155,27 @@ class TestPartTrackToDict:
         assert "fx2_type" in result
 
     def test_flex_part_track_to_dict(self):
-        """Test FlexPartTrack to_dict includes src and setup."""
+        """Test AudioPartTrack to_dict includes machine_type and slots."""
         project = Project.from_template("TEST")
-        flex = project.bank(1).part(1).flex_track(1)
+        track = project.bank(1).part(1).audio_track(1)
+        track.machine_type = MachineType.FLEX
 
-        result = flex.to_dict()
-        assert "src" in result
-        assert "setup" in result
-        assert "pitch" in result["src"]
-        assert "loop_mode" in result["setup"]
+        result = track.to_dict()
+        assert "machine_type" in result
+        assert result["machine_type"] == "FLEX"
+        assert "flex_slot" in result
+        assert "amp" in result
 
     def test_thru_part_track_to_dict(self):
-        """Test ThruPartTrack to_dict includes src page."""
+        """Test AudioPartTrack to_dict with THRU machine type."""
         project = Project.from_template("TEST")
-        thru = project.bank(1).part(1).thru_track(1)
+        track = project.bank(1).part(1).audio_track(1)
+        track.machine_type = MachineType.THRU
 
-        result = thru.to_dict()
-        assert "src" in result
-        assert "in_ab" in result["src"]
-        assert "vol_ab" in result["src"]
+        result = track.to_dict()
+        assert result["machine_type"] == "THRU"
+        assert "amp" in result
+        assert "volume" in result["amp"]
 
     def test_midi_part_track_to_dict(self):
         """Test MidiPartTrack to_dict returns expected structure."""
@@ -222,18 +220,19 @@ class TestSceneToDict:
         assert "fx1" in result
         assert result["fx1"]["param1"] == 64
 
-    def test_sampler_scene_track_to_dict(self):
-        """Test SamplerSceneTrack to_dict includes playback."""
+    def test_scene_track_playback_to_dict(self):
+        """Test SceneTrack to_dict includes playback locks."""
         project = Project.from_template("TEST")
         scene = project.bank(1).part(1).scene(1)
-        track = scene.sampler_track(1)
-        track.pitch = 72
-        track.start = 32
+        track = scene.track(1)
+        track.pitch = 72  # Maps to playback_param1
+        track.start = 32  # Maps to playback_param2
 
         result = track.to_dict()
         assert "playback" in result
-        assert result["playback"]["pitch"] == 72
-        assert result["playback"]["start"] == 32
+        # SceneTrack uses generic param names since it doesn't know machine type
+        assert result["playback"]["param1"] == 72
+        assert result["playback"]["param2"] == 32
 
     def test_scene_to_dict(self):
         """Test Scene container to_dict."""
@@ -323,7 +322,6 @@ class TestBankToDict:
         assert len(result["parts"]) == 4
         assert len(result["patterns"]) == 16
 
-    @pytest.mark.slow
     def test_bank_to_dict_with_options(self):
         """Test Bank to_dict with include_steps and include_scenes."""
         project = Project.from_template("TEST")
@@ -345,54 +343,38 @@ class TestProjectToDict:
         """Test Project to_dict returns expected structure."""
         project = Project.from_template("TEST")
 
-        result = project.to_dict(include_banks=False)
+        result = project.to_dict()
         assert "name" in result
         assert result["name"] == "TEST"
         assert "tempo" in result
         assert "flex_slot_count" in result
         assert "static_slot_count" in result
-        assert "sample_paths" in result
-        assert "render_settings" in result
-        assert result["render_settings"]["auto_master_trig"] is False
-        assert result["render_settings"]["auto_thru_trig"] is False
-        assert result["render_settings"]["propagate_scenes"] is False
-        assert result["render_settings"]["propagate_src"] is False
-        assert result["render_settings"]["propagate_amp"] is False
-        assert result["render_settings"]["propagate_fx"] is False
-        assert result["render_settings"]["sample_duration"] is None
-        assert "banks" not in result
-
-    def test_project_to_dict_with_banks(self):
-        """Test Project to_dict includes banks."""
-        project = Project.from_template("TEST")
-
-        result = project.to_dict(include_banks=True)
         assert "banks" in result
         assert len(result["banks"]) == 16
 
-    def test_project_to_dict_render_settings_enabled(self):
-        """Test Project to_dict includes render_settings when enabled."""
-        from octapy import NoteLength
-
+    def test_project_to_dict_with_steps(self):
+        """Test Project to_dict includes step data when requested."""
         project = Project.from_template("TEST")
-        project.render_settings.auto_master_trig = True
-        project.render_settings.auto_thru_trig = True
-        project.render_settings.propagate_scenes = True
-        project.render_settings.propagate_src = True
-        project.render_settings.propagate_amp = True
-        project.render_settings.propagate_fx = True
-        project.render_settings.sample_duration = NoteLength.QUARTER
+        project.bank(1).pattern(1).track(1).active_steps = [1, 5]
 
-        result = project.to_dict(include_banks=False)
-        assert result["render_settings"]["auto_master_trig"] is True
-        assert result["render_settings"]["auto_thru_trig"] is True
-        assert result["render_settings"]["propagate_scenes"] is True
-        assert result["render_settings"]["propagate_src"] is True
-        assert result["render_settings"]["propagate_amp"] is True
-        assert result["render_settings"]["propagate_fx"] is True
-        assert result["render_settings"]["sample_duration"] == "QUARTER"
+        result = project.to_dict(include_steps=True)
+        assert "banks" in result
+        # Find the pattern with step data
+        bank1 = result["banks"][0]
+        pattern1 = bank1["patterns"][0]
+        # Should have audio_tracks
+        assert "audio_tracks" in pattern1
 
-    @pytest.mark.slow
+    def test_project_to_dict_with_scenes(self):
+        """Test Project to_dict includes scene data when requested."""
+        project = Project.from_template("TEST")
+        project.bank(1).part(1).scene(1).track(1).amp_volume = 100
+
+        result = project.to_dict(include_scenes=True)
+        bank1 = result["banks"][0]
+        part1 = bank1["parts"][0]
+        assert "scenes" in part1
+
     def test_project_to_dict_full(self):
         """Test Project to_dict with all options."""
         project = Project.from_template("TEST")

@@ -28,21 +28,33 @@ from .slot_manager import (
     InvalidSlotNumber,
 )
 
-from .project import Project
-from .settings import Settings
-from .bank import Bank
-from .part import (
-    Part,
+# Standalone objects (Phase 6: complete migration)
+from .objects import (
+    # Phase 1: Leaf objects
+    RecorderSetup,
+    AudioStep,
+    MidiStep,
+    # Phase 2: Track objects
     AudioPartTrack,
-    FlexPartTrack,
-    StaticPartTrack,
-    ThruPartTrack,
-    NeighborPartTrack,
+    AudioPatternTrack,
     MidiPartTrack,
+    MidiPatternTrack,
+    # Phase 3: Container objects
+    SceneTrack,
+    Scene,
+    Part,
+    Pattern,
+    # Phase 4: Top-level objects
+    Bank,
+    Project,
 )
-from .pattern import Pattern, AudioPatternTrack, MidiPatternTrack
-from .step import AudioStep, SamplerStep, MidiStep
+
+from .settings import Settings, RenderSettings
 from .sample_pool import SamplePool
 
-# Standalone objects (Phase 1 of standalone object migration)
-from .objects import RecorderSetup
+# Backward compatibility aliases
+FlexPartTrack = AudioPartTrack
+StaticPartTrack = AudioPartTrack
+ThruPartTrack = AudioPartTrack
+NeighborPartTrack = AudioPartTrack
+SamplerStep = AudioStep
