@@ -8,8 +8,10 @@ or attached to container objects.
 
 from .recorder import RecorderSetup
 from .step import AudioStep
+from .midi_step import MidiStep
 
 __all__ = [
     "RecorderSetup",
     "AudioStep",
+    "MidiStep",
 ]

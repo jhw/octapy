@@ -4,8 +4,8 @@ Tests for standalone objects (Phase 1 of standalone object migration).
 
 import pytest
 from octapy import RecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition
-from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE
-from octapy.api.objects import AudioStep
+from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE
+from octapy.api.objects import AudioStep, MidiStep
 
 
 class TestRecorderSetupStandalone:
@@ -497,5 +497,244 @@ class TestAudioStepRepr:
 
         r = repr(step)
         assert "AudioStep" in r
+        assert "step=5" in r
+        assert "active=True" in r
+
+
+# =============================================================================
+# MidiStep Tests
+# =============================================================================
+
+class TestMidiStepStandalone:
+    """Tests for standalone MidiStep object."""
+
+    def test_default_construction(self):
+        """MidiStep() creates object with defaults."""
+        step = MidiStep()
+
+        assert step.step_num == 1
+        assert step.active == False
+        assert step.trigless == False
+        assert step.condition == TrigCondition.NONE
+        assert step.note is None
+        assert step.velocity is None
+        assert step.length is None
+
+    def test_constructor_with_kwargs(self):
+        """MidiStep accepts kwargs for all MIDI properties."""
+        step = MidiStep(
+            step_num=5,
+            active=True,
+            trigless=False,
+            condition=TrigCondition.FILL,
+            note=60,
+            velocity=100,
+            length=6,
+            pitch_bend=64,
+            aftertouch=50,
+        )
+
+        assert step.step_num == 5
+        assert step.active == True
+        assert step.trigless == False
+        assert step.condition == TrigCondition.FILL
+        assert step.note == 60
+        assert step.velocity == 100
+        assert step.length == 6
+        assert step.pitch_bend == 64
+        assert step.aftertouch == 50
+
+    def test_partial_kwargs(self):
+        """MidiStep with partial kwargs uses defaults for others."""
+        step = MidiStep(step_num=3, active=True, note=72)
+
+        assert step.step_num == 3
+        assert step.active == True
+        assert step.note == 72
+        assert step.velocity is None
+        assert step.length is None
+
+    def test_write_returns_components(self):
+        """write() returns (active, trigless, condition_data, plock_data)."""
+        step = MidiStep(step_num=1, active=True)
+        active, trigless, condition_data, plock_data = step.write()
+
+        assert active == True
+        assert trigless == False
+        assert len(condition_data) == 2
+        assert len(plock_data) == MIDI_PLOCK_SIZE
+
+    def test_read_creates_equivalent_object(self):
+        """read() from written data creates equivalent object."""
+        original = MidiStep(
+            step_num=5,
+            active=True,
+            note=60,
+            velocity=100,
+        )
+
+        active, trigless, condition_data, plock_data = original.write()
+        restored = MidiStep.read(5, active, trigless, condition_data, plock_data)
+
+        assert restored.step_num == original.step_num
+        assert restored.active == original.active
+        assert restored.note == original.note
+        assert restored.velocity == original.velocity
+
+    def test_round_trip(self):
+        """read(write(x)) produces equivalent object."""
+        original = MidiStep(
+            step_num=9,
+            active=True,
+            trigless=True,
+            condition=TrigCondition.PRE,
+            note=48,
+            velocity=80,
+            length=12,
+            pitch_bend=70,
+            aftertouch=30,
+        )
+
+        active, trigless, condition_data, plock_data = original.write()
+        restored = MidiStep.read(9, active, trigless, condition_data, plock_data)
+
+        assert restored.step_num == original.step_num
+        assert restored.active == original.active
+        assert restored.trigless == original.trigless
+        assert restored.condition == original.condition
+        assert restored.note == original.note
+        assert restored.velocity == original.velocity
+        assert restored.length == original.length
+        assert restored.pitch_bend == original.pitch_bend
+        assert restored.aftertouch == original.aftertouch
+
+    def test_clone(self):
+        """clone() creates independent copy."""
+        original = MidiStep(step_num=1, active=True, note=60)
+        cloned = original.clone()
+
+        # Should be equal
+        assert cloned.step_num == original.step_num
+        assert cloned.note == original.note
+
+        # But independent
+        cloned.note = 72
+        assert original.note == 60
+
+    def test_equality(self):
+        """MidiStep objects with same data are equal."""
+        a = MidiStep(step_num=1, active=True, note=60)
+        b = MidiStep(step_num=1, active=True, note=60)
+        c = MidiStep(step_num=1, active=True, note=72)
+
+        assert a == b
+        assert a != c
+
+    def test_to_dict(self):
+        """to_dict() returns MIDI step properties."""
+        step = MidiStep(
+            step_num=5,
+            active=True,
+            note=60,
+            velocity=100,
+        )
+
+        d = step.to_dict()
+
+        assert d["step"] == 5
+        assert d["active"] == True
+        assert d["note"] == 60
+        assert d["velocity"] == 100
+
+    def test_to_dict_minimal(self):
+        """to_dict() omits unset values."""
+        step = MidiStep(step_num=1, active=False)
+
+        d = step.to_dict()
+
+        assert d["step"] == 1
+        assert d["active"] == False
+        assert "note" not in d
+        assert "velocity" not in d
+
+    def test_from_dict(self):
+        """from_dict() creates equivalent object."""
+        original = MidiStep(
+            step_num=5,
+            active=True,
+            note=60,
+            velocity=100,
+        )
+
+        d = original.to_dict()
+        restored = MidiStep.from_dict(d)
+
+        assert restored.step_num == original.step_num
+        assert restored.active == original.active
+        assert restored.note == original.note
+        assert restored.velocity == original.velocity
+
+
+class TestMidiStepCC:
+    """Tests for MidiStep CC handling."""
+
+    def test_cc_get_set(self):
+        """CC values can be get/set by slot number."""
+        step = MidiStep()
+
+        step.set_cc(1, 64)
+        step.set_cc(5, 127)
+
+        assert step.cc(1) == 64
+        assert step.cc(5) == 127
+        assert step.cc(2) is None
+
+    def test_cc_invalid_slot(self):
+        """Invalid CC slot raises ValueError."""
+        step = MidiStep()
+
+        with pytest.raises(ValueError):
+            step.cc(0)
+
+        with pytest.raises(ValueError):
+            step.cc(11)
+
+        with pytest.raises(ValueError):
+            step.set_cc(0, 64)
+
+    def test_cc_in_to_dict(self):
+        """CC values are included in to_dict."""
+        step = MidiStep(active=True)
+        step.set_cc(1, 64)
+        step.set_cc(3, 100)
+
+        d = step.to_dict()
+
+        assert "cc" in d
+        assert d["cc"][1] == 64
+        assert d["cc"][3] == 100
+
+    def test_cc_from_dict(self):
+        """CC values are restored from dict."""
+        step = MidiStep(active=True)
+        step.set_cc(1, 64)
+        step.set_cc(3, 100)
+
+        d = step.to_dict()
+        restored = MidiStep.from_dict(d)
+
+        assert restored.cc(1) == 64
+        assert restored.cc(3) == 100
+
+
+class TestMidiStepRepr:
+    """Tests for MidiStep string representation."""
+
+    def test_repr(self):
+        """__repr__ shows key properties."""
+        step = MidiStep(step_num=5, active=True)
+
+        r = repr(step)
+        assert "MidiStep" in r
         assert "step=5" in r
         assert "active=True" in r
