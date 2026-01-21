@@ -297,6 +297,62 @@ class SceneTrack:
     def rate(self, value: Optional[int]):
         self.playback_param4 = value
 
+    @property
+    def retrig(self) -> Optional[int]:
+        """Get/set retrig lock (alias for playback_param5, sampler machines)."""
+        return self.playback_param5
+
+    @retrig.setter
+    def retrig(self, value: Optional[int]):
+        self.playback_param5 = value
+
+    @property
+    def retrig_time(self) -> Optional[int]:
+        """Get/set retrig time lock (alias for playback_param6, sampler machines)."""
+        return self.playback_param6
+
+    @retrig_time.setter
+    def retrig_time(self, value: Optional[int]):
+        self.playback_param6 = value
+
+    # === Thru playback aliases ===
+
+    @property
+    def in_ab(self) -> Optional[int]:
+        """Get/set input A/B lock (alias for playback_param1, thru machines)."""
+        return self.playback_param1
+
+    @in_ab.setter
+    def in_ab(self, value: Optional[int]):
+        self.playback_param1 = value
+
+    @property
+    def vol_ab(self) -> Optional[int]:
+        """Get/set volume A/B lock (alias for playback_param2, thru machines)."""
+        return self.playback_param2
+
+    @vol_ab.setter
+    def vol_ab(self, value: Optional[int]):
+        self.playback_param2 = value
+
+    @property
+    def in_cd(self) -> Optional[int]:
+        """Get/set input C/D lock (alias for playback_param3, thru machines)."""
+        return self.playback_param3
+
+    @in_cd.setter
+    def in_cd(self, value: Optional[int]):
+        self.playback_param3 = value
+
+    @property
+    def vol_cd(self) -> Optional[int]:
+        """Get/set volume C/D lock (alias for playback_param4, thru machines)."""
+        return self.playback_param4
+
+    @vol_cd.setter
+    def vol_cd(self, value: Optional[int]):
+        self.playback_param4 = value
+
     # === LFO page locks ===
 
     @property

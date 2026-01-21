@@ -1738,6 +1738,62 @@ class TestSceneTrackRepr:
         assert "locks=2" in r
 
 
+class TestSceneTrackAliases:
+    """Tests for SceneTrack machine-specific property aliases."""
+
+    def test_sampler_aliases(self):
+        """Sampler aliases map to playback params."""
+        track = SceneTrack(track_num=1)
+
+        # pitch/start/length/rate are playback_param1-4
+        track.pitch = 72
+        assert track.playback_param1 == 72
+
+        track.start = 16
+        assert track.playback_param2 == 16
+
+        track.length = 64
+        assert track.playback_param3 == 64
+
+        track.rate = 100
+        assert track.playback_param4 == 100
+
+        # retrig/retrig_time are playback_param5-6
+        track.retrig = 32
+        assert track.playback_param5 == 32
+
+        track.retrig_time = 48
+        assert track.playback_param6 == 48
+
+    def test_thru_aliases(self):
+        """Thru aliases map to playback params."""
+        track = SceneTrack(track_num=1)
+
+        # in_ab/vol_ab/in_cd/vol_cd are playback_param1-4
+        track.in_ab = 64
+        assert track.playback_param1 == 64
+
+        track.vol_ab = 80
+        assert track.playback_param2 == 80
+
+        track.in_cd = 32
+        assert track.playback_param3 == 32
+
+        track.vol_cd = 100
+        assert track.playback_param4 == 100
+
+    def test_aliases_are_bidirectional(self):
+        """Setting playback_param reflects in aliases."""
+        track = SceneTrack(track_num=1)
+
+        track.playback_param5 = 50
+        assert track.retrig == 50
+
+        track.playback_param1 = 70
+        assert track.pitch == 70
+        assert track.in_ab == 70  # Same param, different alias
+
+
 # =============================================================================
 # Scene Tests (Phase 3)
 # =============================================================================
