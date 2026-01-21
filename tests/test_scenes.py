@@ -353,6 +353,7 @@ class TestActiveScenes:
 # Roundtrip Tests
 # =============================================================================
 
+@pytest.mark.slow
 class TestSceneRoundtrip:
     """Test scene locks survive save/load."""
 

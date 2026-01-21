@@ -162,6 +162,7 @@ class TestSlotExceptions:
             project.add_sample(sample_files["snare.wav"], slot=1)
 
 
+@pytest.mark.slow
 class TestSlotLoadFromDirectory:
     """Tests for slot tracking initialization from existing projects."""
 

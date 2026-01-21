@@ -2223,6 +2223,7 @@ class TestBankRepr:
 from octapy.api.objects import Project
 
 
+@pytest.mark.slow
 class TestProjectStandalone:
     """Tests for standalone Project object."""
 
@@ -2345,6 +2346,7 @@ class TestProjectStandalone:
         assert restored.bank(1).flex_count == 7
 
 
+@pytest.mark.slow
 class TestProjectFromTemplate:
     """Tests for Project.from_template()."""
 
@@ -2358,6 +2360,7 @@ class TestProjectFromTemplate:
             assert project.bank(i) is not None
 
 
+@pytest.mark.slow
 class TestProjectSampleManagement:
     """Tests for Project sample management."""
 
@@ -2377,6 +2380,7 @@ class TestProjectSampleManagement:
         assert project.sample_pool == {}
 
 
+@pytest.mark.slow
 class TestProjectRepr:
     """Tests for Project string representation."""
 

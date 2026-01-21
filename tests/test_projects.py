@@ -304,6 +304,7 @@ class TestProjectMidiSettings:
         project = Project.from_template("TEST")
         assert project.settings.midi_program_change_receive_ch == -1
 
+    @pytest.mark.slow
     def test_midi_settings_roundtrip(self, temp_dir):
         """Test that MIDI settings survive save/load via high-level API."""
         from octapy import Project
@@ -349,6 +350,7 @@ class TestMasterTrackSettings:
         project.settings.master_track = True
         assert project.settings.master_track is True
 
+    @pytest.mark.slow
     def test_master_track_roundtrip(self, temp_dir):
         """Test that master_track setting survives save/load."""
         from octapy import Project
