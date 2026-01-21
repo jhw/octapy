@@ -1,5 +1,5 @@
 """
-Tests for standalone objects (Phase 1 of standalone object migration).
+Tests for core API objects.
 """
 
 import pytest
