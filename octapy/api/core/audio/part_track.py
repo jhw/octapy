@@ -31,6 +31,7 @@ from ...._io import (
 )
 from ...enums import MachineType, FX1Type, FX2Type
 from ..recorder import RecorderSetup
+from .._fx import FXAccessor
 
 
 class TrackDataOffset(IntEnum):
@@ -531,6 +532,54 @@ class AudioPartTrack:
     @fx2_param6.setter
     def fx2_param6(self, value: int):
         self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM6] = value & 0x7F
+
+    # === FX Accessors (named parameter access) ===
+
+    @property
+    def fx1(self) -> FXAccessor:
+        """
+        Get FX1 accessor for named parameter access.
+
+        The parameter names depend on the current FX type.
+
+        Usage:
+            track.fx1_type = FX1Type.FILTER
+            track.fx1.base = 64      # Same as track.fx1_param1 = 64
+            track.fx1.decay = 100    # Same as track.fx1_param6 = 100
+
+            track.fx1_type = FX1Type.CHORUS
+            track.fx1.delay = 64     # Now param1 is 'delay'
+            track.fx1.mix = 100      # Same as fx1_param6
+
+        Returns:
+            FXAccessor with dynamic attribute access
+        """
+        if not hasattr(self, '_fx1_accessor'):
+            self._fx1_accessor = FXAccessor(self, 1)
+        return self._fx1_accessor
+
+    @property
+    def fx2(self) -> FXAccessor:
+        """
+        Get FX2 accessor for named parameter access.
+
+        The parameter names depend on the current FX type.
+
+        Usage:
+            track.fx2_type = FX2Type.DELAY
+            track.fx2.time = 64      # Same as track.fx2_param1 = 64
+            track.fx2.send = 100     # Same as track.fx2_param6 = 100
+
+            track.fx2_type = FX2Type.PLATE_REVERB
+            track.fx2.time = 64      # Same as fx2_param1
+            track.fx2.mix = 100      # Same as fx2_param6
+
+        Returns:
+            FXAccessor with dynamic attribute access
+        """
+        if not hasattr(self, '_fx2_accessor'):
+            self._fx2_accessor = FXAccessor(self, 2)
+        return self._fx2_accessor
 
     # === AMP page ===
 

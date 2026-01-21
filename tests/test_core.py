@@ -1019,6 +1019,208 @@ class TestAudioPartTrackFXParams:
         assert track.fx1_param1 != 100  # Should have changed
 
 
+class TestFXAccessor:
+    """Tests for FXAccessor dynamic parameter name access."""
+
+    def test_fx1_accessor_exists(self):
+        """AudioPartTrack has fx1 accessor property."""
+        track = AudioPartTrack()
+        assert track.fx1 is not None
+        assert track.fx1._slot == 1
+
+    def test_fx2_accessor_exists(self):
+        """AudioPartTrack has fx2 accessor property."""
+        track = AudioPartTrack()
+        assert track.fx2 is not None
+        assert track.fx2._slot == 2
+
+    def test_fx1_filter_named_params(self):
+        """FX1 FILTER params accessible by name."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+
+        # Set via named accessor
+        track.fx1.base = 64
+        track.fx1.width = 100
+        track.fx1.q = 32
+        track.fx1.depth = 80
+        track.fx1.attack = 16
+        track.fx1.decay = 48
+
+        # Verify via param properties
+        assert track.fx1_param1 == 64
+        assert track.fx1_param2 == 100
+        assert track.fx1_param3 == 32
+        assert track.fx1_param4 == 80
+        assert track.fx1_param5 == 16
+        assert track.fx1_param6 == 48
+
+    def test_fx1_chorus_named_params(self):
+        """FX1 CHORUS params accessible by name."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.CHORUS
+
+        track.fx1.delay = 32
+        track.fx1.depth = 64
+        track.fx1.spread = 80
+        track.fx1.feedback = 48
+        track.fx1.width = 100
+        track.fx1.mix = 96
+
+        assert track.fx1_param1 == 32
+        assert track.fx1_param2 == 64
+        assert track.fx1_param3 == 80
+        assert track.fx1_param4 == 48
+        assert track.fx1_param5 == 100
+        assert track.fx1_param6 == 96
+
+    def test_fx2_delay_named_params(self):
+        """FX2 DELAY params accessible by name."""
+        track = AudioPartTrack()
+        track.fx2_type = FX2Type.DELAY
+
+        track.fx2.time = 64
+        track.fx2.feedback = 80
+        track.fx2.volume = 100
+        track.fx2.base = 32
+        track.fx2.width = 127
+        track.fx2.send = 50
+
+        assert track.fx2_param1 == 64
+        assert track.fx2_param2 == 80
+        assert track.fx2_param3 == 100
+        assert track.fx2_param4 == 32
+        assert track.fx2_param5 == 127
+        assert track.fx2_param6 == 50
+
+    def test_fx2_plate_reverb_named_params(self):
+        """FX2 PLATE_REVERB params accessible by name."""
+        track = AudioPartTrack()
+        track.fx2_type = FX2Type.PLATE_REVERB
+
+        track.fx2.time = 80
+        track.fx2.damp = 64
+        track.fx2.gate = 0
+        track.fx2.high_pass = 32
+        track.fx2.low_pass = 127
+        track.fx2.mix = 90
+
+        assert track.fx2_param1 == 80
+        assert track.fx2_param2 == 64
+        assert track.fx2_param3 == 0
+        assert track.fx2_param4 == 32
+        assert track.fx2_param5 == 127
+        assert track.fx2_param6 == 90
+
+    def test_named_param_read(self):
+        """Named params can be read."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+        track.fx1_param1 = 77
+
+        assert track.fx1.base == 77
+
+    def test_accessor_type_property(self):
+        """Accessor has type property for get/set."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+
+        assert track.fx1.type == FX1Type.FILTER
+
+        track.fx1.type = FX1Type.CHORUS
+        assert track.fx1_type == FX1Type.CHORUS
+
+    def test_get_param_names(self):
+        """get_param_names() returns valid names for FX type."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+
+        names = track.fx1.get_param_names()
+        assert 'base' in names
+        assert 'width' in names
+        assert 'q' in names
+        assert 'depth' in names
+        assert 'attack' in names
+        assert 'decay' in names
+        assert len(names) == 6
+
+    def test_get_param_names_with_unused(self):
+        """get_param_names() excludes unused params."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.DJ_EQ  # Has one unused param
+
+        names = track.fx1.get_param_names()
+        # DJ_EQ: ls_f, (unused), rs_f, low_gain, mid_gain, high_gain
+        assert 'ls_f' in names
+        assert 'rs_f' in names
+        assert len(names) == 5  # One param is unused
+
+    def test_invalid_param_name_raises(self):
+        """Invalid param name raises AttributeError."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+
+        with pytest.raises(AttributeError) as exc:
+            _ = track.fx1.invalid_param
+
+        assert "no parameter 'invalid_param'" in str(exc.value)
+
+    def test_invalid_param_set_raises(self):
+        """Setting invalid param name raises AttributeError."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+
+        with pytest.raises(AttributeError) as exc:
+            track.fx1.invalid_param = 50
+
+        assert "no parameter 'invalid_param'" in str(exc.value)
+
+    def test_param_names_change_with_type(self):
+        """Param names change when FX type changes."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.FILTER
+
+        # Filter has 'base'
+        track.fx1.base = 64
+        assert track.fx1_param1 == 64
+
+        # Change to Chorus - 'base' is no longer valid, 'delay' is param1
+        track.fx1_type = FX1Type.CHORUS
+
+        with pytest.raises(AttributeError):
+            _ = track.fx1.base
+
+        # But 'delay' works now
+        assert track.fx1.delay == track.fx1_param1
+
+    def test_accessor_cached(self):
+        """FX accessor is cached (same instance returned)."""
+        track = AudioPartTrack()
+        accessor1 = track.fx1
+        accessor2 = track.fx1
+
+        assert accessor1 is accessor2
+
+    def test_compressor_params(self):
+        """COMPRESSOR FX params accessible by name."""
+        track = AudioPartTrack()
+        track.fx1_type = FX1Type.COMPRESSOR
+
+        track.fx1.attack = 16
+        track.fx1.release = 32
+        track.fx1.threshold = 64
+        track.fx1.ratio = 80
+        track.fx1.gain = 100
+        track.fx1.mix = 127
+
+        assert track.fx1_param1 == 16
+        assert track.fx1_param2 == 32
+        assert track.fx1_param3 == 64
+        assert track.fx1_param4 == 80
+        assert track.fx1_param5 == 100
+        assert track.fx1_param6 == 127
+
+
 class TestAudioPartTrackRepr:
     """Tests for AudioPartTrack string representation."""
 
