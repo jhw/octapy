@@ -952,6 +952,73 @@ class TestAudioPartTrackSRCPage:
         assert track.rate == 100
 
 
+class TestAudioPartTrackFXParams:
+    """Tests for AudioPartTrack FX parameter properties."""
+
+    def test_fx1_params_default(self):
+        """FX1 params have template defaults."""
+        track = AudioPartTrack()
+        # Template defaults for FX1 (Filter): [0, 127, 0, 64, 0, 64]
+        assert track.fx1_param1 == 0
+        assert track.fx1_param2 == 127
+        assert track.fx1_param3 == 0
+        assert track.fx1_param4 == 64
+        assert track.fx1_param5 == 0
+        assert track.fx1_param6 == 64
+
+    def test_fx2_params_default(self):
+        """FX2 params have template defaults."""
+        track = AudioPartTrack()
+        # Template defaults for FX2 (Delay): [48, 0, 127, 0, 127, 0]
+        assert track.fx2_param1 == 48
+        assert track.fx2_param2 == 0
+        assert track.fx2_param3 == 127
+        assert track.fx2_param4 == 0
+        assert track.fx2_param5 == 127
+        assert track.fx2_param6 == 0
+
+    def test_fx1_params_set(self):
+        """FX1 params can be set."""
+        track = AudioPartTrack()
+        track.fx1_param1 = 100
+        track.fx1_param2 = 64
+        track.fx1_param3 = 32
+
+        assert track.fx1_param1 == 100
+        assert track.fx1_param2 == 64
+        assert track.fx1_param3 == 32
+
+    def test_fx2_params_set(self):
+        """FX2 params can be set."""
+        track = AudioPartTrack()
+        track.fx2_param1 = 80
+        track.fx2_param4 = 120
+        track.fx2_param6 = 50
+
+        assert track.fx2_param1 == 80
+        assert track.fx2_param4 == 120
+        assert track.fx2_param6 == 50
+
+    def test_fx_params_clamped_to_7bit(self):
+        """FX params are clamped to 0-127."""
+        track = AudioPartTrack()
+        track.fx1_param1 = 200  # Should clamp to 127 & 0x7F = 72
+
+        assert track.fx1_param1 == 72  # 200 & 0x7F
+
+    def test_fx_type_change_resets_params(self):
+        """Changing FX type applies new defaults."""
+        track = AudioPartTrack()
+
+        # Set custom values
+        track.fx1_param1 = 100
+
+        # Change FX type - should reset to new defaults
+        track.fx1_type = FX1Type.CHORUS
+        # Chorus defaults from FX_DEFAULTS
+        assert track.fx1_param1 != 100  # Should have changed
+
+
 class TestAudioPartTrackRepr:
     """Tests for AudioPartTrack string representation."""
 

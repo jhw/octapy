@@ -420,6 +420,118 @@ class AudioPartTrack:
             offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM1
             self._data[offset:offset + 6] = FX_DEFAULTS[value]
 
+    # === FX1 params ===
+
+    @property
+    def fx1_param1(self) -> int:
+        """Get/set FX1 parameter 1 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM1]
+
+    @fx1_param1.setter
+    def fx1_param1(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM1] = value & 0x7F
+
+    @property
+    def fx1_param2(self) -> int:
+        """Get/set FX1 parameter 2 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM2]
+
+    @fx1_param2.setter
+    def fx1_param2(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM2] = value & 0x7F
+
+    @property
+    def fx1_param3(self) -> int:
+        """Get/set FX1 parameter 3 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM3]
+
+    @fx1_param3.setter
+    def fx1_param3(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM3] = value & 0x7F
+
+    @property
+    def fx1_param4(self) -> int:
+        """Get/set FX1 parameter 4 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM4]
+
+    @fx1_param4.setter
+    def fx1_param4(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM4] = value & 0x7F
+
+    @property
+    def fx1_param5(self) -> int:
+        """Get/set FX1 parameter 5 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM5]
+
+    @fx1_param5.setter
+    def fx1_param5(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM5] = value & 0x7F
+
+    @property
+    def fx1_param6(self) -> int:
+        """Get/set FX1 parameter 6 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM6]
+
+    @fx1_param6.setter
+    def fx1_param6(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM6] = value & 0x7F
+
+    # === FX2 params ===
+
+    @property
+    def fx2_param1(self) -> int:
+        """Get/set FX2 parameter 1 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM1]
+
+    @fx2_param1.setter
+    def fx2_param1(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM1] = value & 0x7F
+
+    @property
+    def fx2_param2(self) -> int:
+        """Get/set FX2 parameter 2 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM2]
+
+    @fx2_param2.setter
+    def fx2_param2(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM2] = value & 0x7F
+
+    @property
+    def fx2_param3(self) -> int:
+        """Get/set FX2 parameter 3 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM3]
+
+    @fx2_param3.setter
+    def fx2_param3(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM3] = value & 0x7F
+
+    @property
+    def fx2_param4(self) -> int:
+        """Get/set FX2 parameter 4 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM4]
+
+    @fx2_param4.setter
+    def fx2_param4(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM4] = value & 0x7F
+
+    @property
+    def fx2_param5(self) -> int:
+        """Get/set FX2 parameter 5 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM5]
+
+    @fx2_param5.setter
+    def fx2_param5(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM5] = value & 0x7F
+
+    @property
+    def fx2_param6(self) -> int:
+        """Get/set FX2 parameter 6 (0-127)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM6]
+
+    @fx2_param6.setter
+    def fx2_param6(self, value: int):
+        self._data[TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM6] = value & 0x7F
+
     # === AMP page ===
 
     @property
