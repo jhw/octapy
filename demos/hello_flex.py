@@ -126,6 +126,7 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track = part.track(track_num)
             track.machine_type = MachineType.FLEX
             track.flex_slot = slot - 1
+            track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
             track.fx1_type = FX1Type.DJ_EQ
 
         # Configure recorder buffers for tracks 1-3 (listen to their own track)
@@ -139,6 +140,7 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track = part.track(track_num)
             track.machine_type = MachineType.FLEX
             track.recorder_slot = buffer_slot
+            track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
 
         # Configure FX on track 8 (master track)
         track8 = part.track(8)

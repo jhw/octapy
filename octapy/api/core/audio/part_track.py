@@ -21,13 +21,17 @@ from ...._io import (
     AUDIO_TRACK_PARAMS_SIZE,
     RECORDER_SETUP_SIZE,
     FX_DEFAULTS,
-    OCTAPY_DEFAULT_SRC_VALUES,
-    OCTAPY_DEFAULT_SRC_SETUP,
+    # Template (machine) defaults
+    TEMPLATE_DEFAULT_SRC_VALUES,
+    TEMPLATE_DEFAULT_SRC_SETUP,
     TEMPLATE_DEFAULT_AMP,
     TEMPLATE_DEFAULT_FX1_PARAMS,
     TEMPLATE_DEFAULT_FX2_PARAMS,
     TEMPLATE_DEFAULT_FX1_TYPE,
     TEMPLATE_DEFAULT_FX2_TYPE,
+    # Octapy recommended defaults (length=127, length_mode=TIME)
+    OCTAPY_DEFAULT_SRC_VALUES,
+    OCTAPY_DEFAULT_SRC_SETUP,
 )
 from ...enums import MachineType, FX1Type, FX2Type
 from ..recorder import RecorderSetup
@@ -163,7 +167,7 @@ class AudioPartTrack:
             self._recorder = RecorderSetup()
 
     def _apply_defaults(self):
-        """Apply octapy default values to the buffer."""
+        """Apply template (machine) default values to the buffer."""
         # Machine type defaults to FLEX (but will be overwritten by constructor)
         self._data[TrackDataOffset.MACHINE_TYPE] = int(MachineType.FLEX)
 
@@ -179,13 +183,13 @@ class AudioPartTrack:
         for i in range(MACHINE_SLOT_SIZE):
             self._data[TrackDataOffset.MACHINE_SLOTS + i] = 0
 
-        # Machine params values - apply octapy SRC defaults for FLEX
+        # Machine params values - apply template SRC defaults for FLEX
         offset = TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.FLEX
-        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
+        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_SRC_VALUES
 
-        # Machine params setup - apply octapy SRC defaults for FLEX
+        # Machine params setup - apply template SRC defaults for FLEX
         offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
-        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
+        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_SRC_SETUP
 
         # Track params - AMP defaults
         offset = TrackDataOffset.TRACK_PARAMS
@@ -200,6 +204,63 @@ class AudioPartTrack:
         self._data[offset:offset + 6] = TEMPLATE_DEFAULT_FX2_PARAMS
 
         # Recorder setup will be handled by RecorderSetup object
+
+    @classmethod
+    def flex_with_recommended_defaults(
+        cls,
+        track_num: int = 1,
+        flex_slot: int = 0,
+        **kwargs,
+    ) -> "AudioPartTrack":
+        """
+        Create a Flex machine track with octapy recommended defaults.
+
+        Recommended defaults differ from OT machine defaults:
+        - length = 127 (full sample length, vs OT default 0)
+        - length_mode = TIME (vs OT default OFF)
+        - loop = OFF (vs OT default ON)
+
+        These settings are optimized for one-shot sample playback.
+
+        Args:
+            track_num: Track number (1-8)
+            flex_slot: Flex sample slot (0-127)
+            **kwargs: Additional arguments passed to AudioPartTrack constructor
+
+        Returns:
+            AudioPartTrack configured as Flex with recommended defaults
+        """
+        track = cls(
+            track_num=track_num,
+            machine_type=MachineType.FLEX,
+            flex_slot=flex_slot,
+            **kwargs,
+        )
+        track.apply_recommended_flex_defaults()
+        return track
+
+    def apply_recommended_flex_defaults(self):
+        """
+        Apply octapy recommended defaults for Flex machine SRC page.
+
+        Sets:
+        - length = 127 (full sample length)
+        - length_mode = TIME
+        - loop = OFF
+
+        These differ from OT machine defaults and are optimized for
+        one-shot sample playback.
+
+        Note: Only affects FLEX machine parameters. Call this after
+        setting machine_type to FLEX.
+        """
+        # Apply octapy recommended SRC values (includes length=127)
+        offset = TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.FLEX
+        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
+
+        # Apply octapy recommended SRC setup (includes length_mode=TIME, loop=OFF)
+        offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
+        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
     @classmethod
     def read_from_part(

@@ -920,6 +920,57 @@ class TestAudioPartTrackStandalone:
         # Again, just verify no error
 
 
+class TestAudioPartTrackRecommendedDefaults:
+    """Tests for AudioPartTrack recommended defaults factory/preset."""
+
+    def test_flex_with_recommended_defaults_factory(self):
+        """flex_with_recommended_defaults() creates Flex track with octapy defaults."""
+        track = AudioPartTrack.flex_with_recommended_defaults(
+            track_num=2,
+            flex_slot=5,
+        )
+
+        assert track.track_num == 2
+        assert track.machine_type == MachineType.FLEX
+        assert track.flex_slot == 5
+        # Recommended defaults: length=127
+        assert track.length == 127
+
+    def test_flex_with_recommended_defaults_accepts_kwargs(self):
+        """flex_with_recommended_defaults() passes kwargs to constructor."""
+        track = AudioPartTrack.flex_with_recommended_defaults(
+            track_num=3,
+            flex_slot=10,
+            fx1_type=FX1Type.DJ_EQ,
+            amp_volume=100,
+        )
+
+        assert track.track_num == 3
+        assert track.flex_slot == 10
+        assert track.fx1_type == FX1Type.DJ_EQ
+        assert track.amp_volume == 100
+        assert track.length == 127  # Still has recommended defaults
+
+    def test_apply_recommended_flex_defaults(self):
+        """apply_recommended_flex_defaults() sets octapy recommended values."""
+        track = AudioPartTrack(machine_type=MachineType.FLEX)
+
+        # Default (template) length is 0
+        assert track.length == 0
+
+        track.apply_recommended_flex_defaults()
+
+        # Now should be 127
+        assert track.length == 127
+
+    def test_default_constructor_uses_template_defaults(self):
+        """Default constructor uses OT template defaults, not octapy."""
+        track = AudioPartTrack(machine_type=MachineType.FLEX)
+
+        # Template default for length is 0 (not 127)
+        assert track.length == 0
+
+
 class TestAudioPartTrackSRCPage:
     """Tests for AudioPartTrack SRC/Playback page properties."""
 
