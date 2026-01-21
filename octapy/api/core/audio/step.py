@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Optional, Tuple
 
-from ..._io import PLOCK_SIZE, PLOCK_DISABLED, PlockOffset
+from ...._io import PLOCK_SIZE, PLOCK_DISABLED, PlockOffset
 
 
 class AudioStep:
@@ -189,7 +189,7 @@ class AudioStep:
 
         The condition determines when this step triggers (FILL, probability, etc.).
         """
-        from ..enums import TrigCondition
+        from ...enums import TrigCondition
         # Condition is in lower 7 bits of byte 1
         raw_value = self._condition_data[1] & 0x7F
         try:
@@ -214,13 +214,13 @@ class AudioStep:
         Setting a value sets the closest matching probability condition.
         Set to None or 1.0 to clear probability (always trigger).
         """
-        from ..utils import PROBABILITY_MAP
+        from ...utils import PROBABILITY_MAP
         return PROBABILITY_MAP.get(self.condition)
 
     @probability.setter
     def probability(self, value: Optional[float]):
-        from ..enums import TrigCondition
-        from ..utils import probability_to_condition
+        from ...enums import TrigCondition
+        from ...utils import probability_to_condition
 
         if value is None or value >= 1.0:
             self.condition = TrigCondition.NONE
@@ -292,7 +292,7 @@ class AudioStep:
 
         Returns dict with step_num, active, trigless, and any set p-locks.
         """
-        from ..enums import TrigCondition
+        from ...enums import TrigCondition
 
         result = {
             "step": self._step_num,
@@ -329,7 +329,7 @@ class AudioStep:
         Returns:
             AudioStep instance
         """
-        from ..enums import TrigCondition
+        from ...enums import TrigCondition
 
         kwargs = {
             "step_num": data.get("step", 1),

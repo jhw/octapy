@@ -28,23 +28,19 @@ from .slot_manager import (
     InvalidSlotNumber,
 )
 
-# Standalone objects (Phase 6: complete migration)
-from .objects import (
-    # Phase 1: Leaf objects
+# Core objects
+from .core import (
     RecorderSetup,
     AudioStep,
     MidiStep,
-    # Phase 2: Track objects
     AudioPartTrack,
     AudioPatternTrack,
     MidiPartTrack,
     MidiPatternTrack,
-    # Phase 3: Container objects
     SceneTrack,
     Scene,
     Part,
     Pattern,
-    # Phase 4: Top-level objects
     Bank,
     Project,
 )

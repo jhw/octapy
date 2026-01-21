@@ -10,14 +10,14 @@ from __future__ import annotations
 from enum import IntEnum
 from typing import Optional
 
-from ..._io import (
+from ...._io import (
     MidiPartOffset,
     MidiTrackValuesOffset,
     MidiTrackSetupOffset,
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
 )
-from ..utils import quantize_note_length
+from ...utils import quantize_note_length
 
 
 # Combined size: values (32) + setup (36) = 68 bytes

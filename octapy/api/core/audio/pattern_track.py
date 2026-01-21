@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from typing import List, Optional, Dict
 
-from ..._io import (
+from ...._io import (
     AudioTrackOffset,
     AUDIO_TRACK_SIZE,
     PLOCK_SIZE,
     NUM_STEPS,
     PLOCK_DISABLED,
 )
-from .trig_utils import _trig_mask_to_steps, _steps_to_trig_mask, _step_to_bit_position
+from ..trig_utils import _trig_mask_to_steps, _steps_to_trig_mask, _step_to_bit_position
 from .step import AudioStep
 
 

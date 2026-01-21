@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import IntEnum
 from typing import Optional, TYPE_CHECKING
 
-from ..._io import (
+from ...._io import (
     MachineSlotOffset,
     MachineParamsOffset,
     FlexStaticParamsOffset,
@@ -29,8 +29,8 @@ from ..._io import (
     TEMPLATE_DEFAULT_FX1_TYPE,
     TEMPLATE_DEFAULT_FX2_TYPE,
 )
-from ..enums import MachineType, FX1Type, FX2Type
-from .recorder import RecorderSetup
+from ...enums import MachineType, FX1Type, FX2Type
+from ..recorder import RecorderSetup
 
 
 class TrackDataOffset(IntEnum):
@@ -220,7 +220,7 @@ class AudioPartTrack:
         Returns:
             AudioPartTrack instance
         """
-        from ..._io import PartOffset
+        from ...._io import PartOffset
 
         instance = cls.__new__(cls)
         instance._track_num = track_num
@@ -280,7 +280,7 @@ class AudioPartTrack:
             part_data: Part binary data (mutable bytearray)
             part_offset: Offset to Part in the data
         """
-        from ..._io import PartOffset
+        from ...._io import PartOffset
 
         track_idx = self._track_num - 1
 

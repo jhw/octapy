@@ -15,8 +15,8 @@ from ..._io import (
     AUDIO_TRACK_SIZE,
     MIDI_TRACK_PATTERN_SIZE,
 )
-from .audio_pattern_track import AudioPatternTrack
-from .midi_pattern_track import MidiPatternTrack
+from .audio.pattern_track import AudioPatternTrack
+from .midi.pattern_track import MidiPatternTrack
 
 
 class Pattern:

@@ -5,8 +5,8 @@ Tests for standalone objects (Phase 1 of standalone object migration).
 import pytest
 from octapy import RecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type
 from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE, AUDIO_TRACK_SIZE, MIDI_TRACK_PATTERN_SIZE, SCENE_SIZE, SCENE_PARAMS_SIZE
-from octapy.api.objects import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack, SceneTrack, Scene, Part, Pattern
-from octapy.api.objects.midi_part_track import MIDI_PART_TRACK_SIZE
+from octapy.api.core import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack, SceneTrack, Scene, Part, Pattern
+from octapy.api.core.midi.part_track import MIDI_PART_TRACK_SIZE
 
 
 class TestRecorderSetupStandalone:
@@ -2048,7 +2048,7 @@ class TestPatternRepr:
 # Bank Tests (Phase 4)
 # =============================================================================
 
-from octapy.api.objects import Bank
+from octapy.api.core import Bank
 
 
 class TestBankStandalone:
@@ -2220,7 +2220,7 @@ class TestBankRepr:
 # Project Tests (Phase 4)
 # =============================================================================
 
-from octapy.api.objects import Project
+from octapy.api.core import Project
 
 
 @pytest.mark.slow

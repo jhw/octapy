@@ -6,43 +6,41 @@ They support read/write for serialization and can be used independently
 or attached to container objects.
 """
 
-# Phase 1: Leaf objects
+# Leaf objects
 from .recorder import RecorderSetup
-from .step import AudioStep
-from .midi_step import MidiStep
+from .audio import AudioStep
+from .midi import MidiStep
 
-# Phase 2: Track objects
-from .audio_part_track import AudioPartTrack
-from .audio_pattern_track import AudioPatternTrack
-from .midi_part_track import MidiPartTrack
-from .midi_pattern_track import MidiPatternTrack
+# Track objects
+from .audio import AudioPartTrack, AudioPatternTrack
+from .midi import MidiPartTrack, MidiPatternTrack
 
-# Phase 3: Container objects
+# Container objects
 from .scene_track import SceneTrack
 from .scene import Scene
 from .part import Part
 from .pattern import Pattern
 
-# Phase 4: Top-level objects
+# Top-level objects
 from .bank import Bank
 from .project import Project
 
 __all__ = [
-    # Phase 1
+    # Leaf
     "RecorderSetup",
     "AudioStep",
     "MidiStep",
-    # Phase 2
+    # Tracks
     "AudioPartTrack",
     "AudioPatternTrack",
     "MidiPartTrack",
     "MidiPatternTrack",
-    # Phase 3
+    # Containers
     "SceneTrack",
     "Scene",
     "Part",
     "Pattern",
-    # Phase 4
+    # Top-level
     "Bank",
     "Project",
 ]

@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from typing import List, Optional, Dict
 
-from ..._io import (
+from ...._io import (
     MidiTrackTrigsOffset,
     MIDI_TRACK_PATTERN_SIZE,
     MIDI_PLOCK_SIZE,
     NUM_STEPS,
     PLOCK_DISABLED,
 )
-from .trig_utils import _trig_mask_to_steps, _steps_to_trig_mask, _step_to_bit_position
-from .midi_step import MidiStep
+from ..trig_utils import _trig_mask_to_steps, _steps_to_trig_mask, _step_to_bit_position
+from .step import MidiStep
 
 
 class MidiPatternTrack:

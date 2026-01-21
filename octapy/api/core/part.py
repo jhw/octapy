@@ -18,8 +18,8 @@ from ..._io import (
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
 )
-from .audio_part_track import AudioPartTrack, AUDIO_PART_TRACK_SIZE
-from .midi_part_track import MidiPartTrack, MIDI_PART_TRACK_SIZE
+from .audio.part_track import AudioPartTrack, AUDIO_PART_TRACK_SIZE
+from .midi.part_track import MidiPartTrack, MIDI_PART_TRACK_SIZE
 from .scene import Scene
 
 
