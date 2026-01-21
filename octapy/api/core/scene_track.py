@@ -288,6 +288,66 @@ class SceneTrack:
     def playback_param6(self, value: Optional[int]):
         self._set_lock(SceneParamsOffset.PLAYBACK_PARAM6, value)
 
+    # === FLEX machine aliases (loose coupling) ===
+    # These always map to playback_param1-6 using FLEX naming.
+    # The actual interpretation depends on the machine type set at Part level.
+    # For Thru machines, param1 is actually 'in_ab', but we still allow
+    # 'pitch' as a convenience alias since FLEX is the most common machine.
+
+    @property
+    def pitch(self) -> Optional[int]:
+        """Alias for playback_param1 (FLEX: pitch)."""
+        return self.playback_param1
+
+    @pitch.setter
+    def pitch(self, value: Optional[int]):
+        self.playback_param1 = value
+
+    @property
+    def start(self) -> Optional[int]:
+        """Alias for playback_param2 (FLEX: start)."""
+        return self.playback_param2
+
+    @start.setter
+    def start(self, value: Optional[int]):
+        self.playback_param2 = value
+
+    @property
+    def length(self) -> Optional[int]:
+        """Alias for playback_param3 (FLEX: length)."""
+        return self.playback_param3
+
+    @length.setter
+    def length(self, value: Optional[int]):
+        self.playback_param3 = value
+
+    @property
+    def rate(self) -> Optional[int]:
+        """Alias for playback_param4 (FLEX: rate)."""
+        return self.playback_param4
+
+    @rate.setter
+    def rate(self, value: Optional[int]):
+        self.playback_param4 = value
+
+    @property
+    def retrig(self) -> Optional[int]:
+        """Alias for playback_param5 (FLEX: retrig)."""
+        return self.playback_param5
+
+    @retrig.setter
+    def retrig(self, value: Optional[int]):
+        self.playback_param5 = value
+
+    @property
+    def retrig_time(self) -> Optional[int]:
+        """Alias for playback_param6 (FLEX: retrig_time)."""
+        return self.playback_param6
+
+    @retrig_time.setter
+    def retrig_time(self, value: Optional[int]):
+        self.playback_param6 = value
+
     # === Dynamic accessors (named parameter access) ===
 
     def _get_playback_param(self, n: int) -> Optional[int]:
