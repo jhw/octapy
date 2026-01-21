@@ -6,10 +6,11 @@ Provides named access to FX parameters based on the current FX type.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     from .audio.part_track import AudioPartTrack
+    from .scene_track import SceneTrack
 
 from ..enums import FX1Type, FX2Type
 
@@ -70,7 +71,7 @@ class FXAccessor:
 
     The parameter names change based on the current FX type.
 
-    Usage:
+    Usage with AudioPartTrack:
         track = AudioPartTrack(fx1_type=FX1Type.FILTER)
         track.fx1.base = 64      # Same as track.fx1_param1 = 64
         track.fx1.mix = 100      # Same as track.fx1_param6 = 100
@@ -78,24 +79,46 @@ class FXAccessor:
         # Change FX type and names change too
         track.fx1_type = FX1Type.CHORUS
         track.fx1.delay = 64     # Now param1 is 'delay'
+
+    Usage with SceneTrack (requires fx_type):
+        scene_track = SceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
+        scene_track.fx1.base = 64  # Lock filter base to 64
     """
 
-    __slots__ = ('_track', '_slot')
+    __slots__ = ('_track', '_slot', '_get_type', '_set_type', '_get_param', '_set_param')
 
-    def __init__(self, track: "AudioPartTrack", slot: int):
+    def __init__(
+        self,
+        track: Union["AudioPartTrack", "SceneTrack"],
+        slot: int,
+        get_type: Callable[[], Optional[int]],
+        set_type: Optional[Callable[[int], None]],
+        get_param: Callable[[int], Optional[int]],
+        set_param: Callable[[int, Optional[int]], None],
+    ):
         """
         Create an FXAccessor.
 
         Args:
-            track: The AudioPartTrack this accessor is attached to
+            track: The track object this accessor is attached to
             slot: FX slot number (1 or 2)
+            get_type: Callable that returns the FX type
+            set_type: Callable that sets the FX type (or None if read-only)
+            get_param: Callable(n) that gets FX param n (1-6)
+            set_param: Callable(n, value) that sets FX param n (1-6)
         """
         object.__setattr__(self, '_track', track)
         object.__setattr__(self, '_slot', slot)
+        object.__setattr__(self, '_get_type', get_type)
+        object.__setattr__(self, '_set_type', set_type)
+        object.__setattr__(self, '_get_param', get_param)
+        object.__setattr__(self, '_set_param', set_param)
 
     def _get_param_names(self) -> Tuple[Optional[str], ...]:
         """Get parameter names for current FX type."""
-        fx_type = getattr(self._track, f'fx{self._slot}_type')
+        fx_type = self._get_type()
+        if fx_type is None:
+            return (None,) * 6
         return FX_PARAM_NAMES.get(fx_type, (None,) * 6)
 
     def _name_to_param_index(self, name: str) -> Optional[int]:
@@ -106,13 +129,15 @@ class FXAccessor:
         return None
 
     @property
-    def type(self) -> int:
+    def type(self) -> Optional[int]:
         """Get/set the FX type for this slot."""
-        return getattr(self._track, f'fx{self._slot}_type')
+        return self._get_type()
 
     @type.setter
     def type(self, value: int):
-        setattr(self._track, f'fx{self._slot}_type', value)
+        if self._set_type is None:
+            raise AttributeError("FX type is read-only for this track")
+        self._set_type(value)
 
     def get_param_names(self) -> List[str]:
         """Get list of valid parameter names for current FX type."""
@@ -120,14 +145,14 @@ class FXAccessor:
 
     def __getattr__(self, name: str):
         # Handle special cases
-        if name.startswith('_') or name in ('type',):
+        if name.startswith('_') or name == 'type':
             return object.__getattribute__(self, name)
 
         idx = self._name_to_param_index(name)
         if idx is not None:
-            return getattr(self._track, f'fx{self._slot}_param{idx}')
+            return self._get_param(idx)
 
-        fx_type = getattr(self._track, f'fx{self._slot}_type')
+        fx_type = self._get_type()
         valid_names = self.get_param_names()
         raise AttributeError(
             f"FX type {fx_type} has no parameter '{name}'. "
@@ -136,16 +161,16 @@ class FXAccessor:
 
     def __setattr__(self, name: str, value):
         # Handle special cases
-        if name.startswith('_') or name in ('type',):
+        if name.startswith('_') or name == 'type':
             object.__setattr__(self, name, value)
             return
 
         idx = self._name_to_param_index(name)
         if idx is not None:
-            setattr(self._track, f'fx{self._slot}_param{idx}', value)
+            self._set_param(idx, value)
             return
 
-        fx_type = getattr(self._track, f'fx{self._slot}_type')
+        fx_type = self._get_type()
         valid_names = self.get_param_names()
         raise AttributeError(
             f"FX type {fx_type} has no parameter '{name}'. "
@@ -153,5 +178,5 @@ class FXAccessor:
         )
 
     def __repr__(self) -> str:
-        fx_type = getattr(self._track, f'fx{self._slot}_type')
+        fx_type = self._get_type()
         return f"FXAccessor(slot={self._slot}, type={fx_type})"

@@ -32,6 +32,7 @@ from ...._io import (
 from ...enums import MachineType, FX1Type, FX2Type
 from ..recorder import RecorderSetup
 from .._fx import FXAccessor
+from .._src import SrcAccessor
 
 
 class TrackDataOffset(IntEnum):
@@ -555,7 +556,14 @@ class AudioPartTrack:
             FXAccessor with dynamic attribute access
         """
         if not hasattr(self, '_fx1_accessor'):
-            self._fx1_accessor = FXAccessor(self, 1)
+            self._fx1_accessor = FXAccessor(
+                track=self,
+                slot=1,
+                get_type=lambda: self.fx1_type,
+                set_type=lambda v: setattr(self, 'fx1_type', v),
+                get_param=lambda n: getattr(self, f'fx1_param{n}'),
+                set_param=lambda n, v: setattr(self, f'fx1_param{n}', v),
+            )
         return self._fx1_accessor
 
     @property
@@ -578,7 +586,14 @@ class AudioPartTrack:
             FXAccessor with dynamic attribute access
         """
         if not hasattr(self, '_fx2_accessor'):
-            self._fx2_accessor = FXAccessor(self, 2)
+            self._fx2_accessor = FXAccessor(
+                track=self,
+                slot=2,
+                get_type=lambda: self.fx2_type,
+                set_type=lambda v: setattr(self, 'fx2_type', v),
+                get_param=lambda n: getattr(self, f'fx2_param{n}'),
+                set_param=lambda n, v: setattr(self, f'fx2_param{n}', v),
+            )
         return self._fx2_accessor
 
     # === AMP page ===
@@ -640,19 +655,76 @@ class AudioPartTrack:
         """Set recorder buffer configuration."""
         self._recorder = value
 
-    # === SRC/Playback page (Flex/Static) ===
+    # === SRC/Playback page ===
+
+    # Machine type to params offset mapping
+    _MACHINE_PARAMS_OFFSET = {
+        MachineType.STATIC: MachineParamsOffset.STATIC,
+        MachineType.FLEX: MachineParamsOffset.FLEX,
+        MachineType.THRU: MachineParamsOffset.THRU,
+        MachineType.NEIGHBOR: MachineParamsOffset.NEIGHBOR,
+        MachineType.PICKUP: MachineParamsOffset.PICKUP,
+    }
+
+    def _machine_values_offset(self) -> int:
+        """Get offset for current machine's playback params in buffer."""
+        offset = self._MACHINE_PARAMS_OFFSET.get(self.machine_type, MachineParamsOffset.FLEX)
+        return TrackDataOffset.MACHINE_PARAMS_VALUES + offset
+
+    def _machine_setup_offset(self) -> int:
+        """Get offset for current machine's setup params in buffer."""
+        offset = self._MACHINE_PARAMS_OFFSET.get(self.machine_type, MachineParamsOffset.FLEX)
+        return TrackDataOffset.MACHINE_PARAMS_SETUP + offset
+
+    def _get_playback_param(self, n: int) -> int:
+        """Get playback param n (1-6) for current machine type."""
+        return self._data[self._machine_values_offset() + (n - 1)]
+
+    def _set_playback_param(self, n: int, value: int):
+        """Set playback param n (1-6) for current machine type."""
+        self._data[self._machine_values_offset() + (n - 1)] = value & 0x7F
+
+    @property
+    def src(self) -> SrcAccessor:
+        """
+        Get SRC page accessor for named parameter access.
+
+        The parameter names depend on the current machine type.
+
+        Usage:
+            # Flex/Static machines
+            track.machine_type = MachineType.FLEX
+            track.src.pitch = 64       # Same as playback param1
+            track.src.retrig_time = 79 # Same as playback param6
+
+            # Thru machine
+            track.machine_type = MachineType.THRU
+            track.src.in_ab = 1        # Same as playback param1
+            track.src.vol_ab = 100     # Same as playback param2
+
+        Returns:
+            SrcAccessor with dynamic attribute access
+        """
+        if not hasattr(self, '_src_accessor'):
+            self._src_accessor = SrcAccessor(
+                track=self,
+                get_machine_type=lambda: self.machine_type,
+                get_param=self._get_playback_param,
+                set_param=self._set_playback_param,
+            )
+        return self._src_accessor
+
+    # === Legacy static aliases (for backward compatibility) ===
+    # These only work correctly for Flex/Static machines.
+    # Prefer using track.src.pitch, track.src.start, etc.
 
     def _flex_values_offset(self) -> int:
         """Get offset for Flex playback params in buffer."""
         return TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.FLEX
 
-    def _flex_setup_offset(self) -> int:
-        """Get offset for Flex setup params in buffer."""
-        return TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
-
     @property
     def pitch(self) -> int:
-        """Get/set pitch for Flex/Static (0-127, 64=center)."""
+        """Get/set pitch for Flex/Static (0-127, 64=center). Prefer track.src.pitch."""
         return self._data[self._flex_values_offset() + FlexStaticParamsOffset.PTCH]
 
     @pitch.setter
@@ -661,7 +733,7 @@ class AudioPartTrack:
 
     @property
     def start(self) -> int:
-        """Get/set start point for Flex/Static (0-127)."""
+        """Get/set start point for Flex/Static (0-127). Prefer track.src.start."""
         return self._data[self._flex_values_offset() + FlexStaticParamsOffset.STRT]
 
     @start.setter
@@ -670,7 +742,7 @@ class AudioPartTrack:
 
     @property
     def length(self) -> int:
-        """Get/set length for Flex/Static (0-127)."""
+        """Get/set length for Flex/Static (0-127). Prefer track.src.length."""
         return self._data[self._flex_values_offset() + FlexStaticParamsOffset.LEN]
 
     @length.setter
@@ -679,7 +751,7 @@ class AudioPartTrack:
 
     @property
     def rate(self) -> int:
-        """Get/set playback rate for Flex/Static (0-127)."""
+        """Get/set playback rate for Flex/Static (0-127). Prefer track.src.rate."""
         return self._data[self._flex_values_offset() + FlexStaticParamsOffset.RATE]
 
     @rate.setter

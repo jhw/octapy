@@ -10,6 +10,9 @@ from __future__ import annotations
 from typing import Optional
 
 from ..._io import SceneParamsOffset, SCENE_PARAMS_SIZE, SCENE_LOCK_DISABLED
+from ..enums import MachineType
+from ._fx import FXAccessor
+from ._src import SrcAccessor
 
 
 class SceneTrack:
@@ -39,6 +42,10 @@ class SceneTrack:
     def __init__(
         self,
         track_num: int = 1,
+        # Type hints for dynamic accessors (optional)
+        machine_type: Optional[MachineType] = None,
+        fx1_type: Optional[int] = None,
+        fx2_type: Optional[int] = None,
         # Playback page locks
         playback_param1: Optional[int] = None,
         playback_param2: Optional[int] = None,
@@ -79,9 +86,15 @@ class SceneTrack:
 
         Args:
             track_num: Track number (1-8)
+            machine_type: Optional machine type (for src accessor named params)
+            fx1_type: Optional FX1 type (for fx1 accessor named params)
+            fx2_type: Optional FX2 type (for fx2 accessor named params)
             All other args: Lock values (None = no lock, 0-127 = lock destination)
         """
         self._track_num = track_num
+        self._machine_type = machine_type
+        self._fx1_type = fx1_type
+        self._fx2_type = fx2_type
         # Initialize all locks to disabled (255)
         self._data = bytearray([SCENE_LOCK_DISABLED] * SCENE_PARAMS_SIZE)
 
@@ -150,19 +163,32 @@ class SceneTrack:
             self.fx2_param6 = fx2_param6
 
     @classmethod
-    def read(cls, track_num: int, track_data: bytes) -> "SceneTrack":
+    def read(
+        cls,
+        track_num: int,
+        track_data: bytes,
+        machine_type: Optional[MachineType] = None,
+        fx1_type: Optional[int] = None,
+        fx2_type: Optional[int] = None,
+    ) -> "SceneTrack":
         """
         Read a SceneTrack from binary data.
 
         Args:
             track_num: Track number (1-8)
             track_data: SCENE_PARAMS_SIZE bytes of track data
+            machine_type: Optional machine type (for src accessor named params)
+            fx1_type: Optional FX1 type (for fx1 accessor named params)
+            fx2_type: Optional FX2 type (for fx2 accessor named params)
 
         Returns:
             SceneTrack instance
         """
         instance = cls.__new__(cls)
         instance._track_num = track_num
+        instance._machine_type = machine_type
+        instance._fx1_type = fx1_type
+        instance._fx2_type = fx2_type
         instance._data = bytearray(track_data[:SCENE_PARAMS_SIZE])
         return instance
 
@@ -179,6 +205,9 @@ class SceneTrack:
         """Create a copy of this SceneTrack."""
         instance = SceneTrack.__new__(SceneTrack)
         instance._track_num = self._track_num
+        instance._machine_type = self._machine_type
+        instance._fx1_type = self._fx1_type
+        instance._fx2_type = self._fx2_type
         instance._data = bytearray(self._data)
         return instance
 
@@ -259,99 +288,111 @@ class SceneTrack:
     def playback_param6(self, value: Optional[int]):
         self._set_lock(SceneParamsOffset.PLAYBACK_PARAM6, value)
 
-    # === Sampler-specific aliases (for Flex/Static machines) ===
+    # === Dynamic accessors (named parameter access) ===
+
+    def _get_playback_param(self, n: int) -> Optional[int]:
+        """Get playback param n (1-6)."""
+        return getattr(self, f'playback_param{n}')
+
+    def _set_playback_param(self, n: int, value: Optional[int]):
+        """Set playback param n (1-6)."""
+        setattr(self, f'playback_param{n}', value)
 
     @property
-    def pitch(self) -> Optional[int]:
-        """Get/set pitch lock (alias for playback_param1)."""
-        return self.playback_param1
+    def src(self) -> SrcAccessor:
+        """
+        Get SRC page accessor for named parameter access.
 
-    @pitch.setter
-    def pitch(self, value: Optional[int]):
-        self.playback_param1 = value
+        Requires machine_type to be set for named access.
 
-    @property
-    def start(self) -> Optional[int]:
-        """Get/set start lock (alias for playback_param2)."""
-        return self.playback_param2
+        Usage:
+            track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
+            track.src.pitch = 64       # Lock pitch to 64
+            track.src.retrig_time = 79 # Lock retrig_time to 79
 
-    @start.setter
-    def start(self, value: Optional[int]):
-        self.playback_param2 = value
+            track = SceneTrack(track_num=1, machine_type=MachineType.THRU)
+            track.src.in_ab = 1        # Lock in_ab to 1
+            track.src.vol_ab = 100     # Lock vol_ab to 100
 
-    @property
-    def length(self) -> Optional[int]:
-        """Get/set length lock (alias for playback_param3)."""
-        return self.playback_param3
+        Returns:
+            SrcAccessor with dynamic attribute access
+        """
+        if not hasattr(self, '_src_accessor'):
+            self._src_accessor = SrcAccessor(
+                track=self,
+                get_machine_type=lambda: self._machine_type,
+                get_param=self._get_playback_param,
+                set_param=self._set_playback_param,
+            )
+        return self._src_accessor
 
-    @length.setter
-    def length(self, value: Optional[int]):
-        self.playback_param3 = value
+    def _get_fx1_param(self, n: int) -> Optional[int]:
+        """Get FX1 param n (1-6)."""
+        return getattr(self, f'fx1_param{n}')
 
-    @property
-    def rate(self) -> Optional[int]:
-        """Get/set rate lock (alias for playback_param4)."""
-        return self.playback_param4
-
-    @rate.setter
-    def rate(self, value: Optional[int]):
-        self.playback_param4 = value
-
-    @property
-    def retrig(self) -> Optional[int]:
-        """Get/set retrig lock (alias for playback_param5, sampler machines)."""
-        return self.playback_param5
-
-    @retrig.setter
-    def retrig(self, value: Optional[int]):
-        self.playback_param5 = value
+    def _set_fx1_param(self, n: int, value: Optional[int]):
+        """Set FX1 param n (1-6)."""
+        setattr(self, f'fx1_param{n}', value)
 
     @property
-    def retrig_time(self) -> Optional[int]:
-        """Get/set retrig time lock (alias for playback_param6, sampler machines)."""
-        return self.playback_param6
+    def fx1(self) -> FXAccessor:
+        """
+        Get FX1 accessor for named parameter access.
 
-    @retrig_time.setter
-    def retrig_time(self, value: Optional[int]):
-        self.playback_param6 = value
+        Requires fx1_type to be set for named access.
 
-    # === Thru playback aliases ===
+        Usage:
+            track = SceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
+            track.fx1.base = 64      # Lock filter base to 64
+            track.fx1.decay = 100    # Lock filter decay to 100
 
-    @property
-    def in_ab(self) -> Optional[int]:
-        """Get/set input A/B lock (alias for playback_param1, thru machines)."""
-        return self.playback_param1
+        Returns:
+            FXAccessor with dynamic attribute access
+        """
+        if not hasattr(self, '_fx1_accessor'):
+            self._fx1_accessor = FXAccessor(
+                track=self,
+                slot=1,
+                get_type=lambda: self._fx1_type,
+                set_type=None,  # SceneTrack doesn't store FX type
+                get_param=self._get_fx1_param,
+                set_param=self._set_fx1_param,
+            )
+        return self._fx1_accessor
 
-    @in_ab.setter
-    def in_ab(self, value: Optional[int]):
-        self.playback_param1 = value
+    def _get_fx2_param(self, n: int) -> Optional[int]:
+        """Get FX2 param n (1-6)."""
+        return getattr(self, f'fx2_param{n}')
 
-    @property
-    def vol_ab(self) -> Optional[int]:
-        """Get/set volume A/B lock (alias for playback_param2, thru machines)."""
-        return self.playback_param2
-
-    @vol_ab.setter
-    def vol_ab(self, value: Optional[int]):
-        self.playback_param2 = value
-
-    @property
-    def in_cd(self) -> Optional[int]:
-        """Get/set input C/D lock (alias for playback_param3, thru machines)."""
-        return self.playback_param3
-
-    @in_cd.setter
-    def in_cd(self, value: Optional[int]):
-        self.playback_param3 = value
+    def _set_fx2_param(self, n: int, value: Optional[int]):
+        """Set FX2 param n (1-6)."""
+        setattr(self, f'fx2_param{n}', value)
 
     @property
-    def vol_cd(self) -> Optional[int]:
-        """Get/set volume C/D lock (alias for playback_param4, thru machines)."""
-        return self.playback_param4
+    def fx2(self) -> FXAccessor:
+        """
+        Get FX2 accessor for named parameter access.
 
-    @vol_cd.setter
-    def vol_cd(self, value: Optional[int]):
-        self.playback_param4 = value
+        Requires fx2_type to be set for named access.
+
+        Usage:
+            track = SceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
+            track.fx2.time = 64      # Lock delay time to 64
+            track.fx2.send = 100     # Lock delay send to 100
+
+        Returns:
+            FXAccessor with dynamic attribute access
+        """
+        if not hasattr(self, '_fx2_accessor'):
+            self._fx2_accessor = FXAccessor(
+                track=self,
+                slot=2,
+                get_type=lambda: self._fx2_type,
+                set_type=None,  # SceneTrack doesn't store FX type
+                get_param=self._get_fx2_param,
+                set_param=self._set_fx2_param,
+            )
+        return self._fx2_accessor
 
     # === LFO page locks ===
 

@@ -1940,60 +1940,106 @@ class TestSceneTrackRepr:
         assert "locks=2" in r
 
 
-class TestSceneTrackAliases:
-    """Tests for SceneTrack machine-specific property aliases."""
+class TestSceneTrackDynamicAccessors:
+    """Tests for SceneTrack dynamic parameter accessors."""
 
-    def test_sampler_aliases(self):
-        """Sampler aliases map to playback params."""
-        track = SceneTrack(track_num=1)
+    def test_src_accessor_with_flex_machine(self):
+        """SRC accessor works for Flex machine."""
+        track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
 
-        # pitch/start/length/rate are playback_param1-4
-        track.pitch = 72
+        # Set via src accessor
+        track.src.pitch = 72
+        track.src.start = 16
+        track.src.length = 64
+        track.src.rate = 100
+        track.src.retrig = 32
+        track.src.retrig_time = 48
+
+        # Verify via playback params
         assert track.playback_param1 == 72
-
-        track.start = 16
         assert track.playback_param2 == 16
-
-        track.length = 64
         assert track.playback_param3 == 64
-
-        track.rate = 100
         assert track.playback_param4 == 100
-
-        # retrig/retrig_time are playback_param5-6
-        track.retrig = 32
         assert track.playback_param5 == 32
-
-        track.retrig_time = 48
         assert track.playback_param6 == 48
 
-    def test_thru_aliases(self):
-        """Thru aliases map to playback params."""
-        track = SceneTrack(track_num=1)
+    def test_src_accessor_with_thru_machine(self):
+        """SRC accessor works for Thru machine."""
+        track = SceneTrack(track_num=1, machine_type=MachineType.THRU)
 
-        # in_ab/vol_ab/in_cd/vol_cd are playback_param1-4
-        track.in_ab = 64
-        assert track.playback_param1 == 64
+        # Set via src accessor
+        track.src.in_ab = 1
+        track.src.vol_ab = 80
+        track.src.in_cd = 2
+        track.src.vol_cd = 100
 
-        track.vol_ab = 80
+        # Verify via playback params
+        # Thru mapping: in_ab=1, vol_ab=2, (unused)=3, in_cd=4, vol_cd=5, (unused)=6
+        assert track.playback_param1 == 1
         assert track.playback_param2 == 80
+        assert track.playback_param4 == 2
+        assert track.playback_param5 == 100
 
-        track.in_cd = 32
-        assert track.playback_param3 == 32
+    def test_src_accessor_param_names_change_with_type(self):
+        """SRC accessor param names change with machine type."""
+        track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
 
-        track.vol_cd = 100
-        assert track.playback_param4 == 100
+        names = track.src.get_param_names()
+        assert 'pitch' in names
+        assert 'retrig_time' in names
+        assert 'in_ab' not in names
 
-    def test_aliases_are_bidirectional(self):
-        """Setting playback_param reflects in aliases."""
+        # Change machine type
+        track._machine_type = MachineType.THRU
+        names = track.src.get_param_names()
+        assert 'in_ab' in names
+        assert 'vol_ab' in names
+        assert 'pitch' not in names
+
+    def test_fx1_accessor_with_type(self):
+        """FX1 accessor works when fx1_type is set."""
+        track = SceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
+
+        track.fx1.base = 64
+        track.fx1.width = 100
+        track.fx1.decay = 48
+
+        assert track.fx1_param1 == 64
+        assert track.fx1_param2 == 100
+        assert track.fx1_param6 == 48
+
+    def test_fx2_accessor_with_type(self):
+        """FX2 accessor works when fx2_type is set."""
+        track = SceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
+
+        track.fx2.time = 64
+        track.fx2.feedback = 80
+        track.fx2.send = 100
+
+        assert track.fx2_param1 == 64
+        assert track.fx2_param2 == 80
+        assert track.fx2_param6 == 100
+
+    def test_accessor_without_type_raises(self):
+        """Accessor raises error when type not set."""
+        track = SceneTrack(track_num=1)  # No machine_type
+
+        # All param names are None when no type is set
+        names = track.src.get_param_names()
+        assert names == []
+
+        with pytest.raises(AttributeError):
+            track.src.pitch = 64
+
+    def test_playback_param_direct_access(self):
+        """Playback params still work directly."""
         track = SceneTrack(track_num=1)
-
-        track.playback_param5 = 50
-        assert track.retrig == 50
 
         track.playback_param1 = 70
-        assert track.pitch == 70
-        assert track.in_ab == 70  # Same param, different alias
+        track.playback_param5 = 50
+
+        assert track.playback_param1 == 70
+        assert track.playback_param5 == 50
 
 
 # =============================================================================
