@@ -15,8 +15,9 @@ The Octatrack has 8 recorder buffers, one per audio track. These buffers can cap
 
 **Playback (flexible binding):**
 - Any track's Flex machine can play back any recorder buffer
-- Recorder buffers are sample slots 129-136 (buffer 1 = slot 129, buffer 2 = slot 130, etc.)
-- Example: Track 2 can play back audio recorded on track 1 by setting `recorder_slot = 129`
+- Internally, recorder buffers occupy slots 128-135 (0-indexed) in the flex_slots array
+- The API uses `recorder_slot` with values 0-7 for buffers 1-8
+- Example: Track 2 can play back audio recorded on track 1 by setting `recorder_slot = 0`
 
 ## Recording Configuration
 
@@ -110,7 +111,7 @@ When enabled, simply press **REC1/2/3** on the active track (no need to hold TRA
 4. Recording arms and waits for QREC quantization point
 5. Recording runs for RLEN steps
 6. Recording stops automatically
-7. Audio is in the track's recorder buffer (slot 129-136)
+7. Audio is in the track's recorder buffer (internal slots 128-135, API uses `recorder_slot` 0-7)
 
 ## Related Settings
 
@@ -280,8 +281,12 @@ recorder.loop = False             # Don't loop
 # Track 2 plays back recorder buffer 1
 track2 = part.track(2)
 track2.machine_type = MachineType.FLEX
-track2.recorder_slot = 129  # Buffer 1
+track2.recorder_slot = 0  # Buffer 1 (0-indexed: 0-7 for buffers 1-8)
 ```
+
+Note: `flex_slot` (for sample playback) and `recorder_slot` (for recorder buffer playback)
+are mutually exclusive - they write to the same underlying byte in the binary format.
+Setting one clears the other.
 
 ### Project-Level API
 

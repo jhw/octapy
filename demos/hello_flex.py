@@ -136,16 +136,16 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             recorder.source = source
 
         # Configure tracks 5-7 as Flex machines playing recorder buffers 1-3
-        for track_num, buffer_slot in [(5, 129), (6, 130), (7, 131)]:
+        for track_num, buffer_num in [(5, 1), (6, 2), (7, 3)]:
             track = part.track(track_num)
             track.machine_type = MachineType.FLEX
-            track.recorder_slot = buffer_slot
+            track.recorder_slot = buffer_num - 1  # 0-indexed: 0, 1, 2 for buffers 1, 2, 3
             track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
 
         # Configure FX on track 8 (master track)
         track8 = part.track(8)
-        track8.fx1_type = FX1Type.CHORUS
-        track8.fx2_type = FX2Type.DELAY
+        track8.fx1_type = FX1Type.SPATIALIZER
+        track8.fx2_type = FX2Type.CHORUS
 
     # Configure all 16 patterns with Euclidean rhythms
     # All patterns default to Part 1; switch parts manually on OT to use Parts 2-4

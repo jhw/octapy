@@ -102,7 +102,7 @@ class AudioPartTrack:
         machine_type: MachineType = MachineType.FLEX,
         flex_slot: int = 0,
         static_slot: int = 0,
-        recorder_slot: int = 0,
+        recorder_slot: Optional[int] = None,
         main_volume: int = 108,
         cue_volume: int = 108,
         fx1_type: Optional[int] = None,
@@ -122,9 +122,11 @@ class AudioPartTrack:
         Args:
             track_num: Track number (1-8)
             machine_type: Machine type (FLEX, STATIC, THRU, NEIGHBOR, PICKUP)
-            flex_slot: Flex sample slot (0-127)
+            flex_slot: Flex sample slot (0-127 for sample slots 1-128)
             static_slot: Static sample slot (0-127)
-            recorder_slot: Recorder buffer slot (0-7 for buffers, 128+ for flex slots)
+            recorder_slot: Recorder buffer for playback (0-7 for buffers 1-8).
+                          Mutually exclusive with flex_slot - setting this
+                          overrides flex_slot for Flex machine playback.
             main_volume: Main output volume (0-127)
             cue_volume: Cue output volume (0-127)
             fx1_type: FX1 effect type
@@ -144,9 +146,13 @@ class AudioPartTrack:
 
         # Apply constructor arguments
         self.machine_type = machine_type
-        self.flex_slot = flex_slot
         self.static_slot = static_slot
-        self.recorder_slot = recorder_slot
+        # flex_slot and recorder_slot are mutually exclusive (both write to FLEX_SLOT_ID)
+        # recorder_slot takes precedence if set
+        if recorder_slot is not None:
+            self.recorder_slot = recorder_slot
+        else:
+            self.flex_slot = flex_slot
         self.set_volume(main_volume, cue_volume)
 
         if fx1_type is not None:
@@ -412,15 +418,37 @@ class AudioPartTrack:
         self._data[TrackDataOffset.MACHINE_TYPE] = int(value)
 
     # === Machine slots ===
+    #
+    # The Octatrack's flex_slots array has 136 entries:
+    # - Indices 0-127: sample slots (1-128 in user-facing 1-indexed terms)
+    # - Indices 128-135: recorder buffers (1-8 in user-facing terms)
+    #
+    # For Flex machine playback, FLEX_SLOT_ID determines what plays:
+    # - Values 0-127: play from sample slot
+    # - Values 128-135: play from recorder buffer
+    #
+    # flex_slot and recorder_slot are mutually exclusive views into the same
+    # underlying byte (FLEX_SLOT_ID). Setting one overrides the other.
 
     @property
     def flex_slot(self) -> int:
-        """Get/set the flex sample slot."""
+        """
+        Get/set the flex sample slot (0-127 for sample slots 1-128).
+
+        This is mutually exclusive with recorder_slot - both write to the
+        same underlying byte. Setting flex_slot clears any recorder_slot setting.
+
+        Returns:
+            The sample slot index (0-127), or the raw value if >= 128
+            (indicating recorder_slot is set instead).
+        """
         return self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.FLEX_SLOT_ID]
 
     @flex_slot.setter
     def flex_slot(self, value: int):
-        self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.FLEX_SLOT_ID] = value & 0xFF
+        if not 0 <= value <= 127:
+            raise ValueError(f"flex_slot must be 0-127, got {value}")
+        self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.FLEX_SLOT_ID] = value
 
     @property
     def static_slot(self) -> int:
@@ -432,13 +460,29 @@ class AudioPartTrack:
         self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.STATIC_SLOT_ID] = value & 0xFF
 
     @property
-    def recorder_slot(self) -> int:
-        """Get/set the recorder slot."""
-        return self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.RECORDER_SLOT_ID]
+    def recorder_slot(self) -> Optional[int]:
+        """
+        Get/set the recorder buffer for Flex machine playback (0-7 for buffers 1-8).
+
+        This is mutually exclusive with flex_slot - both write to the same
+        underlying byte (FLEX_SLOT_ID). Setting recorder_slot overrides flex_slot.
+
+        Recorder buffers occupy slots 128-135 in the unified flex_slots array.
+        This property provides a clean interface using buffer indices 0-7.
+
+        Returns:
+            The recorder buffer index (0-7), or None if flex_slot is set instead.
+        """
+        val = self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.FLEX_SLOT_ID]
+        if val >= 128:
+            return val - 128
+        return None
 
     @recorder_slot.setter
     def recorder_slot(self, value: int):
-        self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.RECORDER_SLOT_ID] = value & 0xFF
+        if not 0 <= value <= 7:
+            raise ValueError(f"recorder_slot must be 0-7, got {value}")
+        self._data[TrackDataOffset.MACHINE_SLOTS + MachineSlotOffset.FLEX_SLOT_ID] = 128 + value
 
     # === Volume ===
 
@@ -823,12 +867,10 @@ class AudioPartTrack:
 
     def to_dict(self) -> dict:
         """Convert audio part track to dictionary."""
-        return {
+        result = {
             "track": self._track_num,
             "machine_type": self.machine_type.name,
-            "flex_slot": self.flex_slot,
             "static_slot": self.static_slot,
-            "recorder_slot": self.recorder_slot,
             "volume": {"main": self.volume[0], "cue": self.volume[1]},
             "amp": {
                 "attack": self.attack,
@@ -841,6 +883,13 @@ class AudioPartTrack:
             "fx2_type": self.fx2_type,
             "recorder": self._recorder.to_dict(),
         }
+        # flex_slot and recorder_slot are mutually exclusive
+        rec_slot = self.recorder_slot
+        if rec_slot is not None:
+            result["recorder_slot"] = rec_slot
+        else:
+            result["flex_slot"] = self.flex_slot
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> "AudioPartTrack":
@@ -853,12 +902,15 @@ class AudioPartTrack:
             mt = data["machine_type"]
             kwargs["machine_type"] = MachineType[mt] if isinstance(mt, str) else MachineType(mt)
 
-        if "flex_slot" in data:
-            kwargs["flex_slot"] = data["flex_slot"]
-        if "static_slot" in data:
-            kwargs["static_slot"] = data["static_slot"]
+        # flex_slot and recorder_slot are mutually exclusive
+        # recorder_slot takes precedence if both are present
         if "recorder_slot" in data:
             kwargs["recorder_slot"] = data["recorder_slot"]
+        elif "flex_slot" in data:
+            kwargs["flex_slot"] = data["flex_slot"]
+
+        if "static_slot" in data:
+            kwargs["static_slot"] = data["static_slot"]
 
         if "volume" in data:
             kwargs["main_volume"] = data["volume"].get("main", 108)

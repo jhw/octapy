@@ -756,7 +756,8 @@ class TestAudioPartTrackStandalone:
         assert track.machine_type == MachineType.FLEX
         assert track.flex_slot == 0
         assert track.static_slot == 0
-        assert track.recorder_slot == 0
+        # recorder_slot is None when flex_slot is set (they're mutually exclusive)
+        assert track.recorder_slot is None
         assert track.volume == (108, 108)
         assert track.attack == 0
         assert track.hold == 127
@@ -764,14 +765,13 @@ class TestAudioPartTrackStandalone:
         assert track.amp_volume == 108
         assert track.balance == 64
 
-    def test_constructor_with_kwargs(self):
-        """AudioPartTrack accepts kwargs for all properties."""
+    def test_constructor_with_flex_slot(self):
+        """AudioPartTrack with flex_slot for sample playback."""
         track = AudioPartTrack(
             track_num=3,
             machine_type=MachineType.STATIC,
             flex_slot=5,
             static_slot=10,
-            recorder_slot=2,
             main_volume=100,
             cue_volume=90,
             fx1_type=FX1Type.EQ,
@@ -787,7 +787,8 @@ class TestAudioPartTrackStandalone:
         assert track.machine_type == MachineType.STATIC
         assert track.flex_slot == 5
         assert track.static_slot == 10
-        assert track.recorder_slot == 2
+        # recorder_slot is None when flex_slot is set
+        assert track.recorder_slot is None
         assert track.volume == (100, 90)
         assert track.fx1_type == FX1Type.EQ
         assert track.fx2_type == FX2Type.PLATE_REVERB
@@ -796,6 +797,35 @@ class TestAudioPartTrackStandalone:
         assert track.release == 50
         assert track.amp_volume == 80
         assert track.balance == 70
+
+    def test_constructor_with_recorder_slot(self):
+        """AudioPartTrack with recorder_slot for recorder buffer playback."""
+        track = AudioPartTrack(
+            track_num=4,
+            machine_type=MachineType.FLEX,
+            recorder_slot=2,  # Recorder buffer 3 (0-indexed)
+            main_volume=100,
+            cue_volume=90,
+        )
+
+        assert track.track_num == 4
+        assert track.machine_type == MachineType.FLEX
+        # recorder_slot=2 means flex_slot_id=130 internally
+        assert track.flex_slot == 130  # Raw value shows recorder buffer is set
+        assert track.recorder_slot == 2
+        assert track.volume == (100, 90)
+
+    def test_recorder_slot_overrides_flex_slot(self):
+        """When both flex_slot and recorder_slot are passed, recorder_slot wins."""
+        track = AudioPartTrack(
+            flex_slot=5,
+            recorder_slot=2,
+        )
+
+        # recorder_slot takes precedence
+        assert track.recorder_slot == 2
+        # flex_slot getter returns raw value which is 130 (128 + 2)
+        assert track.flex_slot == 130
 
     def test_partial_kwargs(self):
         """AudioPartTrack with partial kwargs uses defaults for others."""
