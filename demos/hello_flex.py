@@ -129,18 +129,16 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
             track.fx1_type = FX1Type.DJ_EQ
 
-        # Configure recorder buffers for tracks 1-3 (listen to their own track)
-        recording_sources = [RecordingSource.TRACK_1, RecordingSource.TRACK_2, RecordingSource.TRACK_3]
-        for track_num, source in zip([1, 2, 3], recording_sources):
-            recorder = part.track(track_num).recorder
-            recorder.source = source
-
-        # Configure tracks 5-7 as Flex machines playing recorder buffers 1-3
-        for track_num, buffer_num in [(5, 1), (6, 2), (7, 3)]:
+        # Configure tracks 5-7 as Flex machines playing from their own recorder buffers
+        # Each track's recorder buffer listens to the corresponding sample track (1-3)
+        for track_num, source in [(5, RecordingSource.TRACK_1),
+                                  (6, RecordingSource.TRACK_2),
+                                  (7, RecordingSource.TRACK_3)]:
             track = part.track(track_num)
             track.machine_type = MachineType.FLEX
-            track.recorder_slot = buffer_num - 1  # 0-indexed: 0, 1, 2 for buffers 1, 2, 3
+            track.recorder_slot = track_num - 1  # Track 5 uses buffer 5 (index 4), etc.
             track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
+            track.recorder.source = source  # Buffer 5 listens to track 1, etc.
 
         # Configure FX on track 8 (master track)
         track8 = part.track(8)
