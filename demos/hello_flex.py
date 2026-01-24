@@ -7,11 +7,18 @@ Configuration:
 - Each part has unique random samples on tracks 1-3
 - All patterns use Euclidean rhythms with velocity p-locks
 - Kick and hat tracks have 85% probability p-locks
+- Track 7 configured as transition buffer (via render settings)
+- Track 8 as master track
 
 Track layout per part:
-- Track 1: Kick drum (with probability)
-- Track 2: Snare/clap (no probability)
-- Track 3: Hat (with probability)
+- Tracks 1-3: Kick, snare, hat (Flex machines with samples)
+- Tracks 4-6: Unused
+- Track 7: Transition buffer (Flex playing recorder buffer 7, source=Main)
+- Track 8: Master track
+
+The transition_track render setting automatically configures T7 for
+the classic "transition trick" - record the mix, crossfade to T7,
+change patterns, crossfade back. See docs/live-transition-setup.md.
 
 Pattern source: Bjorklund algorithm, Toussaint's Euclidean rhythm research
 
@@ -25,7 +32,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength, FX1Type, FX2Type, RecordingSource
+from octapy import Project, MachineType, SamplePool, NoteLength, FX1Type, FX2Type
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -129,16 +136,8 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
             track.fx1_type = FX1Type.DJ_EQ
 
-        # Configure tracks 5-7 as Flex machines playing from their own recorder buffers
-        # Each track's recorder buffer listens to the corresponding sample track (1-3)
-        for track_num, source in [(5, RecordingSource.TRACK_1),
-                                  (6, RecordingSource.TRACK_2),
-                                  (7, RecordingSource.TRACK_3)]:
-            track = part.track(track_num)
-            track.machine_type = MachineType.FLEX
-            track.recorder_slot = track_num - 1  # Track 5 uses buffer 5 (index 4), etc.
-            track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
-            track.recorder.source = source  # Buffer 5 listens to track 1, etc.
+        # Track 7 is configured automatically by transition_track render setting
+        # (Flex machine -> recorder buffer 7, recorder source = Main, scenes 1/2 for crossfade)
 
         # Configure FX on track 8 (master track)
         track8 = part.track(8)
@@ -209,11 +208,10 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Enable propagation so all 4 parts are consistent when switching
     project.render_settings.sample_duration = NoteLength.SIXTEENTH
     project.render_settings.auto_master_trig = True
+    project.render_settings.transition_track = True  # Configure T7 as transition buffer
     project.render_settings.propagate_scenes = True
-    project.render_settings.propagate_src = True
-    project.render_settings.propagate_amp = True
+    project.render_settings.propagate_src = True  # Excludes T7 (transition_track) and T8 (master)
     project.render_settings.propagate_fx = True
-    project.render_settings.propagate_recorder = True
 
     # Configure Banks 1 and 2
     print(f"\nConfiguring Banks 1-2:")

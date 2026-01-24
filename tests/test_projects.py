@@ -454,6 +454,14 @@ class TestRenderSettings:
         project = Project.from_template("TEST")
         assert project.render_settings.propagate_src is False
 
+    def test_propagate_src_can_be_enabled(self):
+        """Test propagate_src can be set to True."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_src = True
+        assert project.render_settings.propagate_src is True
+
     def test_propagate_fx_default_false(self):
         """Test propagate_fx defaults to False."""
         from octapy import Project
@@ -461,12 +469,28 @@ class TestRenderSettings:
         project = Project.from_template("TEST")
         assert project.render_settings.propagate_fx is False
 
-    def test_propagate_amp_default_false(self):
-        """Test propagate_amp defaults to False."""
+    def test_transition_track_default_false(self):
+        """Test transition_track defaults to False."""
         from octapy import Project
 
         project = Project.from_template("TEST")
-        assert project.render_settings.propagate_amp is False
+        assert project.render_settings.transition_track is False
+
+    def test_transition_track_can_be_enabled(self):
+        """Test transition_track can be set to True."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.transition_track = True
+        assert project.render_settings.transition_track is True
+
+    def test_propagate_fx_can_be_enabled(self):
+        """Test propagate_fx can be set to True."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.propagate_fx = True
+        assert project.render_settings.propagate_fx is True
 
 
 class TestSceneIsBlank:

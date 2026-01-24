@@ -17,6 +17,7 @@ from ..._io import (
     zip_project,
     unzip_project,
 )
+from ..enums import MachineType, RecordingSource
 from ..settings import Settings, RenderSettings
 from ..slot_manager import SlotManager
 from .bank import Bank
@@ -242,6 +243,258 @@ class Project:
 
         return instance
 
+    def _apply_render_settings(self) -> None:
+        """
+        Apply render settings to all banks before saving.
+
+        This method is called automatically during to_directory/to_zip.
+        It applies octapy-specific transformations based on render_settings.
+        """
+        rs = self._render_settings
+
+        # Apply transition_track setting to all banks
+        if rs.transition_track:
+            self._configure_transition_track()
+
+        # Apply propagation settings (Part 1 -> Parts 2-4)
+        for bank in self._banks.values():
+            if rs.propagate_scenes:
+                self._propagate_scenes(bank)
+            if rs.propagate_src:
+                self._propagate_src(bank)
+            if rs.propagate_fx:
+                self._propagate_fx(bank)
+
+        # Apply auto-trig settings (after propagation so they see final state)
+        if rs.auto_master_trig:
+            self._apply_auto_master_trig()
+        if rs.auto_thru_trig:
+            self._apply_auto_thru_trig()
+
+    def _configure_transition_track(self) -> None:
+        """
+        Configure track 7 as transition buffer on all banks.
+
+        Sets up:
+        - T7 as Flex machine playing recorder buffer 7
+        - T7 recorder source = Main
+        - Scene 1: T1-6 loud, T7 silent
+        - Scene 2: T1-6 silent, T7 loud
+        """
+        for bank in self._banks.values():
+            for part_num in range(1, 5):
+                part = bank.part(part_num)
+
+                # Configure T7 machine
+                t7 = part.track(7)
+                t7.machine_type = MachineType.FLEX
+                t7.recorder_slot = 6  # Buffer 7 (0-indexed)
+                t7.apply_recommended_flex_defaults()
+
+                # Configure T7 recorder to listen to Main
+                t7.recorder.source = RecordingSource.MAIN
+
+                # Configure Scene 1: T1-6 loud, T7 silent
+                scene1 = part.scene(1)
+                for track_num in range(1, 7):
+                    scene1.track(track_num).amp_volume = 127
+                scene1.track(7).amp_volume = 0
+
+                # Configure Scene 2: T1-6 silent, T7 loud
+                scene2 = part.scene(2)
+                for track_num in range(1, 7):
+                    scene2.track(track_num).amp_volume = 0
+                scene2.track(7).amp_volume = 127
+
+    def _propagate_scenes(self, bank: Bank) -> None:
+        """Propagate scenes from Part 1 to Parts 2-4."""
+        source_part = bank.part(1)
+        for scene_num in range(1, 17):
+            source_scene = source_part.scene(scene_num)
+            if source_scene.has_locks():
+                for target_part_num in range(2, 5):
+                    target_part = bank.part(target_part_num)
+                    target_scene = target_part.scene(scene_num)
+                    if target_scene.is_blank:
+                        # Clone source scene to target
+                        cloned = source_scene.clone()
+                        cloned._scene_num = scene_num
+                        target_part.set_scene(scene_num, cloned)
+
+    def _propagate_src(self, bank: Bank) -> None:
+        """
+        Propagate SRC and AMP page settings from Part 1 to Parts 2-4.
+
+        Copies SRC page (pitch, start, length, rate, retrig, retrig_time)
+        and AMP page (attack, hold, release, volume, balance) settings.
+
+        Exclusions:
+        - Track 7 excluded if transition_track is enabled
+        - Track 8 excluded if master_track is enabled
+        """
+        rs = self._render_settings
+
+        # Determine which tracks to skip
+        skip_tracks = set()
+        if rs.transition_track:
+            skip_tracks.add(7)
+        if self._settings.master_track:
+            skip_tracks.add(8)
+
+        source_part = bank.part(1)
+        for track_num in range(1, 9):
+            if track_num in skip_tracks:
+                continue
+
+            source_track = source_part.track(track_num)
+
+            for target_part_num in range(2, 5):
+                target_part = bank.part(target_part_num)
+                target_track = target_part.track(track_num)
+
+                # Propagate SRC page settings
+                target_track.pitch = source_track.pitch
+                target_track.start = source_track.start
+                target_track.length = source_track.length
+                target_track.rate = source_track.rate
+                target_track.retrig = source_track.retrig
+                target_track.retrig_time = source_track.retrig_time
+
+                # Propagate setup page settings (part of SRC)
+                target_track.loop_mode = source_track.loop_mode
+                target_track.slice_mode = source_track.slice_mode
+                target_track.length_mode = source_track.length_mode
+                target_track.rate_mode = source_track.rate_mode
+                target_track.timestretch_mode = source_track.timestretch_mode
+                target_track.timestretch_sensitivity = source_track.timestretch_sensitivity
+
+                # Propagate AMP page settings
+                target_track.amp_attack = source_track.amp_attack
+                target_track.amp_hold = source_track.amp_hold
+                target_track.amp_release = source_track.amp_release
+                target_track.amp_volume = source_track.amp_volume
+                target_track.amp_balance = source_track.amp_balance
+
+    def _propagate_fx(self, bank: Bank) -> None:
+        """
+        Propagate FX settings from Part 1 to Parts 2-4.
+
+        Copies FX1 and FX2 type and parameters.
+
+        Exclusions:
+        - Track 7 excluded if transition_track is enabled
+        - Track 8 excluded if master_track is enabled
+        """
+        from ..enums import FX1Type, FX2Type
+
+        rs = self._render_settings
+
+        # Determine which tracks to skip
+        skip_tracks = set()
+        if rs.transition_track:
+            skip_tracks.add(7)
+        if self._settings.master_track:
+            skip_tracks.add(8)
+
+        source_part = bank.part(1)
+        for track_num in range(1, 9):
+            if track_num in skip_tracks:
+                continue
+
+            source_track = source_part.track(track_num)
+
+            for target_part_num in range(2, 5):
+                target_part = bank.part(target_part_num)
+                target_track = target_part.track(track_num)
+
+                # Only propagate if target is at template defaults
+                # Template defaults: FX1=FILTER, FX2=DELAY
+                if target_track.fx1_type == FX1Type.FILTER:
+                    target_track.fx1_type = source_track.fx1_type
+                    for i in range(1, 7):
+                        setattr(target_track, f'fx1_param{i}',
+                                getattr(source_track, f'fx1_param{i}'))
+
+                if target_track.fx2_type == FX2Type.DELAY:
+                    target_track.fx2_type = source_track.fx2_type
+                    for i in range(1, 7):
+                        setattr(target_track, f'fx2_param{i}',
+                                getattr(source_track, f'fx2_param{i}'))
+
+    def _apply_auto_master_trig(self) -> None:
+        """
+        Auto-add trig to track 8 step 1 for patterns with audio activity.
+
+        Only adds trig if master track is enabled and the pattern has
+        at least one trig on tracks 1-7.
+        """
+        if not self._settings.master_track:
+            return
+
+        for bank in self._banks.values():
+            for pattern_num in range(1, 17):
+                pattern = bank.pattern(pattern_num)
+
+                # Check if any track 1-7 has activity
+                has_activity = False
+                for track_num in range(1, 8):
+                    track = pattern.audio_track(track_num)
+                    if track.active_steps:
+                        has_activity = True
+                        break
+
+                # Add trig to track 8 step 1 if there's activity
+                if has_activity:
+                    track8 = pattern.audio_track(8)
+                    if 1 not in track8.active_steps:
+                        current_steps = list(track8.active_steps)
+                        current_steps.append(1)
+                        track8.active_steps = current_steps
+
+    def _apply_auto_thru_trig(self) -> None:
+        """
+        Auto-add trig to step 1 for Thru machine tracks in patterns with activity.
+
+        Only adds trig if the track's machine type is THRU and the pattern
+        has at least one trig on other tracks.
+        """
+        for bank in self._banks.values():
+            # Check each part for Thru machines
+            for part_num in range(1, 5):
+                part = bank.part(part_num)
+                thru_tracks = []
+
+                for track_num in range(1, 9):
+                    track = part.track(track_num)
+                    if track.machine_type == MachineType.THRU:
+                        thru_tracks.append(track_num)
+
+                if not thru_tracks:
+                    continue
+
+                # For each pattern, add trigs to Thru tracks if pattern has activity
+                for pattern_num in range(1, 17):
+                    pattern = bank.pattern(pattern_num)
+
+                    # Check if pattern has activity on non-Thru tracks
+                    has_activity = False
+                    for track_num in range(1, 9):
+                        if track_num in thru_tracks:
+                            continue
+                        track = pattern.audio_track(track_num)
+                        if track.active_steps:
+                            has_activity = True
+                            break
+
+                    # Add trig to step 1 for each Thru track
+                    if has_activity:
+                        for thru_track_num in thru_tracks:
+                            track = pattern.audio_track(thru_track_num)
+                            if 1 not in track.active_steps:
+                                current_steps = list(track.active_steps)
+                                current_steps.append(1)
+                                track.active_steps = current_steps
+
     def to_directory(self, path: Path | str) -> None:
         """
         Save the project to a directory.
@@ -251,6 +504,9 @@ class Project:
         Args:
             path: Destination directory (will be created if needed)
         """
+        # Apply render settings before saving
+        self._apply_render_settings()
+
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
@@ -370,8 +626,10 @@ class Project:
         Available settings:
             auto_master_trig: Auto-add track 8 trig when master track enabled
             auto_thru_trig: Auto-add trig to Thru machine tracks
+            transition_track: Configure T7 as transition buffer
             propagate_scenes: Copy scenes from Part 1 to Parts 2-4
-            propagate_src: Copy SRC page from Part 1 to Parts 2-4
+            propagate_src: Copy SRC+AMP settings from Part 1 to Parts 2-4
+            propagate_fx: Copy FX settings from Part 1 to Parts 2-4
             sample_duration: Target duration for sample normalization
         """
         return self._render_settings

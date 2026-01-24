@@ -217,11 +217,10 @@ class RenderSettings:
     def __init__(self):
         self._auto_master_trig = False
         self._auto_thru_trig = False
+        self._transition_track = False
         self._propagate_scenes = False
         self._propagate_src = False
-        self._propagate_amp = False
         self._propagate_fx = False
-        self._propagate_recorder = False
         self._sample_duration = None
 
     @property
@@ -259,6 +258,37 @@ class RenderSettings:
         self._auto_thru_trig = value
 
     @property
+    def transition_track(self) -> bool:
+        """
+        Configure track 7 as a transition buffer for seamless bank/song changes.
+
+        When True, automatically configures all Parts in each bank with:
+        - T7 as Flex machine playing recorder buffer 7
+        - T7 recorder source set to Main (captures master output)
+        - Scene 1: T1-6 amp_volume=MAX, T7 amp_volume=MIN (normal playback)
+        - Scene 2: T1-6 amp_volume=MIN, T7 amp_volume=MAX (transition playback)
+
+        This enables the classic "transition trick" workflow:
+        1. Record master output to T7's buffer
+        2. Crossfade to Scene 2 (plays T7 only)
+        3. Change patterns/banks on T1-6
+        4. Crossfade back to Scene 1
+
+        The configuration is propagated to all 4 Parts within each bank
+        to ensure consistent behavior when switching Parts.
+
+        Recorder buffers are global across banks, so T7 continues playing
+        seamlessly when switching to a new bank with the same configuration.
+
+        Default is False (manual T7 configuration).
+        """
+        return self._transition_track
+
+    @transition_track.setter
+    def transition_track(self, value: bool):
+        self._transition_track = value
+
+    @property
     def propagate_scenes(self) -> bool:
         """
         Propagate scenes from Part 1 to Parts 2-4 within each bank.
@@ -278,40 +308,28 @@ class RenderSettings:
     @property
     def propagate_src(self) -> bool:
         """
-        Propagate SRC page settings from Part 1 to Parts 2-4 within each bank.
+        Propagate SRC and AMP page settings from Part 1 to Parts 2-4 within each bank.
 
-        When True, copies SRC (playback) settings and Setup page settings
-        for Flex/Static machines from Part 1 to Parts 2-4 for each track,
-        but only if the target Part's SRC page is at template defaults.
+        When True, copies SRC (playback) settings and AMP (envelope/volume) settings
+        from Part 1 to Parts 2-4 for each track, but only if the target Part's
+        settings are at template defaults.
 
-        SRC page: pitch, start, length, rate, retrig, retrig_time
-        Setup page: loop_mode, slice_mode, length_mode, rate_mode,
-                   timestretch_mode, timestretch_sensitivity
+        SRC page: pitch, start, length, rate, retrig, retrig_time,
+                  loop_mode, slice_mode, length_mode, rate_mode,
+                  timestretch_mode, timestretch_sensitivity
+        AMP page: attack, hold, release, volume, balance
 
-        Default is False (manual SRC configuration per Part).
+        Exclusions:
+        - Track 7 is excluded if transition_track is enabled
+        - Track 8 is excluded if master_track is enabled
+
+        Default is False (manual SRC/AMP configuration per Part).
         """
         return self._propagate_src
 
     @propagate_src.setter
     def propagate_src(self, value: bool):
         self._propagate_src = value
-
-    @property
-    def propagate_amp(self) -> bool:
-        """
-        Propagate AMP page settings from Part 1 to Parts 2-4 within each bank.
-
-        When True, copies AMP settings (attack, hold, release, volume, balance)
-        from Part 1 to Parts 2-4 for each track, but only if the target Part's
-        AMP page is at template defaults.
-
-        Default is False (manual AMP configuration per Part).
-        """
-        return self._propagate_amp
-
-    @propagate_amp.setter
-    def propagate_amp(self, value: bool):
-        self._propagate_amp = value
 
     @property
     def propagate_fx(self) -> bool:
@@ -322,6 +340,10 @@ class RenderSettings:
         for each track, but only if the target Part's FX type matches the
         template defaults (FX1=FILTER, FX2=DELAY).
 
+        Exclusions:
+        - Track 7 is excluded if transition_track is enabled
+        - Track 8 is excluded if master_track is enabled
+
         Default is False (manual FX configuration per Part).
         """
         return self._propagate_fx
@@ -329,24 +351,6 @@ class RenderSettings:
     @propagate_fx.setter
     def propagate_fx(self, value: bool):
         self._propagate_fx = value
-
-    @property
-    def propagate_recorder(self) -> bool:
-        """
-        Propagate recorder setup from Part 1 to Parts 2-4 within each bank.
-
-        When True, copies recorder settings (source, RLEN, TRIG, LOOP,
-        FIN, FOUT, gains, QREC, QPL) from Part 1 to Parts 2-4 for each
-        track, but only if the target Part's recorder setup is at
-        template defaults.
-
-        Default is False (manual recorder configuration per Part).
-        """
-        return self._propagate_recorder
-
-    @propagate_recorder.setter
-    def propagate_recorder(self, value: bool):
-        self._propagate_recorder = value
 
     @property
     def sample_duration(self):
