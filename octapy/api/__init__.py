@@ -30,14 +30,14 @@ from .slot_manager import (
 
 # Core objects
 from .core import (
-    RecorderSetup,
+    AudioRecorderSetup,
     AudioStep,
     MidiStep,
     AudioPartTrack,
     AudioPatternTrack,
     MidiPartTrack,
     MidiPatternTrack,
-    SceneTrack,
+    AudioSceneTrack,
     Scene,
     Part,
     Pattern,

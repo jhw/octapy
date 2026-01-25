@@ -63,7 +63,7 @@ from .api.slot_manager import (
 # High-level API classes (from standalone objects)
 from .api import (
     # Leaf objects
-    RecorderSetup,
+    AudioRecorderSetup,
     AudioStep,
     MidiStep,
     # Track objects
@@ -72,7 +72,7 @@ from .api import (
     MidiPartTrack,
     MidiPatternTrack,
     # Container objects
-    SceneTrack,
+    AudioSceneTrack,
     Scene,
     Part,
     Pattern,
@@ -101,7 +101,7 @@ __all__ = [
     "Part",
     "Pattern",
     "Scene",
-    "SceneTrack",
+    "AudioSceneTrack",
     # Track classes
     "AudioPartTrack",
     "AudioPatternTrack",
@@ -112,7 +112,7 @@ __all__ = [
     "MidiStep",
     # Utilities
     "SamplePool",
-    "RecorderSetup",
+    "AudioRecorderSetup",
     "Settings",
     "RenderSettings",
     # Backward compatibility aliases

@@ -1,5 +1,5 @@
 """
-RecorderSetup - standalone recorder buffer configuration.
+AudioRecorderSetup - standalone recorder buffer configuration.
 
 This is a standalone object that owns its data buffer and can be created
 with constructor arguments, read from binary, or written to binary.
@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..._io import (
+from ...._io import (
     RecorderSetupOffset,
     RECORDER_SETUP_SIZE,
     OCTAPY_DEFAULT_RECORDER_SETUP,
 )
-from ..enums import RecordingSource, RecTrigMode, QRecMode
+from ...enums import RecordingSource, RecTrigMode, QRecMode
 
 
-class RecorderSetup:
+class AudioRecorderSetup:
     """
     Recorder buffer configuration for an audio track.
 
@@ -30,7 +30,7 @@ class RecorderSetup:
 
     Usage:
         # Create with constructor arguments
-        recorder = RecorderSetup(
+        recorder = AudioRecorderSetup(
             source=RecordingSource.TRACK_3,
             rlen=16,
             trig=RecTrigMode.ONE,
@@ -38,7 +38,7 @@ class RecorderSetup:
         )
 
         # Read from binary
-        recorder = RecorderSetup.read(data)
+        recorder = AudioRecorderSetup.read(data)
 
         # Write to binary
         data = recorder.write()
@@ -74,7 +74,7 @@ class RecorderSetup:
         cd_gain: Optional[int] = None,
     ):
         """
-        Create a RecorderSetup with optional parameter overrides.
+        Create a AudioRecorderSetup with optional parameter overrides.
 
         All parameters default to octapy defaults if not specified.
 
@@ -116,15 +116,15 @@ class RecorderSetup:
             self.cd_gain = cd_gain
 
     @classmethod
-    def read(cls, data: bytes) -> "RecorderSetup":
+    def read(cls, data: bytes) -> "AudioRecorderSetup":
         """
-        Read a RecorderSetup from binary data.
+        Read a AudioRecorderSetup from binary data.
 
         Args:
             data: At least RECORDER_SETUP_SIZE (12) bytes
 
         Returns:
-            RecorderSetup instance with data copied from input
+            AudioRecorderSetup instance with data copied from input
         """
         instance = cls.__new__(cls)
         instance._data = bytearray(data[:RECORDER_SETUP_SIZE])
@@ -132,21 +132,21 @@ class RecorderSetup:
 
     def write(self) -> bytes:
         """
-        Write this RecorderSetup to binary data.
+        Write this AudioRecorderSetup to binary data.
 
         Returns:
             RECORDER_SETUP_SIZE (12) bytes
         """
         return bytes(self._data)
 
-    def clone(self) -> "RecorderSetup":
+    def clone(self) -> "AudioRecorderSetup":
         """
-        Create a copy of this RecorderSetup.
+        Create a copy of this AudioRecorderSetup.
 
         Returns:
-            New RecorderSetup with copied data
+            New AudioRecorderSetup with copied data
         """
-        instance = RecorderSetup.__new__(RecorderSetup)
+        instance = AudioRecorderSetup.__new__(AudioRecorderSetup)
         instance._data = bytearray(self._data)
         return instance
 
@@ -347,15 +347,15 @@ class RecorderSetup:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "RecorderSetup":
+    def from_dict(cls, data: dict) -> "AudioRecorderSetup":
         """
-        Create a RecorderSetup from a dictionary.
+        Create a AudioRecorderSetup from a dictionary.
 
         Args:
             data: Dictionary with recorder setup properties
 
         Returns:
-            RecorderSetup instance
+            AudioRecorderSetup instance
         """
         kwargs = {}
 
@@ -405,9 +405,9 @@ class RecorderSetup:
 
     def __eq__(self, other) -> bool:
         """Check equality based on data buffer."""
-        if not isinstance(other, RecorderSetup):
+        if not isinstance(other, AudioRecorderSetup):
             return NotImplemented
         return self._data == other._data
 
     def __repr__(self) -> str:
-        return f"RecorderSetup(source={self.source.name}, rlen={self.rlen}, trig={self.trig.name})"
+        return f"AudioRecorderSetup(source={self.source.name}, rlen={self.rlen}, trig={self.trig.name})"

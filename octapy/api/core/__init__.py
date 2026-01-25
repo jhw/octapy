@@ -7,7 +7,7 @@ or attached to container objects.
 """
 
 # Leaf objects
-from .recorder import RecorderSetup
+from .audio.recorder import AudioRecorderSetup
 from .audio import AudioStep
 from .midi import MidiStep
 
@@ -16,7 +16,7 @@ from .audio import AudioPartTrack, AudioPatternTrack
 from .midi import MidiPartTrack, MidiPatternTrack
 
 # Container objects
-from .scene_track import SceneTrack
+from .audio.scene_track import AudioSceneTrack
 from .scene import Scene
 from .part import Part
 from .pattern import Pattern
@@ -27,7 +27,7 @@ from .project import Project
 
 __all__ = [
     # Leaf
-    "RecorderSetup",
+    "AudioRecorderSetup",
     "AudioStep",
     "MidiStep",
     # Tracks
@@ -36,7 +36,7 @@ __all__ = [
     "MidiPartTrack",
     "MidiPatternTrack",
     # Containers
-    "SceneTrack",
+    "AudioSceneTrack",
     "Scene",
     "Part",
     "Pattern",

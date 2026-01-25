@@ -34,7 +34,7 @@ from ...._io import (
     OCTAPY_DEFAULT_SRC_SETUP,
 )
 from ...enums import MachineType, FX1Type, FX2Type
-from ..recorder import RecorderSetup
+from .recorder import AudioRecorderSetup
 from .._fx import FXAccessor
 from .._src import SrcAccessor
 
@@ -113,8 +113,8 @@ class AudioPartTrack:
         release: int = 24,
         amp_volume: int = 108,
         balance: int = 64,
-        # Recorder (can pass RecorderSetup or individual args)
-        recorder: Optional[RecorderSetup] = None,
+        # Recorder (can pass AudioRecorderSetup or individual args)
+        recorder: Optional[AudioRecorderSetup] = None,
     ):
         """
         Create an AudioPartTrack with optional parameter overrides.
@@ -136,7 +136,7 @@ class AudioPartTrack:
             release: AMP release (0-127)
             amp_volume: AMP volume (0-127)
             balance: AMP balance (0-127, 64=center)
-            recorder: RecorderSetup object (or created with defaults)
+            recorder: AudioRecorderSetup object (or created with defaults)
         """
         self._track_num = track_num
         self._data = bytearray(AUDIO_PART_TRACK_SIZE)
@@ -170,7 +170,7 @@ class AudioPartTrack:
         if recorder is not None:
             self._recorder = recorder
         else:
-            self._recorder = RecorderSetup()
+            self._recorder = AudioRecorderSetup()
 
     def _apply_defaults(self):
         """Apply template (machine) default values to the buffer."""
@@ -209,7 +209,7 @@ class AudioPartTrack:
         offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM1
         self._data[offset:offset + 6] = TEMPLATE_DEFAULT_FX2_PARAMS
 
-        # Recorder setup will be handled by RecorderSetup object
+        # Recorder setup will be handled by AudioRecorderSetup object
 
     @classmethod
     def flex_with_recommended_defaults(
@@ -333,9 +333,9 @@ class AudioPartTrack:
         instance._data[TrackDataOffset.TRACK_PARAMS:TrackDataOffset.TRACK_PARAMS + AUDIO_TRACK_PARAMS_SIZE] = \
             part_data[offset:offset + AUDIO_TRACK_PARAMS_SIZE]
 
-        # Read recorder setup into RecorderSetup object
+        # Read recorder setup into AudioRecorderSetup object
         offset = part_offset + PartOffset.RECORDER_SETUP + track_idx * RECORDER_SETUP_SIZE
-        instance._recorder = RecorderSetup.read(part_data[offset:offset + RECORDER_SETUP_SIZE])
+        instance._recorder = AudioRecorderSetup.read(part_data[offset:offset + RECORDER_SETUP_SIZE])
 
         return instance
 
@@ -751,12 +751,12 @@ class AudioPartTrack:
     # === Recorder ===
 
     @property
-    def recorder(self) -> RecorderSetup:
+    def recorder(self) -> AudioRecorderSetup:
         """Get recorder buffer configuration for this track."""
         return self._recorder
 
     @recorder.setter
-    def recorder(self, value: RecorderSetup):
+    def recorder(self, value: AudioRecorderSetup):
         """Set recorder buffer configuration."""
         self._recorder = value
 
@@ -930,7 +930,7 @@ class AudioPartTrack:
             kwargs["fx2_type"] = data["fx2_type"]
 
         if "recorder" in data:
-            kwargs["recorder"] = RecorderSetup.from_dict(data["recorder"])
+            kwargs["recorder"] = AudioRecorderSetup.from_dict(data["recorder"])
 
         return cls(**kwargs)
 

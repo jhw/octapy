@@ -1,5 +1,5 @@
 """
-SceneTrack - standalone scene track locks for a single track.
+AudioSceneTrack - standalone scene track locks for a single track.
 
 This is a standalone object that owns its data and can be created
 with constructor arguments or read from Part binary data.
@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..._io import SceneParamsOffset, SCENE_PARAMS_SIZE, SCENE_LOCK_DISABLED
-from ..enums import MachineType
-from ._fx import FXAccessor
-from ._src import SrcAccessor
+from ...._io import SceneParamsOffset, SCENE_PARAMS_SIZE, SCENE_LOCK_DISABLED
+from ...enums import MachineType
+from .._fx import FXAccessor
+from .._src import SrcAccessor
 
 
-class SceneTrack:
+class AudioSceneTrack:
     """
     Scene parameter locks for a single track.
 
@@ -26,14 +26,14 @@ class SceneTrack:
 
     Usage:
         # Create with constructor arguments
-        track = SceneTrack(
+        track = AudioSceneTrack(
             track_num=1,
             amp_volume=100,
             amp_attack=0,
         )
 
         # Read from Part binary (called by Scene)
-        track = SceneTrack.read(track_num, track_data)
+        track = AudioSceneTrack.read(track_num, track_data)
 
         # Write to binary
         data = track.write()
@@ -82,7 +82,7 @@ class SceneTrack:
         fx2_param6: Optional[int] = None,
     ):
         """
-        Create a SceneTrack with optional lock values.
+        Create a AudioSceneTrack with optional lock values.
 
         Args:
             track_num: Track number (1-8)
@@ -170,9 +170,9 @@ class SceneTrack:
         machine_type: Optional[MachineType] = None,
         fx1_type: Optional[int] = None,
         fx2_type: Optional[int] = None,
-    ) -> "SceneTrack":
+    ) -> "AudioSceneTrack":
         """
-        Read a SceneTrack from binary data.
+        Read a AudioSceneTrack from binary data.
 
         Args:
             track_num: Track number (1-8)
@@ -182,7 +182,7 @@ class SceneTrack:
             fx2_type: Optional FX2 type (for fx2 accessor named params)
 
         Returns:
-            SceneTrack instance
+            AudioSceneTrack instance
         """
         instance = cls.__new__(cls)
         instance._track_num = track_num
@@ -194,16 +194,16 @@ class SceneTrack:
 
     def write(self) -> bytes:
         """
-        Write this SceneTrack to binary data.
+        Write this AudioSceneTrack to binary data.
 
         Returns:
             SCENE_PARAMS_SIZE bytes
         """
         return bytes(self._data)
 
-    def clone(self) -> "SceneTrack":
-        """Create a copy of this SceneTrack."""
-        instance = SceneTrack.__new__(SceneTrack)
+    def clone(self) -> "AudioSceneTrack":
+        """Create a copy of this AudioSceneTrack."""
+        instance = AudioSceneTrack.__new__(AudioSceneTrack)
         instance._track_num = self._track_num
         instance._machine_type = self._machine_type
         instance._fx1_type = self._fx1_type
@@ -366,11 +366,11 @@ class SceneTrack:
         Requires machine_type to be set for named access.
 
         Usage:
-            track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
+            track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
             track.src.pitch = 64       # Lock pitch to 64
             track.src.retrig_time = 79 # Lock retrig_time to 79
 
-            track = SceneTrack(track_num=1, machine_type=MachineType.THRU)
+            track = AudioSceneTrack(track_num=1, machine_type=MachineType.THRU)
             track.src.in_ab = 1        # Lock in_ab to 1
             track.src.vol_ab = 100     # Lock vol_ab to 100
 
@@ -402,7 +402,7 @@ class SceneTrack:
         Requires fx1_type to be set for named access.
 
         Usage:
-            track = SceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
+            track = AudioSceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
             track.fx1.base = 64      # Lock filter base to 64
             track.fx1.decay = 100    # Lock filter decay to 100
 
@@ -414,7 +414,7 @@ class SceneTrack:
                 track=self,
                 slot=1,
                 get_type=lambda: self._fx1_type,
-                set_type=None,  # SceneTrack doesn't store FX type
+                set_type=None,  # AudioSceneTrack doesn't store FX type
                 get_param=self._get_fx1_param,
                 set_param=self._set_fx1_param,
             )
@@ -436,7 +436,7 @@ class SceneTrack:
         Requires fx2_type to be set for named access.
 
         Usage:
-            track = SceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
+            track = AudioSceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
             track.fx2.time = 64      # Lock delay time to 64
             track.fx2.send = 100     # Lock delay send to 100
 
@@ -448,7 +448,7 @@ class SceneTrack:
                 track=self,
                 slot=2,
                 get_type=lambda: self._fx2_type,
-                set_type=None,  # SceneTrack doesn't store FX type
+                set_type=None,  # AudioSceneTrack doesn't store FX type
                 get_param=self._get_fx2_param,
                 set_param=self._set_fx2_param,
             )
@@ -781,8 +781,8 @@ class SceneTrack:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SceneTrack":
-        """Create a SceneTrack from a dictionary."""
+    def from_dict(cls, data: dict) -> "AudioSceneTrack":
+        """Create a AudioSceneTrack from a dictionary."""
         kwargs = {"track_num": data.get("track", 1)}
 
         if "playback" in data:
@@ -846,10 +846,10 @@ class SceneTrack:
 
     def __eq__(self, other) -> bool:
         """Check equality based on data buffer."""
-        if not isinstance(other, SceneTrack):
+        if not isinstance(other, AudioSceneTrack):
             return NotImplemented
         return self._track_num == other._track_num and self._data == other._data
 
     def __repr__(self) -> str:
         locks = sum(1 for b in self._data if b != SCENE_LOCK_DISABLED)
-        return f"SceneTrack(track={self._track_num}, locks={locks})"
+        return f"AudioSceneTrack(track={self._track_num}, locks={locks})"

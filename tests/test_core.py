@@ -3,18 +3,18 @@ Tests for core API objects.
 """
 
 import pytest
-from octapy import RecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type
+from octapy import AudioRecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type
 from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE, AUDIO_TRACK_SIZE, MIDI_TRACK_PATTERN_SIZE, SCENE_SIZE, SCENE_PARAMS_SIZE
-from octapy.api.core import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack, SceneTrack, Scene, Part, Pattern
+from octapy.api.core import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack, AudioSceneTrack, Scene, Part, Pattern
 from octapy.api.core.midi.part_track import MIDI_PART_TRACK_SIZE
 
 
-class TestRecorderSetupStandalone:
-    """Tests for standalone RecorderSetup object."""
+class TestAudioRecorderSetupStandalone:
+    """Tests for standalone AudioRecorderSetup object."""
 
     def test_default_construction(self):
-        """RecorderSetup() creates object with octapy defaults."""
-        recorder = RecorderSetup()
+        """AudioRecorderSetup() creates object with octapy defaults."""
+        recorder = AudioRecorderSetup()
 
         # Check octapy defaults
         assert recorder.source == RecordingSource.OFF
@@ -25,8 +25,8 @@ class TestRecorderSetupStandalone:
         assert recorder.qpl == 255  # OFF
 
     def test_constructor_with_kwargs(self):
-        """RecorderSetup accepts kwargs for all properties."""
-        recorder = RecorderSetup(
+        """AudioRecorderSetup accepts kwargs for all properties."""
+        recorder = AudioRecorderSetup(
             source=RecordingSource.TRACK_3,
             rlen=32,
             trig=RecTrigMode.HOLD,
@@ -51,8 +51,8 @@ class TestRecorderSetupStandalone:
         assert recorder.cd_gain == 48
 
     def test_partial_kwargs(self):
-        """RecorderSetup with partial kwargs uses defaults for others."""
-        recorder = RecorderSetup(source=RecordingSource.INPUT_AB, rlen=8)
+        """AudioRecorderSetup with partial kwargs uses defaults for others."""
+        recorder = AudioRecorderSetup(source=RecordingSource.INPUT_AB, rlen=8)
 
         assert recorder.source == RecordingSource.INPUT_AB
         assert recorder.rlen == 8
@@ -63,7 +63,7 @@ class TestRecorderSetupStandalone:
 
     def test_write_produces_correct_size(self):
         """write() returns RECORDER_SETUP_SIZE bytes."""
-        recorder = RecorderSetup()
+        recorder = AudioRecorderSetup()
         data = recorder.write()
 
         assert len(data) == RECORDER_SETUP_SIZE
@@ -71,14 +71,14 @@ class TestRecorderSetupStandalone:
 
     def test_write_produces_default_bytes(self):
         """write() on default object matches OCTAPY_DEFAULT_RECORDER_SETUP."""
-        recorder = RecorderSetup()
+        recorder = AudioRecorderSetup()
         data = recorder.write()
 
         assert data == OCTAPY_DEFAULT_RECORDER_SETUP
 
     def test_read_creates_equivalent_object(self):
         """read() from written data creates equivalent object."""
-        original = RecorderSetup(
+        original = AudioRecorderSetup(
             source=RecordingSource.TRACK_5,
             rlen=24,
             trig=RecTrigMode.ONE2,
@@ -86,7 +86,7 @@ class TestRecorderSetupStandalone:
         )
 
         data = original.write()
-        restored = RecorderSetup.read(data)
+        restored = AudioRecorderSetup.read(data)
 
         assert restored.source == original.source
         assert restored.rlen == original.rlen
@@ -95,7 +95,7 @@ class TestRecorderSetupStandalone:
 
     def test_round_trip(self):
         """read(write(x)) produces equivalent object."""
-        original = RecorderSetup(
+        original = AudioRecorderSetup(
             source=RecordingSource.MAIN,
             rlen=64,  # MAX
             trig=RecTrigMode.HOLD,
@@ -109,7 +109,7 @@ class TestRecorderSetupStandalone:
         )
 
         data = original.write()
-        restored = RecorderSetup.read(data)
+        restored = AudioRecorderSetup.read(data)
 
         # All properties should match
         assert restored.source == original.source
@@ -128,7 +128,7 @@ class TestRecorderSetupStandalone:
 
     def test_clone(self):
         """clone() creates independent copy."""
-        original = RecorderSetup(source=RecordingSource.TRACK_1, rlen=16)
+        original = AudioRecorderSetup(source=RecordingSource.TRACK_1, rlen=16)
         cloned = original.clone()
 
         # Should be equal
@@ -143,17 +143,17 @@ class TestRecorderSetupStandalone:
         assert original.rlen == 16
 
     def test_equality(self):
-        """RecorderSetup objects with same data are equal."""
-        a = RecorderSetup(source=RecordingSource.TRACK_1, rlen=16)
-        b = RecorderSetup(source=RecordingSource.TRACK_1, rlen=16)
-        c = RecorderSetup(source=RecordingSource.TRACK_2, rlen=16)
+        """AudioRecorderSetup objects with same data are equal."""
+        a = AudioRecorderSetup(source=RecordingSource.TRACK_1, rlen=16)
+        b = AudioRecorderSetup(source=RecordingSource.TRACK_1, rlen=16)
+        c = AudioRecorderSetup(source=RecordingSource.TRACK_2, rlen=16)
 
         assert a == b
         assert a != c
 
     def test_to_dict(self):
         """to_dict() returns all properties."""
-        recorder = RecorderSetup(
+        recorder = AudioRecorderSetup(
             source=RecordingSource.TRACK_3,
             rlen=16,
             trig=RecTrigMode.ONE,
@@ -169,7 +169,7 @@ class TestRecorderSetupStandalone:
 
     def test_from_dict(self):
         """from_dict() creates equivalent object."""
-        original = RecorderSetup(
+        original = AudioRecorderSetup(
             source=RecordingSource.INPUT_AB,
             rlen=24,
             trig=RecTrigMode.HOLD,
@@ -177,7 +177,7 @@ class TestRecorderSetupStandalone:
         )
 
         d = original.to_dict()
-        restored = RecorderSetup.from_dict(d)
+        restored = AudioRecorderSetup.from_dict(d)
 
         assert restored.source == original.source
         assert restored.rlen == original.rlen
@@ -194,7 +194,7 @@ class TestRecorderSetupStandalone:
             "qrec": "OFF",
         }
 
-        recorder = RecorderSetup.from_dict(d)
+        recorder = AudioRecorderSetup.from_dict(d)
 
         assert recorder.source == RecordingSource.TRACK_1
         assert recorder.rlen == 16
@@ -202,19 +202,19 @@ class TestRecorderSetupStandalone:
         assert recorder.qrec == QRecMode.OFF
 
 
-class TestRecorderSetupSources:
-    """Tests for RecorderSetup source property."""
+class TestAudioRecorderSetupSources:
+    """Tests for AudioRecorderSetup source property."""
 
     def test_track_sources(self):
         """Source property handles TRACK_1 through TRACK_8."""
         for track_num in range(1, 9):
             source = RecordingSource[f"TRACK_{track_num}"]
-            recorder = RecorderSetup(source=source)
+            recorder = AudioRecorderSetup(source=source)
 
             assert recorder.source == source
 
             # Round-trip through write/read
-            restored = RecorderSetup.read(recorder.write())
+            restored = AudioRecorderSetup.read(recorder.write())
             assert restored.source == source
 
     def test_input_sources(self):
@@ -227,47 +227,47 @@ class TestRecorderSetupSources:
             RecordingSource.INPUT_C,
             RecordingSource.INPUT_D,
         ]:
-            recorder = RecorderSetup(source=source)
+            recorder = AudioRecorderSetup(source=source)
             assert recorder.source == source
 
             # Round-trip
-            restored = RecorderSetup.read(recorder.write())
+            restored = AudioRecorderSetup.read(recorder.write())
             assert restored.source == source
 
     def test_main_source(self):
         """Source property handles MAIN source."""
-        recorder = RecorderSetup(source=RecordingSource.MAIN)
+        recorder = AudioRecorderSetup(source=RecordingSource.MAIN)
 
         assert recorder.source == RecordingSource.MAIN
 
         # Round-trip
-        restored = RecorderSetup.read(recorder.write())
+        restored = AudioRecorderSetup.read(recorder.write())
         assert restored.source == RecordingSource.MAIN
 
     def test_off_source(self):
         """Source property handles OFF (no source)."""
-        recorder = RecorderSetup(source=RecordingSource.OFF)
+        recorder = AudioRecorderSetup(source=RecordingSource.OFF)
 
         assert recorder.source == RecordingSource.OFF
 
         # Round-trip
-        restored = RecorderSetup.read(recorder.write())
+        restored = AudioRecorderSetup.read(recorder.write())
         assert restored.source == RecordingSource.OFF
 
 
-class TestRecorderSetupRepr:
-    """Tests for RecorderSetup string representation."""
+class TestAudioRecorderSetupRepr:
+    """Tests for AudioRecorderSetup string representation."""
 
     def test_repr(self):
         """__repr__ shows key properties."""
-        recorder = RecorderSetup(
+        recorder = AudioRecorderSetup(
             source=RecordingSource.TRACK_1,
             rlen=16,
             trig=RecTrigMode.ONE,
         )
 
         r = repr(recorder)
-        assert "RecorderSetup" in r
+        assert "AudioRecorderSetup" in r
         assert "TRACK_1" in r
         assert "rlen=16" in r
         assert "ONE" in r
@@ -843,11 +843,11 @@ class TestAudioPartTrackStandalone:
         assert track.volume == (108, 108)
 
     def test_recorder_property(self):
-        """AudioPartTrack has embedded RecorderSetup."""
+        """AudioPartTrack has embedded AudioRecorderSetup."""
         track = AudioPartTrack()
 
         recorder = track.recorder
-        assert isinstance(recorder, RecorderSetup)
+        assert isinstance(recorder, AudioRecorderSetup)
 
         # Modify recorder
         recorder.source = RecordingSource.TRACK_3
@@ -857,8 +857,8 @@ class TestAudioPartTrackStandalone:
         assert track.recorder.rlen == 32
 
     def test_recorder_in_constructor(self):
-        """AudioPartTrack accepts RecorderSetup in constructor."""
-        recorder = RecorderSetup(
+        """AudioPartTrack accepts AudioRecorderSetup in constructor."""
+        recorder = AudioRecorderSetup(
             source=RecordingSource.INPUT_AB,
             rlen=16,
         )
@@ -1889,15 +1889,15 @@ class TestMidiPatternTrackRepr:
 
 
 # =============================================================================
-# SceneTrack Tests (Phase 3)
+# AudioSceneTrack Tests (Phase 3)
 # =============================================================================
 
-class TestSceneTrackStandalone:
-    """Tests for standalone SceneTrack object."""
+class TestAudioSceneTrackStandalone:
+    """Tests for standalone AudioSceneTrack object."""
 
     def test_default_construction(self):
-        """SceneTrack() creates object with no locks."""
-        track = SceneTrack()
+        """AudioSceneTrack() creates object with no locks."""
+        track = AudioSceneTrack()
 
         assert track.track_num == 1
         assert track.amp_volume is None
@@ -1906,8 +1906,8 @@ class TestSceneTrackStandalone:
         assert track.is_blank == True
 
     def test_constructor_with_locks(self):
-        """SceneTrack accepts lock values in constructor."""
-        track = SceneTrack(
+        """AudioSceneTrack accepts lock values in constructor."""
+        track = AudioSceneTrack(
             track_num=3,
             amp_volume=100,
             amp_attack=0,
@@ -1922,7 +1922,7 @@ class TestSceneTrackStandalone:
 
     def test_lock_none_clears(self):
         """Setting lock to None clears it."""
-        track = SceneTrack(amp_volume=100)
+        track = AudioSceneTrack(amp_volume=100)
         assert track.amp_volume == 100
 
         track.amp_volume = None
@@ -1930,7 +1930,7 @@ class TestSceneTrackStandalone:
 
     def test_write_returns_correct_size(self):
         """write() returns SCENE_PARAMS_SIZE bytes."""
-        track = SceneTrack()
+        track = AudioSceneTrack()
         data = track.write()
 
         assert len(data) == SCENE_PARAMS_SIZE
@@ -1938,7 +1938,7 @@ class TestSceneTrackStandalone:
 
     def test_read_write_round_trip(self):
         """read(write(x)) preserves data."""
-        original = SceneTrack(
+        original = AudioSceneTrack(
             track_num=2,
             amp_volume=100,
             amp_attack=10,
@@ -1947,7 +1947,7 @@ class TestSceneTrackStandalone:
         )
 
         data = original.write()
-        restored = SceneTrack.read(2, data)
+        restored = AudioSceneTrack.read(2, data)
 
         assert restored.track_num == original.track_num
         assert restored.amp_volume == original.amp_volume
@@ -1957,7 +1957,7 @@ class TestSceneTrackStandalone:
 
     def test_clone(self):
         """clone() creates independent copy."""
-        original = SceneTrack(track_num=1, amp_volume=100)
+        original = AudioSceneTrack(track_num=1, amp_volume=100)
         cloned = original.clone()
 
         assert cloned.amp_volume == original.amp_volume
@@ -1967,7 +1967,7 @@ class TestSceneTrackStandalone:
 
     def test_clear_all_locks(self):
         """clear_all_locks() clears all locks."""
-        track = SceneTrack(
+        track = AudioSceneTrack(
             amp_volume=100,
             amp_attack=10,
             fx1_param1=64,
@@ -1979,7 +1979,7 @@ class TestSceneTrackStandalone:
 
     def test_to_dict(self):
         """to_dict() returns only set locks."""
-        track = SceneTrack(
+        track = AudioSceneTrack(
             track_num=2,
             amp_volume=100,
             fx1_param1=64,
@@ -1994,39 +1994,39 @@ class TestSceneTrackStandalone:
 
     def test_from_dict(self):
         """from_dict() creates equivalent object."""
-        original = SceneTrack(
+        original = AudioSceneTrack(
             track_num=3,
             amp_volume=100,
             playback_param1=72,
         )
 
         d = original.to_dict()
-        restored = SceneTrack.from_dict(d)
+        restored = AudioSceneTrack.from_dict(d)
 
         assert restored.track_num == original.track_num
         assert restored.amp_volume == original.amp_volume
         assert restored.playback_param1 == original.playback_param1
 
 
-class TestSceneTrackRepr:
-    """Tests for SceneTrack string representation."""
+class TestAudioSceneTrackRepr:
+    """Tests for AudioSceneTrack string representation."""
 
     def test_repr(self):
         """__repr__ shows key properties."""
-        track = SceneTrack(track_num=3, amp_volume=100, fx1_param1=64)
+        track = AudioSceneTrack(track_num=3, amp_volume=100, fx1_param1=64)
 
         r = repr(track)
-        assert "SceneTrack" in r
+        assert "AudioSceneTrack" in r
         assert "track=3" in r
         assert "locks=2" in r
 
 
-class TestSceneTrackDynamicAccessors:
-    """Tests for SceneTrack dynamic parameter accessors."""
+class TestAudioSceneTrackDynamicAccessors:
+    """Tests for AudioSceneTrack dynamic parameter accessors."""
 
     def test_src_accessor_with_flex_machine(self):
         """SRC accessor works for Flex machine."""
-        track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
 
         # Set via src accessor
         track.src.pitch = 72
@@ -2046,7 +2046,7 @@ class TestSceneTrackDynamicAccessors:
 
     def test_src_accessor_with_thru_machine(self):
         """SRC accessor works for Thru machine."""
-        track = SceneTrack(track_num=1, machine_type=MachineType.THRU)
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.THRU)
 
         # Set via src accessor
         track.src.in_ab = 1
@@ -2063,7 +2063,7 @@ class TestSceneTrackDynamicAccessors:
 
     def test_src_accessor_param_names_change_with_type(self):
         """SRC accessor param names change with machine type."""
-        track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
 
         names = track.src.get_param_names()
         assert 'pitch' in names
@@ -2079,7 +2079,7 @@ class TestSceneTrackDynamicAccessors:
 
     def test_fx1_accessor_with_type(self):
         """FX1 accessor works when fx1_type is set."""
-        track = SceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
+        track = AudioSceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
 
         track.fx1.base = 64
         track.fx1.width = 100
@@ -2091,7 +2091,7 @@ class TestSceneTrackDynamicAccessors:
 
     def test_fx2_accessor_with_type(self):
         """FX2 accessor works when fx2_type is set."""
-        track = SceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
+        track = AudioSceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
 
         track.fx2.time = 64
         track.fx2.feedback = 80
@@ -2103,7 +2103,7 @@ class TestSceneTrackDynamicAccessors:
 
     def test_accessor_without_type_raises(self):
         """Accessor raises error when type not set."""
-        track = SceneTrack(track_num=1)  # No machine_type
+        track = AudioSceneTrack(track_num=1)  # No machine_type
 
         # All param names are None when no type is set
         names = track.src.get_param_names()
@@ -2114,7 +2114,7 @@ class TestSceneTrackDynamicAccessors:
 
     def test_playback_param_direct_access(self):
         """Playback params still work directly."""
-        track = SceneTrack(track_num=1)
+        track = AudioSceneTrack(track_num=1)
 
         track.playback_param1 = 70
         track.playback_param5 = 50
@@ -2138,11 +2138,11 @@ class TestSceneStandalone:
         assert scene.is_blank == True
 
     def test_track_access(self):
-        """track() returns SceneTrack for given position."""
+        """track() returns AudioSceneTrack for given position."""
         scene = Scene()
 
         track = scene.track(3)
-        assert isinstance(track, SceneTrack)
+        assert isinstance(track, AudioSceneTrack)
         assert track.track_num == 3
 
     def test_track_modification(self):

@@ -1,5 +1,5 @@
 """
-Scene - standalone scene container with 8 SceneTrack objects.
+Scene - standalone scene container with 8 AudioSceneTrack objects.
 
 This is a standalone object that owns its data and can be created
 with constructor arguments or read from Part binary data.
@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from ..._io import SCENE_SIZE, SCENE_PARAMS_SIZE, SCENE_LOCK_DISABLED
-from .scene_track import SceneTrack
+from .audio.scene_track import AudioSceneTrack
 
 
 class Scene:
@@ -38,19 +38,19 @@ class Scene:
     def __init__(
         self,
         scene_num: int = 1,
-        tracks: Optional[List[SceneTrack]] = None,
+        tracks: Optional[List[AudioSceneTrack]] = None,
     ):
         """
         Create a Scene with optional track locks.
 
         Args:
             scene_num: Scene number (1-16)
-            tracks: Optional list of 8 SceneTrack objects
+            tracks: Optional list of 8 AudioSceneTrack objects
         """
         self._scene_num = scene_num
         # Initialize all locks to disabled
         self._data = bytearray([SCENE_LOCK_DISABLED] * SCENE_SIZE)
-        self._tracks: Dict[int, SceneTrack] = {}
+        self._tracks: Dict[int, AudioSceneTrack] = {}
 
         # Apply provided tracks
         if tracks:
@@ -90,7 +90,7 @@ class Scene:
 
         return bytes(self._data)
 
-    def _sync_track_to_buffer(self, track_num: int, track: SceneTrack):
+    def _sync_track_to_buffer(self, track_num: int, track: AudioSceneTrack):
         """Sync a track's data back to the scene buffer."""
         offset = (track_num - 1) * SCENE_PARAMS_SIZE
         self._data[offset:offset + SCENE_PARAMS_SIZE] = track.write()
@@ -116,7 +116,7 @@ class Scene:
 
     # === Track access ===
 
-    def track(self, track_num: int) -> SceneTrack:
+    def track(self, track_num: int) -> AudioSceneTrack:
         """
         Get a track's scene locks (1-8).
 
@@ -124,7 +124,7 @@ class Scene:
             track_num: Track number (1-8)
 
         Returns:
-            SceneTrack instance for this position
+            AudioSceneTrack instance for this position
         """
         if track_num < 1 or track_num > 8:
             raise ValueError(f"Track number must be 1-8, got {track_num}")
@@ -134,19 +134,19 @@ class Scene:
 
         return self._tracks[track_num]
 
-    def _load_track(self, track_num: int) -> SceneTrack:
+    def _load_track(self, track_num: int) -> AudioSceneTrack:
         """Load a track from the buffer."""
         offset = (track_num - 1) * SCENE_PARAMS_SIZE
         track_data = bytes(self._data[offset:offset + SCENE_PARAMS_SIZE])
-        return SceneTrack.read(track_num, track_data)
+        return AudioSceneTrack.read(track_num, track_data)
 
-    def set_track(self, track_num: int, track: SceneTrack):
+    def set_track(self, track_num: int, track: AudioSceneTrack):
         """
         Set a track at the given position.
 
         Args:
             track_num: Track number (1-8)
-            track: SceneTrack to set
+            track: AudioSceneTrack to set
         """
         if track_num < 1 or track_num > 8:
             raise ValueError(f"Track number must be 1-8, got {track_num}")
@@ -208,7 +208,7 @@ class Scene:
 
         if "tracks" in data:
             for track_data in data["tracks"]:
-                track = SceneTrack.from_dict(track_data)
+                track = AudioSceneTrack.from_dict(track_data)
                 scene.set_track(track.track_num, track)
 
         return scene

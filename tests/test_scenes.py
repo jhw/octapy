@@ -3,7 +3,7 @@ Tests for Scene module.
 """
 
 import pytest
-from octapy import Project, Scene, SceneTrack
+from octapy import Project, Scene, AudioSceneTrack
 
 
 @pytest.fixture
@@ -50,19 +50,19 @@ class TestSceneAccess:
 # Scene Track Access Tests
 # =============================================================================
 
-class TestSceneTrackAccess:
+class TestAudioSceneTrackAccess:
     """Test scene track access."""
 
     def test_track_access(self, scene):
         """Test accessing a track from a scene."""
         track = scene.track(1)
-        assert isinstance(track, SceneTrack)
+        assert isinstance(track, AudioSceneTrack)
 
     def test_track_range(self, scene):
         """Test all 8 tracks are accessible."""
         for i in range(1, 9):
             track = scene.track(i)
-            assert isinstance(track, SceneTrack)
+            assert isinstance(track, AudioSceneTrack)
 
     def test_track_caching(self, scene):
         """Test track instances are cached."""

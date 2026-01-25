@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .audio.part_track import AudioPartTrack
-    from .scene_track import SceneTrack
+    from .audio.scene_track import AudioSceneTrack
 
 from ..enums import MachineType
 
@@ -48,8 +48,8 @@ class SrcAccessor:
         track.src.in_ab = 1      # Now param1 is 'in_ab'
         track.src.vol_ab = 100   # param2 is 'vol_ab'
 
-    Usage with SceneTrack (requires machine_type):
-        scene_track = SceneTrack(track_num=1, machine_type=MachineType.FLEX)
+    Usage with AudioSceneTrack (requires machine_type):
+        scene_track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
         scene_track.src.pitch = 64  # Lock pitch to 64
     """
 

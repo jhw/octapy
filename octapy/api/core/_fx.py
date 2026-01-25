@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     from .audio.part_track import AudioPartTrack
-    from .scene_track import SceneTrack
+    from .audio.scene_track import AudioSceneTrack
 
 from ..enums import FX1Type, FX2Type
 
@@ -80,8 +80,8 @@ class FXAccessor:
         track.fx1_type = FX1Type.CHORUS
         track.fx1.delay = 64     # Now param1 is 'delay'
 
-    Usage with SceneTrack (requires fx_type):
-        scene_track = SceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
+    Usage with AudioSceneTrack (requires fx_type):
+        scene_track = AudioSceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
         scene_track.fx1.base = 64  # Lock filter base to 64
     """
 
@@ -89,7 +89,7 @@ class FXAccessor:
 
     def __init__(
         self,
-        track: Union["AudioPartTrack", "SceneTrack"],
+        track: Union["AudioPartTrack", "AudioSceneTrack"],
         slot: int,
         get_type: Callable[[], Optional[int]],
         set_type: Optional[Callable[[int], None]],
