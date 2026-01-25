@@ -42,16 +42,6 @@ This ensures consistent transition behavior across all Parts and Banks, which is
 
 Note: Some performers use T4 as the transition track instead of T7. The principle is identical.
 
-## One-Time Device Setup
-
-Before using the transition workflow, enable Record Quick Mode on your Octatrack:
-
-**PROJECT → SYSTEM → PERSONALIZE → RECORD QUICK MODE → ON**
-
-When enabled, pressing REC3 on the active track starts recording immediately—no need to hold TRACK + REC3. This allows one-handed operation, critical during live performance when your other hand may be on the crossfader.
-
-This is a system-level setting (not per-project), so you only need to enable it once.
-
 ## Configuration
 
 ### T7 Recorder Setup
