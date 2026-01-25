@@ -47,10 +47,3 @@ from .core import (
 
 from .settings import Settings, RenderSettings
 from .sample_pool import SamplePool
-
-# Backward compatibility aliases
-FlexPartTrack = AudioPartTrack
-StaticPartTrack = AudioPartTrack
-ThruPartTrack = AudioPartTrack
-NeighborPartTrack = AudioPartTrack
-SamplerStep = AudioStep

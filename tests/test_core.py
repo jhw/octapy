@@ -964,7 +964,7 @@ class TestAudioPartTrackRecommendedDefaults:
         assert track.machine_type == MachineType.FLEX
         assert track.flex_slot == 5
         # Recommended defaults: length=127
-        assert track.length == 127
+        assert track.src.length == 127
 
     def test_flex_with_recommended_defaults_accepts_kwargs(self):
         """flex_with_recommended_defaults() passes kwargs to constructor."""
@@ -979,58 +979,58 @@ class TestAudioPartTrackRecommendedDefaults:
         assert track.flex_slot == 10
         assert track.fx1_type == FX1Type.DJ_EQ
         assert track.amp_volume == 100
-        assert track.length == 127  # Still has recommended defaults
+        assert track.src.length == 127  # Still has recommended defaults
 
     def test_apply_recommended_flex_defaults(self):
         """apply_recommended_flex_defaults() sets octapy recommended values."""
         track = AudioPartTrack(machine_type=MachineType.FLEX)
 
         # Default (template) length is 0
-        assert track.length == 0
+        assert track.src.length == 0
 
         track.apply_recommended_flex_defaults()
 
         # Now should be 127
-        assert track.length == 127
+        assert track.src.length == 127
 
     def test_default_constructor_uses_template_defaults(self):
         """Default constructor uses OT template defaults, not octapy."""
         track = AudioPartTrack(machine_type=MachineType.FLEX)
 
         # Template default for length is 0 (not 127)
-        assert track.length == 0
+        assert track.src.length == 0
 
 
 class TestAudioPartTrackSRCPage:
-    """Tests for AudioPartTrack SRC/Playback page properties."""
+    """Tests for AudioPartTrack SRC/Playback page via src accessor."""
 
     def test_pitch_property(self):
-        """pitch property works."""
+        """src.pitch property works."""
         track = AudioPartTrack()
-        track.pitch = 72
+        track.src.pitch = 72
 
-        assert track.pitch == 72
+        assert track.src.pitch == 72
 
     def test_start_property(self):
-        """start property works."""
+        """src.start property works."""
         track = AudioPartTrack()
-        track.start = 32
+        track.src.start = 32
 
-        assert track.start == 32
+        assert track.src.start == 32
 
     def test_length_property(self):
-        """length property works."""
+        """src.length property works."""
         track = AudioPartTrack()
-        track.length = 64
+        track.src.length = 64
 
-        assert track.length == 64
+        assert track.src.length == 64
 
     def test_rate_property(self):
-        """rate property works."""
+        """src.rate property works."""
         track = AudioPartTrack()
-        track.rate = 100
+        track.src.rate = 100
 
-        assert track.rate == 100
+        assert track.src.rate == 100
 
 
 class TestAudioPartTrackFXParams:

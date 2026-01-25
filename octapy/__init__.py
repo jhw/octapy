@@ -84,12 +84,6 @@ from .api import (
     RenderSettings,
     # Utilities
     SamplePool,
-    # Backward compatibility aliases
-    FlexPartTrack,
-    StaticPartTrack,
-    ThruPartTrack,
-    NeighborPartTrack,
-    SamplerStep,
 )
 
 __version__ = "0.1.0"
@@ -115,12 +109,6 @@ __all__ = [
     "AudioRecorderSetup",
     "Settings",
     "RenderSettings",
-    # Backward compatibility aliases
-    "FlexPartTrack",
-    "StaticPartTrack",
-    "ThruPartTrack",
-    "NeighborPartTrack",
-    "SamplerStep",
     # Enums
     "MachineType",
     "ThruInput",

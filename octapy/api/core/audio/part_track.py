@@ -13,8 +13,6 @@ from typing import Optional, TYPE_CHECKING
 from ...._io import (
     MachineSlotOffset,
     MachineParamsOffset,
-    FlexStaticParamsOffset,
-    FlexStaticSetupOffset,
     AudioTrackParamsOffset,
     MACHINE_SLOT_SIZE,
     MACHINE_PARAMS_SIZE,
@@ -818,50 +816,6 @@ class AudioPartTrack:
                 set_param=self._set_playback_param,
             )
         return self._src_accessor
-
-    # === Legacy static aliases (for backward compatibility) ===
-    # These only work correctly for Flex/Static machines.
-    # Prefer using track.src.pitch, track.src.start, etc.
-
-    def _flex_values_offset(self) -> int:
-        """Get offset for Flex playback params in buffer."""
-        return TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.FLEX
-
-    @property
-    def pitch(self) -> int:
-        """Get/set pitch for Flex/Static (0-127, 64=center). Prefer track.src.pitch."""
-        return self._data[self._flex_values_offset() + FlexStaticParamsOffset.PTCH]
-
-    @pitch.setter
-    def pitch(self, value: int):
-        self._data[self._flex_values_offset() + FlexStaticParamsOffset.PTCH] = value & 0x7F
-
-    @property
-    def start(self) -> int:
-        """Get/set start point for Flex/Static (0-127). Prefer track.src.start."""
-        return self._data[self._flex_values_offset() + FlexStaticParamsOffset.STRT]
-
-    @start.setter
-    def start(self, value: int):
-        self._data[self._flex_values_offset() + FlexStaticParamsOffset.STRT] = value & 0x7F
-
-    @property
-    def length(self) -> int:
-        """Get/set length for Flex/Static (0-127). Prefer track.src.length."""
-        return self._data[self._flex_values_offset() + FlexStaticParamsOffset.LEN]
-
-    @length.setter
-    def length(self, value: int):
-        self._data[self._flex_values_offset() + FlexStaticParamsOffset.LEN] = value & 0x7F
-
-    @property
-    def rate(self) -> int:
-        """Get/set playback rate for Flex/Static (0-127). Prefer track.src.rate."""
-        return self._data[self._flex_values_offset() + FlexStaticParamsOffset.RATE]
-
-    @rate.setter
-    def rate(self, value: int):
-        self._data[self._flex_values_offset() + FlexStaticParamsOffset.RATE] = value & 0x7F
 
     # === Serialization ===
 
