@@ -4,34 +4,23 @@ This document tracks fields in `project.work` that are written but not parsed wh
 
 ## Current Status
 
-The `ProjectFile._parse_content()` method currently parses:
-- `TEMPOx24` (tempo)
-- `PATTERN_TEMPO_ENABLED`
+The `ProjectFile._parse_content()` method parses:
+- `VERSION`, `OS_VERSION`
+- `TEMPOx24`, `PATTERN_TEMPO_ENABLED`, `MASTER_TRACK`
+- All MIDI settings (clock, transport, program change)
 - `[SAMPLE]` sections
 
-All other fields use dataclass defaults when loading.
+The following fields use dataclass defaults when loading.
 
 ## Impact
 
 **Template-based workflow (unaffected)**: Creating new projects with `Project.from_template()` works correctly since templates have appropriate defaults.
 
-**Load-modify-save workflow (affected)**: Loading an existing project with custom settings, modifying it, and saving would overwrite unparsed fields with defaults.
+**Load-modify-save workflow (affected)**: Loading an existing project with custom recorder settings, modifying it, and saving would overwrite unparsed fields with defaults.
 
 ## Unparsed Fields
 
 ### SETTINGS Section
-
-#### MIDI Settings
-| Field | Default | Description |
-|-------|---------|-------------|
-| `MIDI_CLOCK_SEND` | 0 | Send MIDI clock |
-| `MIDI_CLOCK_RECEIVE` | 0 | Receive MIDI clock |
-| `MIDI_TRANSPORT_SEND` | 0 | Send MIDI transport |
-| `MIDI_TRANSPORT_RECEIVE` | 0 | Receive MIDI transport |
-| `MIDI_PROGRAM_CHANGE_SEND` | 0 | Send program change |
-| `MIDI_PROGRAM_CHANGE_SEND_CH` | -1 | Program change send channel |
-| `MIDI_PROGRAM_CHANGE_RECEIVE` | 0 | Receive program change |
-| `MIDI_PROGRAM_CHANGE_RECEIVE_CH` | -1 | Program change receive channel |
 
 #### Recorder Settings
 | Field | Default | Description |
@@ -71,16 +60,12 @@ These track UI state (which bank/pattern/track is selected). Losing these just a
 
 ## Priority for Future Implementation
 
-### High Priority
-None currently - template workflow covers main use case.
-
 ### Medium Priority
 - Recorder settings (if users need custom recorder configurations)
-- MIDI clock/transport settings (if users sync with external gear)
 
 ### Low Priority
 - UI state fields (cosmetic only)
-- Other MIDI settings (rarely customized)
+- Write protection
 
 ## Adding Parsing
 
