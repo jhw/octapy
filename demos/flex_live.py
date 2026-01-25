@@ -1,29 +1,16 @@
 #!/usr/bin/env python3
 """
-Create an Octatrack project with Flex machines using Euclidean rhythm patterns.
+Flex Live - Octatrack project configured for seamless live transitions.
 
-Configuration:
-- Banks 1-2 with all 4 parts and all 16 patterns populated each
-- Each part has unique random samples on tracks 1-3
-- All patterns use Euclidean rhythms with velocity p-locks
-- Kick and hat tracks have 85% probability p-locks
-- Track 7 configured as transition buffer (via render settings)
-- Track 8 as master track
+Uses the classic "transition trick" pattern documented in docs/live-transition-setup.md.
 
-Track layout per part:
-- Tracks 1-3: Kick, snare, hat (Flex machines with samples)
-- Tracks 4-6: Unused
-- Track 7: Transition buffer (Flex playing recorder buffer 7, source=Main)
-- Track 8: Master track
+Demo content:
+- Banks 1-2 with 4 parts and 16 patterns each
+- Euclidean rhythm patterns on T1-3 (kick, snare, hat)
+- T7 as transition buffer, T8 as master track
+- Scenes configured for crossfader transitions
 
-The transition_track render setting automatically configures T7 for
-the classic "transition trick" - record the mix, crossfade to T7,
-change patterns, crossfade back. See docs/live-transition-setup.md.
-
-Pattern source: Bjorklund algorithm, Toussaint's Euclidean rhythm research
-
-Samples are scanned from tmp/Erica Pico/ and bundled with the project.
-Output is a zip file that can be copied to the Octatrack using copy_project.py.
+Samples scanned from tmp/samples/Erica Pico/ and bundled with project.
 """
 
 import argparse
@@ -232,8 +219,8 @@ def create_project(name: str, output_dir: Path) -> Path:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create an Octatrack project with Euclidean rhythm patterns")
-    parser.add_argument("name", nargs="?", default="HELLO FLEX", help="Project name")
+    parser = argparse.ArgumentParser(description="Create an Octatrack project for live transitions")
+    parser.add_argument("name", nargs="?", default="FLEX LIVE", help="Project name")
     parser.add_argument("-o", "--output", default=str(OUTPUT_DIR), help="Output directory")
     args = parser.parse_args()
 

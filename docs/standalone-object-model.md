@@ -423,6 +423,6 @@ octapy/
 1. **Constructor pattern works** - All commonly-set properties configurable via kwargs
 2. **Read existing projects** - Load any OT project, inspect via to_dict()
 3. **Round-trip integrity** - Load → save produces identical file (for unmodified data)
-4. **Demo simplified** - hello_flex.py uses constructor pattern
+4. **Demo simplified** - flex_live.py uses constructor pattern
 5. **All tests pass** - Including new serialization tests
 6. **Performance acceptable** - No significant slowdown for large projects

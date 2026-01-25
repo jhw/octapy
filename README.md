@@ -119,7 +119,7 @@ octapy/
 │   └── step/      # Step classes (audio/MIDI)
 ├── _io/           # Low-level file I/O (BankFile, MarkersFile, ProjectFile)
 └── templates/     # Embedded template files for new projects
-demos/             # Usage examples (hello_flex, etc.)
+demos/             # Usage examples (flex_live, etc.)
 tests/             # Test suite
 tools/             # CLI utilities (copy_project, list_projects, etc.)
 ```
