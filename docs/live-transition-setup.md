@@ -151,6 +151,58 @@ While Scene B is engaged, you can:
 - Resample T7 back to another buffer
 - Create entirely new content from the captured loop
 
+## Performance FX Design
+
+### The Crossfader Constraint
+
+The crossfader morphs **all** locked parameters between Scene 1 and Scene 2 simultaneously. You cannot independently control volume crossfade at one position and FX crossfade at another. At any crossfader position, all parameters are at that same blend point.
+
+This creates a design choice: where do you apply scene-based FX?
+
+### Option 1: Volume-Only Scenes (Default)
+
+Scenes 1-2 control only the volume crossfade:
+- Scene 1: T1-6 loud, T7 silent
+- Scene 2: T1-6 silent, T7 loud
+
+FX are controlled manually via encoders during live play. T7 plays back dry or with static FX settings. This is the simplest approach and what octapy configures by default.
+
+### Option 2: FX on T7 During Transition
+
+Add FX locks to Scene 2 for T7 (e.g., filter opening, reverb swell):
+- Scene 1: T1-6 loud, T7 silent (T7 FX neutral)
+- Scene 2: T1-6 silent, T7 loud + FX locks
+
+As you crossfade into the transition, T7's FX build alongside its volume. This gives expressive control during the otherwise "hands-off" transition phase.
+
+**Why this makes sense**: During normal play (T1-6 active), you have full hands-on control via encoders to tweak any parameter in real-time. During transition (T7 active), you're playing a single recorded loop with limited control—the crossfader becomes your primary expressive tool, so scene-based FX add value.
+
+### Option 3: FX on T1-6 During Normal Play
+
+Add FX locks to Scene 1 for T1-6:
+- Scene 1: T1-6 loud + FX locks, T7 silent
+- Scene 2: T1-6 silent, T7 loud
+
+The FX settings apply when playing normally and fade out during transition. Less common since you have encoder access during normal play anyway.
+
+### Option 4: Combined
+
+Both scenes have FX locks:
+- Scene 1: T1-6 loud + T1-6 FX, T7 silent
+- Scene 2: T1-6 silent, T7 loud + T7 FX
+
+As you crossfade, T1-6 FX fade out while T7 FX fade in. This works but couples the FX blend to the volume blend—you can't have full T7 FX while T1-6 are still partially audible.
+
+### Recommendation
+
+For most live setups:
+1. Keep Scenes 1-2 as volume-only (octapy default)
+2. Optionally add subtle FX locks to T7 in Scene 2 for transition character
+3. Use Scenes 3-16 for other purposes if needed
+4. Rely on encoders for FX control during normal play
+
+The transition phase benefits most from scene-based FX since your hands are occupied with pattern changes and you're working with a single looping buffer rather than multiple live tracks.
+
 ## References
 
 - [Quick transition trick/live sampling questions](https://www.elektronauts.com/t/quick-transition-trick-live-sampling-questions/56138)
