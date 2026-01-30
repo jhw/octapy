@@ -13,24 +13,31 @@ This enables seamless transitions without audible gaps or abrupt changes.
 
 ## Octapy Integration
 
-Octapy can automatically configure this setup via the `transition_track` render setting:
+Use `configure_as_recorder()` to set up any track as a recorder buffer player:
 
 ```python
 project = Project.from_template("MY PROJECT")
 project.settings.master_track = True
-project.render_settings.transition_track = True
+
+# Configure T7 as transition buffer recording from Main
+for bank_num in range(1, 17):
+    bank = project.bank(bank_num)
+    for part_num in range(1, 5):
+        part = bank.part(part_num)
+        part.track(7).configure_as_recorder(RecordingSource.MAIN)
 ```
 
-When `transition_track` is enabled, octapy automatically configures **all Parts in all Banks** with:
-- T7 as Flex machine playing recorder buffer 7
-- T7 recorder source set to Main
-- Scene 1: T1-6 amp_volume=127, T7 amp_volume=0 (normal playback)
-- Scene 2: T1-6 amp_volume=0, T7 amp_volume=127 (transition playback)
+This configures the track as a Flex machine playing its own recorder buffer, with the recorder source set to the specified target. The method is flexible — any track can record from any source:
 
-This ensures consistent transition behavior across all Parts and Banks, which is critical because:
-1. Recorder buffers are global (shared across all banks)
-2. When you switch banks, T7 continues playing if configured identically
-3. Part changes don't affect the transition capability
+```python
+# Track 3 records from track 2 (e.g. neighbor chain output)
+part.track(3).configure_as_recorder(RecordingSource.TRACK_2)
+
+# Track 6 records from track 5
+part.track(6).configure_as_recorder(RecordingSource.TRACK_5)
+```
+
+Scene configuration for crossfader transitions is done separately on each Part.
 
 ## Track Allocation
 
@@ -71,9 +78,7 @@ Slot: Recorder Buffer 7 (internal slot 135)
 
 In octapy:
 ```python
-track7 = part.track(7)
-track7.machine_type = MachineType.FLEX
-track7.recorder_slot = 6  # Buffer 7 (0-indexed)
+part.track(7).configure_as_recorder(RecordingSource.MAIN)
 ```
 
 ### Scene Configuration

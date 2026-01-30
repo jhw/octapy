@@ -181,17 +181,9 @@ project.render_settings.propagate_fx = True
 # Part 4: Scenes 1-16 for build/drop
 ```
 
-## Interaction with Transition Track
+## Interaction with Master Track
 
-When `transition_track` is enabled, T7 is automatically excluded from propagation. This preserves the transition buffer configuration across all Parts, which is critical for seamless live transitions.
-
-```python
-project.render_settings.transition_track = True
-project.render_settings.propagate_src = True  # Applies to T1-6, T8
-project.render_settings.propagate_fx = True   # Applies to T1-6, T8
-```
-
-Similarly, T8 is excluded when `master_track` is enabled.
+T8 is automatically excluded from `propagate_src` and `propagate_fx` when `master_track` is enabled, preserving its dedicated configuration.
 
 ## Summary
 

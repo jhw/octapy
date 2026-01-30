@@ -217,7 +217,6 @@ class RenderSettings:
     def __init__(self):
         self._auto_master_trig = False
         self._auto_thru_trig = False
-        self._transition_track = False
         self._propagate_scenes = False
         self._propagate_src = False
         self._propagate_fx = False
@@ -258,37 +257,6 @@ class RenderSettings:
         self._auto_thru_trig = value
 
     @property
-    def transition_track(self) -> bool:
-        """
-        Configure track 7 as a transition buffer for seamless bank/song changes.
-
-        When True, automatically configures all Parts in each bank with:
-        - T7 as Flex machine playing recorder buffer 7
-        - T7 recorder source set to Main (captures master output)
-        - Scene 1: T1-6 amp_volume=MAX, T7 amp_volume=MIN (normal playback)
-        - Scene 2: T1-6 amp_volume=MIN, T7 amp_volume=MAX (transition playback)
-
-        This enables the classic "transition trick" workflow:
-        1. Record master output to T7's buffer
-        2. Crossfade to Scene 2 (plays T7 only)
-        3. Change patterns/banks on T1-6
-        4. Crossfade back to Scene 1
-
-        The configuration is propagated to all 4 Parts within each bank
-        to ensure consistent behavior when switching Parts.
-
-        Recorder buffers are global across banks, so T7 continues playing
-        seamlessly when switching to a new bank with the same configuration.
-
-        Default is False (manual T7 configuration).
-        """
-        return self._transition_track
-
-    @transition_track.setter
-    def transition_track(self, value: bool):
-        self._transition_track = value
-
-    @property
     def propagate_scenes(self) -> bool:
         """
         Propagate scenes from Part 1 to Parts 2-4 within each bank.
@@ -320,7 +288,6 @@ class RenderSettings:
         AMP page: attack, hold, release, volume, balance
 
         Exclusions:
-        - Track 7 is excluded if transition_track is enabled
         - Track 8 is excluded if master_track is enabled
 
         Default is False (manual SRC/AMP configuration per Part).
@@ -341,7 +308,6 @@ class RenderSettings:
         template defaults (FX1=FILTER, FX2=DELAY).
 
         Exclusions:
-        - Track 7 is excluded if transition_track is enabled
         - Track 8 is excluded if master_track is enabled
 
         Default is False (manual FX configuration per Part).

@@ -19,7 +19,6 @@ The exception is `sample_duration`, which serves a different purpose: normalizin
 
 | Setting | Purpose | Scope |
 |---------|---------|-------|
-| `transition_track` | Configure T7 as transition buffer | All Parts, all Banks |
 | `propagate_scenes` | Copy scenes Part 1 → Parts 2-4 | Per Bank |
 | `propagate_src` | Copy SRC/AMP settings Part 1 → Parts 2-4 | Per Bank |
 | `propagate_fx` | Copy FX settings Part 1 → Parts 2-4 | Per Bank |
@@ -36,7 +35,6 @@ project = Project.from_template("MY PROJECT")
 project.settings.master_track = True
 
 # Configure render settings
-project.render_settings.transition_track = True
 project.render_settings.propagate_scenes = True
 project.render_settings.propagate_src = True
 project.render_settings.propagate_fx = True
@@ -45,27 +43,6 @@ project.render_settings.sample_duration = NoteLength.SIXTEENTH
 ```
 
 ## Setting Details
-
-### transition_track
-
-Configures track 7 for the classic "transition trick" live performance pattern.
-
-When enabled, automatically configures **all Parts in all Banks** with:
-
-- T7 machine: Flex playing recorder buffer 7
-- T7 recorder source: Main (captures master output)
-- Scene 1: T1-6 amp_volume=127, T7 amp_volume=0 (normal)
-- Scene 2: T1-6 amp_volume=0, T7 amp_volume=127 (transition)
-
-This enables seamless transitions:
-1. Record current mix to T7's buffer
-2. Crossfade to Scene 2 (audience hears recorded loop)
-3. Change patterns/banks freely
-4. Crossfade back to Scene 1 (new content)
-
-See `docs/live-transition-setup.md` for the complete workflow.
-
-**Interaction with propagation settings**: When `transition_track` is enabled, T7 is excluded from `propagate_src` and `propagate_fx` to preserve its transition buffer configuration.
 
 ### propagate_scenes
 
@@ -92,7 +69,6 @@ Copies SRC (playback) and AMP (envelope) page settings from Part 1 to Parts 2-4.
 
 **Behavior**:
 - Only copies if target Part's settings are at template defaults
-- Excludes T7 if `transition_track` is enabled
 - Excludes T8 if `master_track` is enabled
 
 ### propagate_fx
@@ -105,7 +81,6 @@ Copies FX1 and FX2 settings from Part 1 to Parts 2-4.
 
 **Behavior**:
 - Only copies if target Part's FX types match template defaults (FX1=FILTER, FX2=DELAY)
-- Excludes T7 if `transition_track` is enabled
 - Excludes T8 if `master_track` is enabled
 
 ### auto_master_trig
@@ -152,7 +127,6 @@ This is different from the propagation settings - it processes audio files rathe
 
 Each setting has a distinct scope:
 
-- `transition_track`: T7 machine + recorder + scenes 1-2
 - `propagate_scenes`: Scene locks (all 16 scenes, all 8 tracks)
 - `propagate_src`: SRC/AMP pages only
 - `propagate_fx`: FX pages only
@@ -164,13 +138,9 @@ Each setting has a distinct scope:
 
 Settings are designed to work together without conflicts:
 
-1. **transition_track + propagation**: T7 is automatically excluded from `propagate_src` and `propagate_fx` when `transition_track` is enabled, preserving the transition buffer configuration.
+1. **master_track + propagation**: T8 is automatically excluded from `propagate_src` and `propagate_fx` when `master_track` is enabled.
 
-2. **master_track + propagation**: T8 is automatically excluded from `propagate_src` and `propagate_fx` when `master_track` is enabled.
-
-3. **propagate_scenes + transition_track**: The transition track scenes (1-2) are configured first by `transition_track`, then `propagate_scenes` copies them (and any additional scenes) to Parts 2-4.
-
-4. **auto_master_trig + patterns**: Only adds trigs to patterns with existing activity, avoiding trigs in empty patterns.
+2. **auto_master_trig + patterns**: Only adds trigs to patterns with existing activity, avoiding trigs in empty patterns.
 
 ### Idempotent
 
@@ -178,20 +148,6 @@ Running render settings multiple times produces the same result. Settings check 
 
 ## Recommended Configuration
 
-For live performance with the transition trick:
-
-```python
-project.settings.master_track = True
-
-project.render_settings.transition_track = True
-project.render_settings.propagate_scenes = True
-project.render_settings.propagate_src = True
-project.render_settings.propagate_fx = True
-project.render_settings.auto_master_trig = True
-```
-
-For studio/production (no live transitions):
-
 ```python
 project.settings.master_track = True
 
@@ -200,3 +156,5 @@ project.render_settings.propagate_src = True
 project.render_settings.propagate_fx = True
 project.render_settings.auto_master_trig = True
 ```
+
+For recorder buffer tracks (e.g. the "transition trick"), use `configure_as_recorder()` on individual part tracks. See `docs/live-transition-setup.md` for the complete workflow.

@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength, FX1Type, FX2Type
+from octapy import Project, MachineType, SamplePool, NoteLength, FX1Type, FX2Type, RecordingSource
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -123,8 +123,21 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
             track.fx1_type = FX1Type.DJ_EQ
 
-        # Track 7 is configured automatically by transition_track render setting
-        # (Flex machine -> recorder buffer 7, recorder source = Main, scenes 1/2 for crossfade)
+        # Configure T7 as transition buffer (records from Main, plays back via recorder buffer 7)
+        part.track(7).configure_as_recorder(RecordingSource.MAIN)
+
+        # Configure scenes for crossfader transitions
+        # Scene 1: T1-6 loud, T7 silent (normal playback)
+        scene1 = part.scene(1)
+        for tn in range(1, 7):
+            scene1.track(tn).amp_volume = 127
+        scene1.track(7).amp_volume = 0
+
+        # Scene 2: T1-6 silent, T7 loud (transition playback)
+        scene2 = part.scene(2)
+        for tn in range(1, 7):
+            scene2.track(tn).amp_volume = 0
+        scene2.track(7).amp_volume = 127
 
         # Configure FX on track 8 (master track)
         track8 = part.track(8)
@@ -195,9 +208,8 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Enable propagation so all 4 parts are consistent when switching
     project.render_settings.sample_duration = NoteLength.SIXTEENTH
     project.render_settings.auto_master_trig = True
-    project.render_settings.transition_track = True  # Configure T7 as transition buffer
     project.render_settings.propagate_scenes = True
-    project.render_settings.propagate_src = True  # Excludes T7 (transition_track) and T8 (master)
+    project.render_settings.propagate_src = True
     project.render_settings.propagate_fx = True
 
     # Configure Banks 1 and 2

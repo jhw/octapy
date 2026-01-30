@@ -266,6 +266,38 @@ class AudioPartTrack:
         offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
         self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
+    def configure_as_recorder(self, source: "RecordingSource") -> None:
+        """
+        Configure this track as a one-shot recorder buffer player.
+
+        Sets up the classic Octatrack recording pattern:
+        - Flex machine playing this track's own recorder buffer
+        - Recorder source set to the specified source (typically another track or MAIN)
+        - Recommended Flex defaults applied (length=127, length_mode=TIME, loop=OFF)
+
+        The recorder buffer number matches the track number (track 3 -> buffer 3).
+
+        Args:
+            source: What to record from (e.g. RecordingSource.TRACK_5,
+                    RecordingSource.MAIN, RecordingSource.INPUT_AB)
+
+        Usage:
+            # Track 3 records from track 2's output
+            part.track(3).configure_as_recorder(RecordingSource.TRACK_2)
+
+            # Track 7 records the master output
+            part.track(7).configure_as_recorder(RecordingSource.MAIN)
+        """
+        from ...enums import RecordingSource as _RS
+
+        if not isinstance(source, _RS):
+            raise TypeError(f"source must be a RecordingSource, got {type(source).__name__}")
+
+        self.machine_type = MachineType.FLEX
+        self.recorder_slot = self._track_num - 1  # Track N -> buffer N (0-indexed)
+        self.apply_recommended_flex_defaults()
+        self.recorder.source = source
+
     @classmethod
     def read_from_part(
         cls,
