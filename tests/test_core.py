@@ -2927,6 +2927,25 @@ class TestProjectRepr:
         assert "125.0" in r
 
 
+class TestConfigureAsNeighbor:
+    """Tests for AudioPartTrack.configure_as_neighbor()."""
+
+    def test_sets_neighbor_machine_type(self):
+        """configure_as_neighbor sets machine type to NEIGHBOR."""
+        track = AudioPartTrack()
+        track.configure_as_neighbor()
+        assert track.machine_type == MachineType.NEIGHBOR
+
+    def test_neighbor_has_fx_slots(self):
+        """Neighbor track can have FX configured."""
+        track = AudioPartTrack()
+        track.configure_as_neighbor()
+        track.fx1_type = FX1Type.CHORUS
+        track.fx2_type = FX2Type.PLATE_REVERB
+        assert track.fx1_type == FX1Type.CHORUS
+        assert track.fx2_type == FX2Type.PLATE_REVERB
+
+
 class TestConfigureAsRecorder:
     """Tests for AudioPartTrack.configure_as_recorder()."""
 

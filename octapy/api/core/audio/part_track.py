@@ -297,6 +297,27 @@ class AudioPartTrack:
         self.apply_recommended_flex_defaults()
         self.recorder.source = source
 
+    def configure_as_neighbor(self) -> None:
+        """
+        Configure this track as a neighbor machine for extra FX.
+
+        A neighbor track routes the previous track's audio through its own
+        FX1 and FX2, giving the previous track effectively 4 FX in series.
+        The neighbor track sacrifices sample playback to act as a pure FX chain.
+
+        Note: Scene locks and parameter locks for the neighbor's FX still
+        target this track directly — the neighbor is a real track in the
+        Octatrack's data model.
+
+        Usage:
+            # Track 3 plays a sample, track 4 adds 2 more FX
+            part.track(3).machine_type = MachineType.FLEX
+            part.track(4).configure_as_neighbor()
+            part.track(4).fx1_type = FX1Type.CHORUS
+            part.track(4).fx2_type = FX2Type.PLATE_REVERB
+        """
+        self.machine_type = MachineType.NEIGHBOR
+
     @classmethod
     def read_from_part(
         cls,
