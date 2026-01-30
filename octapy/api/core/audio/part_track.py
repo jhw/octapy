@@ -33,8 +33,7 @@ from ...._io import (
 )
 from ...enums import MachineType, FX1Type, FX2Type
 from .recorder import AudioRecorderSetup
-from .._fx import FXAccessor
-from .._src import SrcAccessor
+from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, _AMP_KEY
 
 
 class TrackDataOffset(IntEnum):
@@ -672,66 +671,44 @@ class AudioPartTrack:
     # === FX Accessors (named parameter access) ===
 
     @property
-    def fx1(self) -> FXAccessor:
+    def fx1(self) -> PageAccessor:
         """
-        Get FX1 accessor for named parameter access.
-
-        The parameter names depend on the current FX type.
+        FX1 page accessor. Names depend on FX type.
 
         Usage:
-            track.fx1_type = FX1Type.FILTER
-            track.fx1.base = 64      # Same as track.fx1_param1 = 64
-            track.fx1.decay = 100    # Same as track.fx1_param6 = 100
-
-            track.fx1_type = FX1Type.CHORUS
-            track.fx1.delay = 64     # Now param1 is 'delay'
-            track.fx1.mix = 100      # Same as fx1_param6
-
-        Returns:
-            FXAccessor with dynamic attribute access
+            track.fx1.base = 64      # FX1Type.FILTER param1
+            track.fx1.delay = 64     # FX1Type.CHORUS param1
         """
         if not hasattr(self, '_fx1_accessor'):
-            self._fx1_accessor = FXAccessor(
-                track=self,
-                slot=1,
+            self._fx1_accessor = PageAccessor(
+                page_name='FX1',
+                param_names_map=FX_PARAM_NAMES,
                 get_type=lambda: self.fx1_type,
-                set_type=lambda v: setattr(self, 'fx1_type', v),
                 get_param=lambda n: getattr(self, f'fx1_param{n}'),
                 set_param=lambda n, v: setattr(self, f'fx1_param{n}', v),
             )
         return self._fx1_accessor
 
     @property
-    def fx2(self) -> FXAccessor:
+    def fx2(self) -> PageAccessor:
         """
-        Get FX2 accessor for named parameter access.
-
-        The parameter names depend on the current FX type.
+        FX2 page accessor. Names depend on FX type.
 
         Usage:
-            track.fx2_type = FX2Type.DELAY
-            track.fx2.time = 64      # Same as track.fx2_param1 = 64
-            track.fx2.send = 100     # Same as track.fx2_param6 = 100
-
-            track.fx2_type = FX2Type.PLATE_REVERB
-            track.fx2.time = 64      # Same as fx2_param1
-            track.fx2.mix = 100      # Same as fx2_param6
-
-        Returns:
-            FXAccessor with dynamic attribute access
+            track.fx2.time = 64      # FX2Type.DELAY param1
+            track.fx2.mix = 100      # FX2Type.PLATE_REVERB param6
         """
         if not hasattr(self, '_fx2_accessor'):
-            self._fx2_accessor = FXAccessor(
-                track=self,
-                slot=2,
+            self._fx2_accessor = PageAccessor(
+                page_name='FX2',
+                param_names_map=FX_PARAM_NAMES,
                 get_type=lambda: self.fx2_type,
-                set_type=lambda v: setattr(self, 'fx2_type', v),
                 get_param=lambda n: getattr(self, f'fx2_param{n}'),
                 set_param=lambda n, v: setattr(self, f'fx2_param{n}', v),
             )
         return self._fx2_accessor
 
-    # === AMP page ===
+    # === AMP page (deprecated bare properties — use track.amp.* instead) ===
 
     @property
     def attack(self) -> int:
@@ -819,35 +796,89 @@ class AudioPartTrack:
         """Set playback param n (1-6) for current machine type."""
         self._data[self._machine_values_offset() + (n - 1)] = value & 0x7F
 
-    @property
-    def src(self) -> SrcAccessor:
-        """
-        Get SRC page accessor for named parameter access.
+    def _get_setup_param(self, n: int) -> int:
+        """Get setup param n (1-6) for current machine type."""
+        return self._data[self._machine_setup_offset() + (n - 1)]
 
-        The parameter names depend on the current machine type.
+    def _set_setup_param(self, n: int, value: int):
+        """Set setup param n (1-6) for current machine type."""
+        self._data[self._machine_setup_offset() + (n - 1)] = value & 0x7F
+
+    # AMP param indices: 1=attack, 2=hold, 3=release, 4=volume, 5=balance
+    _AMP_OFFSETS = (
+        AudioTrackParamsOffset.AMP_ATK,
+        AudioTrackParamsOffset.AMP_HOLD,
+        AudioTrackParamsOffset.AMP_REL,
+        AudioTrackParamsOffset.AMP_VOL,
+        AudioTrackParamsOffset.AMP_BAL,
+    )
+
+    def _get_amp_param(self, n: int) -> int:
+        """Get AMP param n (1=attack, 2=hold, 3=release, 4=volume, 5=balance)."""
+        return self._data[TrackDataOffset.TRACK_PARAMS + self._AMP_OFFSETS[n - 1]]
+
+    def _set_amp_param(self, n: int, value: int):
+        """Set AMP param n (1=attack, 2=hold, 3=release, 4=volume, 5=balance)."""
+        self._data[TrackDataOffset.TRACK_PARAMS + self._AMP_OFFSETS[n - 1]] = value & 0x7F
+
+    @property
+    def src(self) -> PageAccessor:
+        """
+        SRC playback page accessor. Names depend on machine type.
 
         Usage:
-            # Flex/Static machines
-            track.machine_type = MachineType.FLEX
-            track.src.pitch = 64       # Same as playback param1
-            track.src.retrig_time = 79 # Same as playback param6
-
-            # Thru machine
-            track.machine_type = MachineType.THRU
-            track.src.in_ab = 1        # Same as playback param1
-            track.src.vol_ab = 100     # Same as playback param2
-
-        Returns:
-            SrcAccessor with dynamic attribute access
+            track.src.pitch = 64         # Flex/Static param1
+            track.src.in_ab = 1          # Thru param1
         """
         if not hasattr(self, '_src_accessor'):
-            self._src_accessor = SrcAccessor(
-                track=self,
-                get_machine_type=lambda: self.machine_type,
+            self._src_accessor = PageAccessor(
+                page_name='SRC',
+                param_names_map=SRC_PARAM_NAMES,
+                get_type=lambda: self.machine_type,
                 get_param=self._get_playback_param,
                 set_param=self._set_playback_param,
             )
         return self._src_accessor
+
+    @property
+    def setup(self) -> PageAccessor:
+        """
+        SRC setup page accessor. Names depend on machine type.
+
+        Usage:
+            track.setup.loop = 0              # Flex/Static: loop off
+            track.setup.length_mode = 1       # Flex/Static: TIME mode
+            track.setup.timestretch = 1       # Flex/Static: AUTO
+        """
+        if not hasattr(self, '_setup_accessor'):
+            self._setup_accessor = PageAccessor(
+                page_name='setup',
+                param_names_map=SRC_SETUP_PARAM_NAMES,
+                get_type=lambda: self.machine_type,
+                get_param=self._get_setup_param,
+                set_param=self._set_setup_param,
+            )
+        return self._setup_accessor
+
+    @property
+    def amp(self) -> PageAccessor:
+        """
+        AMP page accessor. Fixed names for all machine types.
+
+        Usage:
+            track.amp.attack = 10
+            track.amp.volume = 108
+            track.amp.balance = 64
+        """
+        if not hasattr(self, '_amp_accessor'):
+            self._amp_accessor = PageAccessor(
+                page_name='AMP',
+                param_names_map=AMP_PARAM_NAMES,
+                get_type=lambda: _AMP_KEY,
+                get_param=self._get_amp_param,
+                set_param=self._set_amp_param,
+            )
+        return self._amp_accessor
 
     # === Serialization ===
 

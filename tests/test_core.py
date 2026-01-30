@@ -1107,13 +1107,11 @@ class TestFXAccessor:
         """AudioPartTrack has fx1 accessor property."""
         track = AudioPartTrack()
         assert track.fx1 is not None
-        assert track.fx1._slot == 1
 
     def test_fx2_accessor_exists(self):
         """AudioPartTrack has fx2 accessor property."""
         track = AudioPartTrack()
         assert track.fx2 is not None
-        assert track.fx2._slot == 2
 
     def test_fx1_filter_named_params(self):
         """FX1 FILTER params accessible by name."""
@@ -1200,16 +1198,6 @@ class TestFXAccessor:
         track.fx1_param1 = 77
 
         assert track.fx1.base == 77
-
-    def test_accessor_type_property(self):
-        """Accessor has type property for get/set."""
-        track = AudioPartTrack()
-        track.fx1_type = FX1Type.FILTER
-
-        assert track.fx1.type == FX1Type.FILTER
-
-        track.fx1.type = FX1Type.CHORUS
-        assert track.fx1_type == FX1Type.CHORUS
 
     def test_get_param_names(self):
         """get_param_names() returns valid names for FX type."""
@@ -1300,6 +1288,99 @@ class TestFXAccessor:
         assert track.fx1_param4 == 80
         assert track.fx1_param5 == 100
         assert track.fx1_param6 == 127
+
+
+class TestSetupAccessor:
+    """Tests for SRC setup page accessor."""
+
+    def test_setup_accessor_exists(self):
+        """AudioPartTrack has setup accessor property."""
+        track = AudioPartTrack()
+        assert track.setup is not None
+
+    def test_flex_setup_params(self):
+        """FLEX setup params accessible by name."""
+        track = AudioPartTrack()
+        track.machine_type = MachineType.FLEX
+
+        track.setup.loop = 1
+        track.setup.slice = 5
+        track.setup.length_mode = 2
+        track.setup.rate_mode = 1
+        track.setup.timestretch = 3
+        track.setup.timestretch_sensitivity = 10
+
+        # Read back
+        assert track.setup.loop == 1
+        assert track.setup.slice == 5
+        assert track.setup.length_mode == 2
+        assert track.setup.rate_mode == 1
+        assert track.setup.timestretch == 3
+        assert track.setup.timestretch_sensitivity == 10
+
+    def test_setup_get_param_names_flex(self):
+        """Setup get_param_names returns correct names for FLEX."""
+        track = AudioPartTrack()
+        track.machine_type = MachineType.FLEX
+        names = track.setup.get_param_names()
+        assert names == ['loop', 'slice', 'length_mode', 'rate_mode', 'timestretch', 'timestretch_sensitivity']
+
+    def test_setup_thru_has_no_params(self):
+        """THRU machine has no setup params."""
+        track = AudioPartTrack()
+        track.machine_type = MachineType.THRU
+        assert track.setup.get_param_names() == []
+
+    def test_setup_invalid_param_raises(self):
+        """Invalid setup param raises AttributeError."""
+        track = AudioPartTrack()
+        track.machine_type = MachineType.FLEX
+        with pytest.raises(AttributeError):
+            _ = track.setup.nonexistent
+
+
+class TestAmpAccessor:
+    """Tests for AMP page accessor."""
+
+    def test_amp_accessor_exists(self):
+        """AudioPartTrack has amp accessor property."""
+        track = AudioPartTrack()
+        assert track.amp is not None
+
+    def test_amp_params(self):
+        """AMP params accessible by name."""
+        track = AudioPartTrack()
+        track.amp.attack = 10
+        track.amp.hold = 20
+        track.amp.release = 30
+        track.amp.volume = 100
+        track.amp.balance = 64
+
+        assert track.amp.attack == 10
+        assert track.amp.hold == 20
+        assert track.amp.release == 30
+        assert track.amp.volume == 100
+        assert track.amp.balance == 64
+
+    def test_amp_get_param_names(self):
+        """AMP get_param_names returns fixed names."""
+        track = AudioPartTrack()
+        names = track.amp.get_param_names()
+        assert names == ['attack', 'hold', 'release', 'volume', 'balance']
+
+    def test_amp_invalid_param_raises(self):
+        """Invalid AMP param raises AttributeError."""
+        track = AudioPartTrack()
+        with pytest.raises(AttributeError):
+            _ = track.amp.nonexistent
+
+    def test_amp_deprecated_aliases(self):
+        """Bare AMP properties still work as aliases."""
+        track = AudioPartTrack()
+        track.amp.attack = 42
+        assert track.attack == 42
+        track.amp.volume = 99
+        assert track.amp_volume == 99
 
 
 class TestAudioPartTrackRepr:

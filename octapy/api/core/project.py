@@ -284,18 +284,16 @@ class Project:
 
     def _propagate_src(self, bank: Bank) -> None:
         """
-        Propagate SRC and AMP page settings from Part 1 to Parts 2-4.
+        Propagate SRC, setup, and AMP page settings from Part 1 to Parts 2-4.
 
-        Copies SRC page (playback params 1-6), setup page (params 1-6),
-        and AMP page (attack, hold, release, volume, balance) settings.
-
-        Uses raw byte copying for SRC/setup pages to be machine-type agnostic.
+        Uses named accessors for all three pages:
+        - track.src.*  (SRC playback: pitch, start, length, etc.)
+        - track.setup.* (SRC setup: loop, slice, length_mode, etc.)
+        - track.amp.*  (AMP: attack, hold, release, volume, balance)
 
         Exclusions:
         - Track 8 excluded if master_track is enabled
         """
-        from .audio.part_track import TrackDataOffset, MachineParamsOffset
-
         # Determine which tracks to skip
         skip_tracks = set()
         if self._settings.master_track:
@@ -312,20 +310,17 @@ class Project:
                 target_part = bank.part(target_part_num)
                 target_track = target_part.track(track_num)
 
-                # Propagate SRC playback params (6 bytes per machine type)
-                src_offset = source_track._machine_values_offset()
-                target_track._data[src_offset:src_offset + 6] = source_track._data[src_offset:src_offset + 6]
+                # Propagate SRC playback params
+                for name in source_track.src.get_param_names():
+                    setattr(target_track.src, name, getattr(source_track.src, name))
 
-                # Propagate SRC setup params (6 bytes per machine type)
-                setup_offset = source_track._machine_setup_offset()
-                target_track._data[setup_offset:setup_offset + 6] = source_track._data[setup_offset:setup_offset + 6]
+                # Propagate SRC setup params
+                for name in source_track.setup.get_param_names():
+                    setattr(target_track.setup, name, getattr(source_track.setup, name))
 
-                # Propagate AMP page settings
-                target_track.attack = source_track.attack
-                target_track.hold = source_track.hold
-                target_track.release = source_track.release
-                target_track.amp_volume = source_track.amp_volume
-                target_track.balance = source_track.balance
+                # Propagate AMP params
+                for name in source_track.amp.get_param_names():
+                    setattr(target_track.amp, name, getattr(source_track.amp, name))
 
     def _propagate_fx(self, bank: Bank) -> None:
         """

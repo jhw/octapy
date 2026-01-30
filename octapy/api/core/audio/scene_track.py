@@ -11,8 +11,7 @@ from typing import Optional
 
 from ...._io import SceneParamsOffset, SCENE_PARAMS_SIZE, SCENE_LOCK_DISABLED
 from ...enums import MachineType
-from .._fx import FXAccessor
-from .._src import SrcAccessor
+from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, _AMP_KEY
 
 
 class AudioSceneTrack:
@@ -359,32 +358,52 @@ class AudioSceneTrack:
         setattr(self, f'playback_param{n}', value)
 
     @property
-    def src(self) -> SrcAccessor:
+    def src(self) -> PageAccessor:
         """
-        Get SRC page accessor for named parameter access.
-
-        Requires machine_type to be set for named access.
+        SRC playback page accessor. Names depend on machine type.
 
         Usage:
-            track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
             track.src.pitch = 64       # Lock pitch to 64
-            track.src.retrig_time = 79 # Lock retrig_time to 79
-
-            track = AudioSceneTrack(track_num=1, machine_type=MachineType.THRU)
-            track.src.in_ab = 1        # Lock in_ab to 1
-            track.src.vol_ab = 100     # Lock vol_ab to 100
-
-        Returns:
-            SrcAccessor with dynamic attribute access
+            track.src.in_ab = 1        # Lock in_ab to 1 (Thru)
         """
         if not hasattr(self, '_src_accessor'):
-            self._src_accessor = SrcAccessor(
-                track=self,
-                get_machine_type=lambda: self._machine_type,
+            self._src_accessor = PageAccessor(
+                page_name='SRC',
+                param_names_map=SRC_PARAM_NAMES,
+                get_type=lambda: self._machine_type,
                 get_param=self._get_playback_param,
                 set_param=self._set_playback_param,
             )
         return self._src_accessor
+
+    @property
+    def amp(self) -> PageAccessor:
+        """
+        AMP page accessor. Fixed names for all machine types.
+
+        Usage:
+            track.amp.attack = 10
+            track.amp.volume = 100
+        """
+        if not hasattr(self, '_amp_accessor'):
+            self._amp_accessor = PageAccessor(
+                page_name='AMP',
+                param_names_map=AMP_PARAM_NAMES,
+                get_type=lambda: _AMP_KEY,
+                get_param=self._get_amp_param,
+                set_param=self._set_amp_param,
+            )
+        return self._amp_accessor
+
+    def _get_amp_param(self, n: int) -> Optional[int]:
+        """Get AMP param n (1=attack, 2=hold, 3=release, 4=volume, 5=balance)."""
+        _AMP_ATTRS = ('amp_attack', 'amp_hold', 'amp_release', 'amp_volume', 'amp_balance')
+        return getattr(self, _AMP_ATTRS[n - 1])
+
+    def _set_amp_param(self, n: int, value: Optional[int]):
+        """Set AMP param n (1=attack, 2=hold, 3=release, 4=volume, 5=balance)."""
+        _AMP_ATTRS = ('amp_attack', 'amp_hold', 'amp_release', 'amp_volume', 'amp_balance')
+        setattr(self, _AMP_ATTRS[n - 1], value)
 
     def _get_fx1_param(self, n: int) -> Optional[int]:
         """Get FX1 param n (1-6)."""
@@ -395,26 +414,18 @@ class AudioSceneTrack:
         setattr(self, f'fx1_param{n}', value)
 
     @property
-    def fx1(self) -> FXAccessor:
+    def fx1(self) -> PageAccessor:
         """
-        Get FX1 accessor for named parameter access.
-
-        Requires fx1_type to be set for named access.
+        FX1 page accessor. Names depend on FX type.
 
         Usage:
-            track = AudioSceneTrack(track_num=1, fx1_type=FX1Type.FILTER)
             track.fx1.base = 64      # Lock filter base to 64
-            track.fx1.decay = 100    # Lock filter decay to 100
-
-        Returns:
-            FXAccessor with dynamic attribute access
         """
         if not hasattr(self, '_fx1_accessor'):
-            self._fx1_accessor = FXAccessor(
-                track=self,
-                slot=1,
+            self._fx1_accessor = PageAccessor(
+                page_name='FX1',
+                param_names_map=FX_PARAM_NAMES,
                 get_type=lambda: self._fx1_type,
-                set_type=None,  # AudioSceneTrack doesn't store FX type
                 get_param=self._get_fx1_param,
                 set_param=self._set_fx1_param,
             )
@@ -429,26 +440,18 @@ class AudioSceneTrack:
         setattr(self, f'fx2_param{n}', value)
 
     @property
-    def fx2(self) -> FXAccessor:
+    def fx2(self) -> PageAccessor:
         """
-        Get FX2 accessor for named parameter access.
-
-        Requires fx2_type to be set for named access.
+        FX2 page accessor. Names depend on FX type.
 
         Usage:
-            track = AudioSceneTrack(track_num=1, fx2_type=FX2Type.DELAY)
             track.fx2.time = 64      # Lock delay time to 64
-            track.fx2.send = 100     # Lock delay send to 100
-
-        Returns:
-            FXAccessor with dynamic attribute access
         """
         if not hasattr(self, '_fx2_accessor'):
-            self._fx2_accessor = FXAccessor(
-                track=self,
-                slot=2,
+            self._fx2_accessor = PageAccessor(
+                page_name='FX2',
+                param_names_map=FX_PARAM_NAMES,
                 get_type=lambda: self._fx2_type,
-                set_type=None,  # AudioSceneTrack doesn't store FX type
                 get_param=self._get_fx2_param,
                 set_param=self._set_fx2_param,
             )
