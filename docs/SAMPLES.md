@@ -124,17 +124,15 @@ For one-shot sample playback, octapy provides recommended defaults that differ f
 
 ### Application
 
-These defaults are applied via:
+These defaults are applied automatically by the `configure_*` helpers:
 
 ```python
-# Factory method
-track = AudioPartTrack.flex_with_recommended_defaults(track_num=1, flex_slot=0)
+# Configure a flex track with a sample
+slot = project.add_sample(kick_sample)
+track.configure_flex(slot)
 
-# Or on existing track
-track.apply_recommended_flex_defaults()
-
-# Or via configure_as_recorder helper
-track.configure_as_recorder(RecordingSource.MAIN)
+# Configure a recorder track (also uses flex defaults)
+track.configure_recorder(RecordingSource.MAIN)
 ```
 
 ### Why These Defaults?

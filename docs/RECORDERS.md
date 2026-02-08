@@ -77,7 +77,7 @@ track.machine_type = MachineType.FLEX
 track.recorder_slot = 6  # Play recorder buffer 7 (0-indexed)
 
 # Helper method (recommended)
-track.configure_as_recorder(RecordingSource.MAIN)
+track.configure_recorder(RecordingSource.MAIN)
 ```
 
 The `recorder_slot` and `flex_slot` properties are mutually exclusive - both write to the same underlying byte.
@@ -107,7 +107,7 @@ The most common recorder buffer pattern is live resampling:
 
 ```python
 # Configure track 7 as a resample track
-part.track(7).configure_as_recorder(RecordingSource.MAIN)
+part.track(7).configure_recorder(RecordingSource.MAIN)
 ```
 
 This method:
@@ -148,7 +148,7 @@ for bank_num in range(1, 17):
     bank = project.bank(bank_num)
     for part_num in range(1, 5):
         part = bank.part(part_num)
-        part.track(7).configure_as_recorder(RecordingSource.MAIN)
+        part.track(7).configure_recorder(RecordingSource.MAIN)
 
         # Scene 1: Normal playback (T1-6 loud, T7 silent)
         scene1 = part.scene(1)
@@ -175,10 +175,10 @@ for bank_num in range(1, 17):
 **Recording from specific tracks:**
 ```python
 # Track 3 records from track 2
-part.track(3).configure_as_recorder(RecordingSource.TRACK_2)
+part.track(3).configure_recorder(RecordingSource.TRACK_2)
 
 # Track 6 records from track 5
-part.track(6).configure_as_recorder(RecordingSource.TRACK_5)
+part.track(6).configure_recorder(RecordingSource.TRACK_5)
 ```
 
 **Multiple transition tracks:**

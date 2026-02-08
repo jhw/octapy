@@ -128,4 +128,4 @@ project.render_settings.propagate_fx = True
 project.render_settings.auto_master_trig = True
 ```
 
-For recorder buffer tracks (e.g. the "transition trick"), use `configure_as_recorder()` on individual part tracks. See [RECORDERS.md](RECORDERS.md) for the complete workflow.
+For recorder buffer tracks (e.g. the "transition trick"), use `configure_recorder()` on individual part tracks. See [RECORDERS.md](RECORDERS.md) for the complete workflow.

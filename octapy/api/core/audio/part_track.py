@@ -265,7 +265,49 @@ class AudioPartTrack:
         offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
         self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
-    def configure_as_recorder(self, source: "RecordingSource") -> None:
+    def configure_flex(self, slot: int) -> None:
+        """
+        Configure this track as a Flex machine with sensible defaults.
+
+        Args:
+            slot: Sample slot number (1-128, matching add_sample() return value)
+
+        Sets:
+        - Machine type to FLEX
+        - Flex slot to the specified sample
+        - Recommended defaults (length=127, length_mode=TIME, loop=OFF)
+
+        Usage:
+            slot = project.add_sample(kick_sample)
+            track.configure_flex(slot)
+        """
+        if not 1 <= slot <= 128:
+            raise ValueError(f"slot must be 1-128, got {slot}")
+        self.machine_type = MachineType.FLEX
+        self.flex_slot = slot - 1  # Convert to 0-indexed
+        self.apply_recommended_flex_defaults()
+
+    def configure_static(self, slot: int) -> None:
+        """
+        Configure this track as a Static machine.
+
+        Args:
+            slot: Sample slot number (1-128, matching add_sample() return value)
+
+        Sets:
+        - Machine type to STATIC
+        - Static slot to the specified sample
+
+        Usage:
+            slot = project.add_sample(pad_sample, slot_type="STATIC")
+            track.configure_static(slot)
+        """
+        if not 1 <= slot <= 128:
+            raise ValueError(f"slot must be 1-128, got {slot}")
+        self.machine_type = MachineType.STATIC
+        self.static_slot = slot - 1  # Convert to 0-indexed
+
+    def configure_recorder(self, source: "RecordingSource") -> None:
         """
         Configure this track as a one-shot recorder buffer player.
 
@@ -282,10 +324,10 @@ class AudioPartTrack:
 
         Usage:
             # Track 3 records from track 2's output
-            part.track(3).configure_as_recorder(RecordingSource.TRACK_2)
+            part.track(3).configure_recorder(RecordingSource.TRACK_2)
 
             # Track 7 records the master output
-            part.track(7).configure_as_recorder(RecordingSource.MAIN)
+            part.track(7).configure_recorder(RecordingSource.MAIN)
         """
         from ...enums import RecordingSource as _RS
 
@@ -297,7 +339,7 @@ class AudioPartTrack:
         self.apply_recommended_flex_defaults()
         self.recorder.source = source
 
-    def configure_as_neighbor(self) -> None:
+    def configure_neighbor(self) -> None:
         """
         Configure this track as a neighbor machine for extra FX.
 
@@ -311,10 +353,10 @@ class AudioPartTrack:
 
         Usage:
             # Track 3 plays a sample, track 4 adds 2 more FX
-            part.track(3).machine_type = MachineType.FLEX
-            part.track(4).configure_as_neighbor()
-            part.track(4).fx1_type = FX1Type.CHORUS
-            part.track(4).fx2_type = FX2Type.PLATE_REVERB
+            track3.configure_flex(slot)
+            track4.configure_neighbor()
+            track4.fx1_type = FX1Type.CHORUS
+            track4.fx2_type = FX2Type.PLATE_REVERB
         """
         self.machine_type = MachineType.NEIGHBOR
 

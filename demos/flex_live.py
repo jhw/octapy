@@ -2,7 +2,7 @@
 """
 Flex Live - Octatrack project configured for seamless live transitions.
 
-Uses the classic "transition trick" pattern documented in docs/live-transition-setup.md.
+Uses the classic "transition trick" pattern documented in docs/RECORDERS.md.
 
 Demo content:
 - Banks 1-2 with 4 parts and 16 patterns each
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, MachineType, SamplePool, NoteLength, FX1Type, FX2Type, RecordingSource
+from octapy import Project, SamplePool, NoteLength, FX1Type, FX2Type, RecordingSource
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -118,13 +118,11 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
         # Configure machine types and slots for tracks 1-3
         for track_num, slot in [(1, kick_slot), (2, snare_slot), (3, hat_slot)]:
             track = part.track(track_num)
-            track.machine_type = MachineType.FLEX
-            track.flex_slot = slot - 1
-            track.apply_recommended_flex_defaults()  # length=127, length_mode=TIME
+            track.configure_flex(slot)
             track.fx1_type = FX1Type.DJ_EQ
 
         # Configure T7 as transition buffer (records from Main, plays back via recorder buffer 7)
-        part.track(7).configure_as_recorder(RecordingSource.MAIN)
+        part.track(7).configure_recorder(RecordingSource.MAIN)
 
         # Configure scenes for crossfader transitions
         # Scene 1: T1-6 loud, T7 silent (normal playback)

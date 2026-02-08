@@ -2928,18 +2928,18 @@ class TestProjectRepr:
 
 
 class TestConfigureAsNeighbor:
-    """Tests for AudioPartTrack.configure_as_neighbor()."""
+    """Tests for AudioPartTrack.configure_neighbor()."""
 
     def test_sets_neighbor_machine_type(self):
-        """configure_as_neighbor sets machine type to NEIGHBOR."""
+        """configure_neighbor sets machine type to NEIGHBOR."""
         track = AudioPartTrack()
-        track.configure_as_neighbor()
+        track.configure_neighbor()
         assert track.machine_type == MachineType.NEIGHBOR
 
     def test_neighbor_has_fx_slots(self):
         """Neighbor track can have FX configured."""
         track = AudioPartTrack()
-        track.configure_as_neighbor()
+        track.configure_neighbor()
         track.fx1_type = FX1Type.CHORUS
         track.fx2_type = FX2Type.PLATE_REVERB
         assert track.fx1_type == FX1Type.CHORUS
@@ -2947,62 +2947,62 @@ class TestConfigureAsNeighbor:
 
 
 class TestConfigureAsRecorder:
-    """Tests for AudioPartTrack.configure_as_recorder()."""
+    """Tests for AudioPartTrack.configure_recorder()."""
 
     def test_configures_flex_machine(self):
-        """configure_as_recorder sets machine type to FLEX."""
+        """configure_recorder sets machine type to FLEX."""
         track = AudioPartTrack(track_num=3)
-        track.configure_as_recorder(RecordingSource.TRACK_2)
+        track.configure_recorder(RecordingSource.TRACK_2)
         assert track.machine_type == MachineType.FLEX
 
     def test_sets_recorder_slot_matching_track(self):
-        """configure_as_recorder sets recorder slot to match track number."""
+        """configure_recorder sets recorder slot to match track number."""
         track = AudioPartTrack(track_num=3)
-        track.configure_as_recorder(RecordingSource.TRACK_2)
+        track.configure_recorder(RecordingSource.TRACK_2)
         assert track.recorder_slot == 2  # Track 3 -> buffer 3 (0-indexed = 2)
 
     def test_sets_recorder_slot_track_7(self):
         """Track 7 gets recorder buffer 7 (0-indexed = 6)."""
         track = AudioPartTrack(track_num=7)
-        track.configure_as_recorder(RecordingSource.MAIN)
+        track.configure_recorder(RecordingSource.MAIN)
         assert track.recorder_slot == 6
 
     def test_sets_recorder_source(self):
-        """configure_as_recorder sets the recorder source."""
+        """configure_recorder sets the recorder source."""
         track = AudioPartTrack(track_num=3)
-        track.configure_as_recorder(RecordingSource.TRACK_2)
+        track.configure_recorder(RecordingSource.TRACK_2)
         assert track.recorder.source == RecordingSource.TRACK_2
 
     def test_sets_recorder_source_main(self):
-        """configure_as_recorder works with MAIN source."""
+        """configure_recorder works with MAIN source."""
         track = AudioPartTrack(track_num=7)
-        track.configure_as_recorder(RecordingSource.MAIN)
+        track.configure_recorder(RecordingSource.MAIN)
         assert track.recorder.source == RecordingSource.MAIN
 
     def test_sets_recorder_source_input(self):
-        """configure_as_recorder works with external input source."""
+        """configure_recorder works with external input source."""
         track = AudioPartTrack(track_num=1)
-        track.configure_as_recorder(RecordingSource.INPUT_AB)
+        track.configure_recorder(RecordingSource.INPUT_AB)
         assert track.recorder.source == RecordingSource.INPUT_AB
 
     def test_applies_flex_defaults(self):
-        """configure_as_recorder applies recommended flex defaults."""
+        """configure_recorder applies recommended flex defaults."""
         track = AudioPartTrack(track_num=3)
-        track.configure_as_recorder(RecordingSource.TRACK_2)
+        track.configure_recorder(RecordingSource.TRACK_2)
         # Flex defaults: length_mode=TIME, loop=OFF
         # Verify by checking the track is configured as expected
         assert track.machine_type == MachineType.FLEX
 
     def test_rejects_non_recording_source(self):
-        """configure_as_recorder rejects non-RecordingSource values."""
+        """configure_recorder rejects non-RecordingSource values."""
         track = AudioPartTrack(track_num=3)
         with pytest.raises(TypeError):
-            track.configure_as_recorder(42)
+            track.configure_recorder(42)
 
     def test_all_tracks_can_be_configured(self):
-        """configure_as_recorder works for all 8 tracks."""
+        """configure_recorder works for all 8 tracks."""
         for track_num in range(1, 9):
             track = AudioPartTrack(track_num=track_num)
-            track.configure_as_recorder(RecordingSource.MAIN)
+            track.configure_recorder(RecordingSource.MAIN)
             assert track.recorder_slot == track_num - 1
             assert track.recorder.source == RecordingSource.MAIN
