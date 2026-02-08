@@ -4,16 +4,11 @@ Render settings are octapy-specific transformations applied when saving a projec
 
 ## Purpose
 
-The Octatrack stores configuration per-Part (4 Parts per bank, 16 banks = 64 Parts total). Without automation, setting up common patterns requires extensive copy-paste of:
+Render settings eliminate repetitive configuration tasks:
 
-- Scene locks across Parts
-- SRC/AMP settings across Parts
-- FX configurations across Parts
-- Trigs for master/thru tracks across patterns
-
-Render settings eliminate this repetition. Configure Part 1 once, enable propagation, and octapy replicates the configuration to Parts 2-4 automatically.
-
-The exception is `sample_duration`, which serves a different purpose: normalizing sample lengths for rhythmic consistency.
+- **Part propagation**: Synchronize machine configs and/or scenes across Parts 1-4 (see [PARTS.md](PARTS.md) for why this matters)
+- **Auto-trigs**: Add required trigs for master track and Thru machines
+- **Sample normalization**: Normalize sample lengths for rhythmic consistency
 
 ## Settings Overview
 
@@ -39,49 +34,25 @@ project.render_settings.propagate_scenes = True
 project.render_settings.propagate_src = True
 project.render_settings.propagate_fx = True
 project.render_settings.auto_master_trig = True
-project.render_settings.sample_duration = NoteLength.SIXTEENTH
+project.render_settings.sample_duration = NoteLength.EIGHTH
 ```
 
-## Setting Details
+## Part Propagation Settings
 
-### propagate_scenes
+These settings synchronize configuration from Part 1 to Parts 2-4. See [PARTS.md](PARTS.md) for detailed use cases and patterns.
 
-Copies scene locks from Part 1 to Parts 2-4 within each bank.
+| Setting | What it copies |
+|---------|----------------|
+| `propagate_scenes` | Scene locks (all 16 scenes, all 8 tracks) |
+| `propagate_src` | SRC page (pitch, start, length, rate, etc.) + AMP page |
+| `propagate_fx` | FX1 and FX2 types and parameters |
 
-Scenes define parameter locks for crossfader morphing. Without propagation, switching Parts would lose scene behavior since each Part has independent scene data.
+All propagation settings:
+- Only copy if target Part's settings are at template defaults
+- Exclude T8 if `master_track` is enabled
+- Are idempotent (safe to run multiple times)
 
-**Behavior**:
-- Only copies scenes that have locks defined in Part 1
-- Only copies to target Parts where the scene is blank
-- Preserves any manually-configured scenes in Parts 2-4
-
-### propagate_src
-
-Copies SRC (playback) and AMP (envelope) page settings from Part 1 to Parts 2-4.
-
-**SRC page parameters**:
-- pitch, start, length, rate, retrig, retrig_time
-- loop_mode, slice_mode, length_mode, rate_mode
-- timestretch_mode, timestretch_sensitivity
-
-**AMP page parameters**:
-- attack, hold, release, volume, balance
-
-**Behavior**:
-- Only copies if target Part's settings are at template defaults
-- Excludes T8 if `master_track` is enabled
-
-### propagate_fx
-
-Copies FX1 and FX2 settings from Part 1 to Parts 2-4.
-
-**Parameters copied**:
-- FX type (filter, delay, reverb, etc.)
-- All 6 FX parameters per slot
-
-**Behavior**:
-- Only copies if target Part's FX types match template defaults (FX1=FILTER, FX2=DELAY)
-- Excludes T8 if `master_track` is enabled
+## Auto-Trig Settings
 
 ### auto_master_trig
 
@@ -113,13 +84,13 @@ This is different from the propagation settings - it processes audio files rathe
 
 **Values**:
 - `NoteLength.SIXTEENTH` - 1 step (1/16th note)
-- `NoteLength.EIGHTH` - 2 steps
+- `NoteLength.EIGHTH` - 2 steps (default)
 - `NoteLength.QUARTER` - 4 steps (1 beat)
 - `NoteLength.HALF` - 8 steps
 - `NoteLength.WHOLE` - 16 steps (1 bar)
-- `None` - No normalization (default)
+- `None` - No normalization
 
-**Use case**: When loading one-shot samples of varying lengths, normalizing to a consistent duration (e.g., 1/16th) ensures predictable rhythmic behavior.
+See [SAMPLES.md](SAMPLES.md) for details on sample normalization.
 
 ## Design Principles
 
@@ -157,4 +128,4 @@ project.render_settings.propagate_fx = True
 project.render_settings.auto_master_trig = True
 ```
 
-For recorder buffer tracks (e.g. the "transition trick"), use `configure_as_recorder()` on individual part tracks. See `docs/live-transition-setup.md` for the complete workflow.
+For recorder buffer tracks (e.g. the "transition trick"), use `configure_as_recorder()` on individual part tracks. See [RECORDERS.md](RECORDERS.md) for the complete workflow.

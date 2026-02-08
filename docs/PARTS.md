@@ -1,6 +1,12 @@
-# Understanding Parts
+# Parts
 
 Parts are one of the most confusing aspects of the Octatrack. This document explains where Parts fit in the hierarchy, why they create complexity, and how octapy's render settings help manage that complexity.
+
+## Quick Summary
+
+Parts belong to Banks and sit alongside (but separate from) Patterns. They contain the non-pattern data: machine configurations and scenes. With 4 Parts per Bank, you effectively have 32 machine configs (8 tracks × 4 Parts) and 64 scenes (16 scenes × 4 Parts) per Bank.
+
+Most users stay on Part 1, making it appear you have 8 machines and 16 scenes. Switching Parts to access more requires careful management since both machines AND scenes change simultaneously.
 
 ## Hierarchy
 
