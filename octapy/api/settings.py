@@ -220,7 +220,8 @@ class RenderSettings:
         self._propagate_scenes = False
         self._propagate_src = False
         self._propagate_fx = False
-        self._sample_duration = None
+        from .enums import NoteLength
+        self._sample_duration = NoteLength.EIGHTH
 
     @property
     def auto_master_trig(self) -> bool:
@@ -323,12 +324,12 @@ class RenderSettings:
         """
         Target duration for sample normalization.
 
-        When set, samples are normalized (trimmed/padded) to this duration
+        Samples are normalized (trimmed/padded) to this duration
         based on project BPM when saving.
 
-        Values: NoteLength.SIXTEENTH (1 step), EIGHTH (2 steps),
+        Values: NoteLength.SIXTEENTH (1 step), EIGHTH (2 steps, default),
                 QUARTER (4 steps), HALF (8 steps), WHOLE (16 steps),
-                or None (no normalization, default)
+                or None (no normalization)
         """
         return self._sample_duration
 

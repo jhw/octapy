@@ -391,12 +391,13 @@ class TestRenderSettings:
         project.render_settings.auto_master_trig = True
         assert project.render_settings.auto_master_trig is True
 
-    def test_sample_duration_default_none(self):
-        """Test sample_duration defaults to None."""
+    def test_sample_duration_default_eighth(self):
+        """Test sample_duration defaults to EIGHTH."""
         from octapy import Project
+        from octapy.api.enums import NoteLength
 
         project = Project.from_template("TEST")
-        assert project.render_settings.sample_duration is None
+        assert project.render_settings.sample_duration == NoteLength.EIGHTH
 
     def test_sample_duration_via_render_settings(self):
         """Test sample_duration can be set via render_settings."""
@@ -640,8 +641,9 @@ class TestSampleNormalization:
         sample_path = samples_dir / "test.wav"
         source.export(str(sample_path), format="wav")
 
-        # Create project and add sample (no normalization)
+        # Create project and add sample (disable normalization)
         project = Project.from_template("TEST")
+        project.sample_duration = None
         project.add_sample(sample_path)
         assert project.sample_duration is None
 

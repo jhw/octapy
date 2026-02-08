@@ -91,7 +91,7 @@ When `sample_duration` is set:
 - **Short samples**: Padded with silence to reach target duration
 - **Exact length samples**: Copied unchanged
 
-When `sample_duration` is `None` (default):
+When `sample_duration` is `None`:
 - Samples are copied without modification
 
 ### Example
