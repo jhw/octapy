@@ -114,6 +114,26 @@ midi_track = project.bank(1).part(1).midi_track(1)
 midi_track.default_length = NoteLength.EIGHTH  # 2 steps
 ```
 
+## Step Probability
+
+MIDI steps support per-step probability via the `TrigCondition` enum, identical to audio steps. The Octatrack uses fixed probability values (PERCENT_1 through PERCENT_99), not a continuous 0-1 range. See `octapy/api/enums.py` for the full list.
+
+For convenience, octapy provides a `probability` property that accepts floats and quantizes to the nearest valid value:
+
+```python
+# Direct enum access
+step.condition = TrigCondition.PERCENT_50
+
+# Float-based access (quantizes automatically)
+step.probability = 0.5   # Sets PERCENT_50
+step.probability = 0.48  # Also sets PERCENT_50 (nearest)
+
+# Clear probability (always trigger)
+step.probability = None  # or 1.0
+```
+
+The quantization is handled by `probability_to_condition()` in `octapy/api/utils.py`.
+
 ## Limitations
 
 ### No Scene Locks for MIDI CCs

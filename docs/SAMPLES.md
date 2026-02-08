@@ -149,6 +149,26 @@ The OT's default `length_mode=OFF` means the LEN encoder on the SRC page is inac
 
 These defaults only apply to **Flex machines**. Static machines use the standard OT defaults since they stream from the CF card rather than loading into RAM.
 
+## Step Probability
+
+Audio steps support per-step probability via the `TrigCondition` enum. The Octatrack uses fixed probability values (PERCENT_1 through PERCENT_99), not a continuous 0-1 range. See `octapy/api/enums.py` for the full list.
+
+For convenience, octapy provides a `probability` property that accepts floats and quantizes to the nearest valid value:
+
+```python
+# Direct enum access
+step.condition = TrigCondition.PERCENT_50
+
+# Float-based access (quantizes automatically)
+step.probability = 0.5   # Sets PERCENT_50
+step.probability = 0.48  # Also sets PERCENT_50 (nearest)
+
+# Clear probability (always trigger)
+step.probability = None  # or 1.0
+```
+
+The quantization is handled by `probability_to_condition()` in `octapy/api/utils.py`.
+
 ## Reference Implementation
 
 octapy's defaults are based on analysis of [ot-tools-io](https://gitlab.com/ot-tools/ot-tools-io/), an open-source Rust library by Mike Robeson. Template defaults in `octapy/_io/bank.py` document both OT template values and octapy overrides.
