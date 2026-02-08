@@ -49,5 +49,5 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "slow: marks tests as slow (skip with '-m \"not slow\"', run with '--slow')",
+    "slow: marks tests as slow (skipped by default, run with '--slow')",
 ]

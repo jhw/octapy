@@ -17,7 +17,7 @@ def pytest_addoption(parser):
         "--slow",
         action="store_true",
         default=False,
-        help="Run slow tests (roundtrips, etc.)",
+        help="Run slow tests (roundtrips, integration tests, etc.)",
     )
 
 

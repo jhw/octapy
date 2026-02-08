@@ -507,3 +507,149 @@ class TestSceneIsBlank:
         scene.track(1).amp_volume = 100
         scene.clear_all_locks()
         assert scene.is_blank is True
+
+
+class TestSampleNormalization:
+    """Tests for sample duration normalization."""
+
+    def test_calculate_duration_ms_sixteenth_at_120bpm(self):
+        """At 120 BPM, SIXTEENTH (1 step) = 125ms."""
+        from octapy.api.core.project import _calculate_duration_ms
+        from octapy.api.enums import NoteLength
+
+        ms = _calculate_duration_ms(120.0, NoteLength.SIXTEENTH)
+        assert ms == 125
+
+    def test_calculate_duration_ms_eighth_at_120bpm(self):
+        """At 120 BPM, EIGHTH (2 steps) = 250ms."""
+        from octapy.api.core.project import _calculate_duration_ms
+        from octapy.api.enums import NoteLength
+
+        ms = _calculate_duration_ms(120.0, NoteLength.EIGHTH)
+        assert ms == 250
+
+    def test_calculate_duration_ms_quarter_at_120bpm(self):
+        """At 120 BPM, QUARTER (4 steps) = 500ms."""
+        from octapy.api.core.project import _calculate_duration_ms
+        from octapy.api.enums import NoteLength
+
+        ms = _calculate_duration_ms(120.0, NoteLength.QUARTER)
+        assert ms == 500
+
+    def test_calculate_duration_ms_sixteenth_at_124bpm(self):
+        """At 124 BPM, SIXTEENTH = ~121ms (as used in flex_live demo)."""
+        from octapy.api.core.project import _calculate_duration_ms
+        from octapy.api.enums import NoteLength
+
+        ms = _calculate_duration_ms(124.0, NoteLength.SIXTEENTH)
+        # 60/124 * (6/24) = 0.121 seconds = 121ms
+        assert ms == 120 or ms == 121  # Allow for rounding
+
+    def test_normalize_sample_trims_long_sample(self, tmp_path):
+        """Long samples are trimmed to target duration."""
+        from octapy.api.core.project import _normalize_sample
+        from pydub import AudioSegment
+
+        # Create a 500ms sample
+        source = AudioSegment.silent(duration=500)
+        source_path = tmp_path / "source.wav"
+        source.export(str(source_path), format="wav")
+
+        # Normalize to 250ms
+        dest_path = tmp_path / "dest.wav"
+        _normalize_sample(source_path, dest_path, 250)
+
+        # Check result
+        result = AudioSegment.from_wav(str(dest_path))
+        assert len(result) == 250
+
+    def test_normalize_sample_pads_short_sample(self, tmp_path):
+        """Short samples are padded with silence to target duration."""
+        from octapy.api.core.project import _normalize_sample
+        from pydub import AudioSegment
+
+        # Create a 100ms sample
+        source = AudioSegment.silent(duration=100)
+        source_path = tmp_path / "source.wav"
+        source.export(str(source_path), format="wav")
+
+        # Normalize to 250ms
+        dest_path = tmp_path / "dest.wav"
+        _normalize_sample(source_path, dest_path, 250)
+
+        # Check result
+        result = AudioSegment.from_wav(str(dest_path))
+        assert len(result) == 250
+
+    def test_normalize_sample_exact_length_unchanged(self, tmp_path):
+        """Samples at target duration are unchanged."""
+        from octapy.api.core.project import _normalize_sample
+        from pydub import AudioSegment
+
+        # Create a 250ms sample
+        source = AudioSegment.silent(duration=250)
+        source_path = tmp_path / "source.wav"
+        source.export(str(source_path), format="wav")
+
+        # Normalize to 250ms
+        dest_path = tmp_path / "dest.wav"
+        _normalize_sample(source_path, dest_path, 250)
+
+        # Check result
+        result = AudioSegment.from_wav(str(dest_path))
+        assert len(result) == 250
+
+    @pytest.mark.slow
+    def test_project_normalizes_samples_when_duration_set(self, tmp_path):
+        """Project normalizes samples when sample_duration is set."""
+        from octapy import Project, NoteLength
+        from pydub import AudioSegment
+
+        # Create a test sample (500ms)
+        samples_dir = tmp_path / "samples"
+        samples_dir.mkdir()
+        source = AudioSegment.silent(duration=500)
+        sample_path = samples_dir / "test.wav"
+        source.export(str(sample_path), format="wav")
+
+        # Create project and add sample
+        project = Project.from_template("TEST")
+        project.tempo = 120.0
+        project.sample_duration = NoteLength.EIGHTH  # 250ms at 120 BPM
+        project.add_sample(sample_path)
+
+        # Save to directory
+        output_dir = tmp_path / "output"
+        project.to_directory(output_dir)
+
+        # Check normalized sample
+        result_path = output_dir / "samples" / "test.wav"
+        result = AudioSegment.from_wav(str(result_path))
+        assert len(result) == 250
+
+    @pytest.mark.slow
+    def test_project_copies_samples_when_duration_none(self, tmp_path):
+        """Project copies samples unchanged when sample_duration is None."""
+        from octapy import Project
+        from pydub import AudioSegment
+
+        # Create a test sample (500ms)
+        samples_dir = tmp_path / "samples"
+        samples_dir.mkdir()
+        source = AudioSegment.silent(duration=500)
+        sample_path = samples_dir / "test.wav"
+        source.export(str(sample_path), format="wav")
+
+        # Create project and add sample (no normalization)
+        project = Project.from_template("TEST")
+        project.add_sample(sample_path)
+        assert project.sample_duration is None
+
+        # Save to directory
+        output_dir = tmp_path / "output"
+        project.to_directory(output_dir)
+
+        # Check sample is unchanged
+        result_path = output_dir / "samples" / "test.wav"
+        result = AudioSegment.from_wav(str(result_path))
+        assert len(result) == 500
