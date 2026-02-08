@@ -149,6 +149,46 @@ The OT's default `length_mode=OFF` means the LEN encoder on the SRC page is inac
 
 These defaults only apply to **Flex machines**. Static machines use the standard OT defaults since they stream from the CF card rather than loading into RAM.
 
+## Sample Reversal
+
+Samples can be played in reverse via the `rate` parameter on the SRC page (encoder D).
+
+### Rate Values
+
+| Value | Effect |
+|-------|--------|
+| 0 | Full reverse |
+| 64 | Stopped |
+| 127 | Full speed forward (default) |
+
+### Usage
+
+```python
+track = part.flex_track(1)
+
+# Play sample in reverse
+track.src.rate = 0
+
+# Normal playback
+track.src.rate = 127  # default
+
+# Scene-lock reverse (crossfader morphs between forward and reverse)
+scene_a.track(1).rate = 127  # forward
+scene_b.track(1).rate = 0    # reverse
+```
+
+### Rate Mode Requirement
+
+Reversal only works when `rate_mode` is set to PITCH (the default). If set to TSTR (timestretch), the rate encoder affects timestretch amount instead and cannot reverse.
+
+```python
+from octapy import RateMode
+
+# Check/set rate mode (via FUNC+SRC setup page)
+track.src_setup.rate_mode = RateMode.PITCH  # allows reverse (default)
+track.src_setup.rate_mode = RateMode.TSTR   # timestretch, no reverse
+```
+
 ## Step Probability
 
 Audio steps support per-step probability via the `TrigCondition` enum. The Octatrack uses fixed probability values (PERCENT_1 through PERCENT_99), not a continuous 0-1 range. See `octapy/api/enums.py` for the full list.
