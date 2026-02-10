@@ -144,6 +144,7 @@ from .bank import (
 from .markers import (
     MarkersFile,
     SlotMarkers,
+    Slice,
     MarkersOffset,
     SlotOffset,
     MARKERS_HEADER,
@@ -151,6 +152,9 @@ from .markers import (
     NUM_FLEX_SLOTS,
     NUM_STATIC_SLOTS,
     SLOT_SIZE,
+    NUM_SLICES,
+    SLICE_SIZE,
+    SLICE_LOOP_DISABLED,
 )
 
 from .project import (
