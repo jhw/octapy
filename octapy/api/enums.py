@@ -497,11 +497,10 @@ class RetrigTime(IntEnum):
     Controls the time interval between retrigs when retrig count > 0.
     Set via SRC page, encoder F (RTIM).
 
-    Note: Only HALF is currently mapped. Other values need empirical testing.
-
     Usage:
         track.src.retrig_time = RetrigTime.HALF
     """
+    QUARTER = 67  # 1/4 note timing
     HALF = 79  # 1/2 note timing (machine default)
 
 
