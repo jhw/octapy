@@ -45,8 +45,9 @@ class Pattern:
         self,
         pattern_num: int = 1,
         part: int = 1,
-        scale_length: int = 16,
-        scale_mult: int = 1,
+        scale_length: int = 64,
+        scale_mult: int = 2,
+        scale_mode: int = 1,
         audio_tracks: Optional[List[AudioPatternTrack]] = None,
         midi_tracks: Optional[List[MidiPatternTrack]] = None,
     ):
@@ -56,8 +57,9 @@ class Pattern:
         Args:
             pattern_num: Pattern number (1-16)
             part: Assigned Part number (1-4)
-            scale_length: Pattern length in steps (1-64, default 16)
-            scale_mult: Scale multiplier (1-8)
+            scale_length: Pattern length in steps (1-64, default 64 for max fallback)
+            scale_mult: Scale multiplier (0-6, default 2=1x)
+            scale_mode: Scale mode (0=NORMAL, 1=PER_TRACK, default 1)
             audio_tracks: Optional list of 8 AudioPatternTrack objects
             midi_tracks: Optional list of 8 MidiPatternTrack objects
         """
@@ -65,6 +67,7 @@ class Pattern:
         self._part = part
         self._scale_length = scale_length
         self._scale_mult = scale_mult
+        self._scale_mode = scale_mode
 
         # Initialize track collections
         self._audio_tracks: Dict[int, AudioPatternTrack] = {}
@@ -106,6 +109,7 @@ class Pattern:
         # Read settings
         instance._scale_length = bank_data[pattern_offset + PatternOffset.SCALE_LENGTH]
         instance._scale_mult = bank_data[pattern_offset + PatternOffset.SCALE_MULT]
+        instance._scale_mode = bank_data[pattern_offset + PatternOffset.SCALE_MODE]
         instance._part = bank_data[pattern_offset + PatternOffset.PART_ASSIGNMENT] + 1
 
         # Read audio tracks
@@ -137,6 +141,7 @@ class Pattern:
         # Write settings
         bank_data[pattern_offset + PatternOffset.SCALE_LENGTH] = self._scale_length
         bank_data[pattern_offset + PatternOffset.SCALE_MULT] = self._scale_mult
+        bank_data[pattern_offset + PatternOffset.SCALE_MODE] = self._scale_mode
         bank_data[pattern_offset + PatternOffset.PART_ASSIGNMENT] = (self._part - 1) & 0x03
 
         # Write audio tracks
@@ -160,6 +165,7 @@ class Pattern:
         instance._part = self._part
         instance._scale_length = self._scale_length
         instance._scale_mult = self._scale_mult
+        instance._scale_mode = self._scale_mode
 
         # Clone audio tracks
         instance._audio_tracks = {}
@@ -200,12 +206,26 @@ class Pattern:
 
     @property
     def scale_mult(self) -> int:
-        """Get/set scale multiplier (1-8)."""
+        """Get/set scale multiplier (0-6, where 2=1x)."""
         return self._scale_mult
 
     @scale_mult.setter
     def scale_mult(self, value: int):
         self._scale_mult = value
+
+    @property
+    def scale_mode(self) -> int:
+        """
+        Get/set scale mode (0=NORMAL, 1=PER_TRACK).
+
+        When PER_TRACK, each audio track uses its own length property.
+        When NORMAL, all tracks use the pattern's scale_length.
+        """
+        return self._scale_mode
+
+    @scale_mode.setter
+    def scale_mode(self, value: int):
+        self._scale_mode = value
 
     # === Track access ===
 
@@ -285,6 +305,7 @@ class Pattern:
             "part": self._part,
             "scale_length": self._scale_length,
             "scale_mult": self._scale_mult,
+            "scale_mode": self._scale_mode,
             "audio_tracks": [self._audio_tracks[n].to_dict(include_steps=include_steps) for n in range(1, 9)],
             "midi_tracks": [self._midi_tracks[n].to_dict(include_steps=include_steps) for n in range(1, 9)],
         }
@@ -295,8 +316,9 @@ class Pattern:
         pattern = cls(
             pattern_num=data.get("pattern", 1),
             part=data.get("part", 1),
-            scale_length=data.get("scale_length", 16),
-            scale_mult=data.get("scale_mult", 1),
+            scale_length=data.get("scale_length", 64),
+            scale_mult=data.get("scale_mult", 2),
+            scale_mode=data.get("scale_mode", 1),
         )
 
         if "audio_tracks" in data:
@@ -322,6 +344,8 @@ class Pattern:
         if self._scale_length != other._scale_length:
             return False
         if self._scale_mult != other._scale_mult:
+            return False
+        if self._scale_mode != other._scale_mode:
             return False
         if self._audio_tracks != other._audio_tracks:
             return False

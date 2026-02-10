@@ -53,6 +53,8 @@ class AudioPatternTrack:
         track_num: int = 1,
         active_steps: Optional[List[int]] = None,
         trigless_steps: Optional[List[int]] = None,
+        length: int = 16,
+        scale: int = 2,
     ):
         """
         Create an AudioPatternTrack with optional parameter overrides.
@@ -61,6 +63,8 @@ class AudioPatternTrack:
             track_num: Track number (1-8)
             active_steps: List of active step numbers (1-64)
             trigless_steps: List of trigless step numbers (1-64)
+            length: Track length in per-track mode (1-64, default 16)
+            scale: Track scale in per-track mode (0-6, default 2=1x)
         """
         self._track_num = track_num
         self._data = bytearray(AUDIO_TRACK_SIZE)
@@ -74,6 +78,10 @@ class AudioPatternTrack:
             plock_offset = AudioTrackOffset.PLOCKS + step_idx * PLOCK_SIZE
             for i in range(PLOCK_SIZE):
                 self._data[plock_offset + i] = PLOCK_DISABLED
+
+        # Initialize per-track length and scale
+        self._data[AudioTrackOffset.PER_TRACK_LEN] = length
+        self._data[AudioTrackOffset.PER_TRACK_SCALE] = scale
 
         # Create step objects (lazy initialization)
         self._steps: Dict[int, AudioStep] = {}
@@ -159,6 +167,38 @@ class AudioPatternTrack:
     def track_num(self) -> int:
         """Get the track number (1-8)."""
         return self._track_num
+
+    @property
+    def length(self) -> int:
+        """
+        Get/set track length in per-track mode (1-64).
+
+        Only applies when Pattern.scale_mode is ScaleMode.PER_TRACK.
+        """
+        return self._data[AudioTrackOffset.PER_TRACK_LEN]
+
+    @length.setter
+    def length(self, value: int):
+        if not 1 <= value <= 64:
+            raise ValueError(f"length must be 1-64, got {value}")
+        self._data[AudioTrackOffset.PER_TRACK_LEN] = value
+
+    @property
+    def scale(self) -> int:
+        """
+        Get/set track scale in per-track mode.
+
+        Only applies when Pattern.scale_mode is ScaleMode.PER_TRACK.
+
+        Values: 0=2x, 1=3/2x, 2=1x (default), 3=3/4x, 4=1/2x, 5=1/4x, 6=1/8x
+        """
+        return self._data[AudioTrackOffset.PER_TRACK_SCALE]
+
+    @scale.setter
+    def scale(self, value: int):
+        if not 0 <= value <= 6:
+            raise ValueError(f"scale must be 0-6, got {value}")
+        self._data[AudioTrackOffset.PER_TRACK_SCALE] = value
 
     # === Step access ===
 
@@ -258,6 +298,8 @@ class AudioPatternTrack:
         """
         result = {
             "track": self._track_num,
+            "length": self.length,
+            "scale": self.scale,
             "active_steps": self.active_steps,
             "trigless_steps": self.trigless_steps,
         }
@@ -288,6 +330,8 @@ class AudioPatternTrack:
             track_num=data.get("track", 1),
             active_steps=data.get("active_steps"),
             trigless_steps=data.get("trigless_steps"),
+            length=data.get("length", 16),
+            scale=data.get("scale", 2),
         )
 
         # Apply step data if present

@@ -148,6 +148,10 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
     for pattern_num in range(1, 17):
         pattern = bank.pattern(pattern_num)
 
+        # Set per-track length explicitly for each audio track (16 steps)
+        for track_num in range(1, 9):
+            pattern.audio_track(track_num).length = 16
+
         # Generate Euclidean patterns
         kick_name, kick_pattern = get_random_euclidean_pattern('kick', rng)
         snare_name, snare_pattern = get_random_euclidean_pattern('snare', rng)

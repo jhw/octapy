@@ -1550,6 +1550,90 @@ class TestAudioPatternTrackStandalone:
         assert restored.track_num == original.track_num
         assert restored.active_steps == original.active_steps
 
+    def test_default_length(self):
+        """AudioPatternTrack has default length of 16."""
+        track = AudioPatternTrack()
+        assert track.length == 16
+
+    def test_default_scale(self):
+        """AudioPatternTrack has default scale of 2 (1x)."""
+        track = AudioPatternTrack()
+        assert track.scale == 2
+
+    def test_constructor_with_length(self):
+        """AudioPatternTrack accepts length in constructor."""
+        track = AudioPatternTrack(track_num=1, length=32)
+        assert track.length == 32
+
+    def test_constructor_with_scale(self):
+        """AudioPatternTrack accepts scale in constructor."""
+        track = AudioPatternTrack(track_num=1, scale=4)
+        assert track.scale == 4
+
+    def test_length_setter(self):
+        """length property can be set."""
+        track = AudioPatternTrack()
+        track.length = 64
+        assert track.length == 64
+
+    def test_length_validation(self):
+        """length must be 1-64."""
+        track = AudioPatternTrack()
+        with pytest.raises(ValueError):
+            track.length = 0
+        with pytest.raises(ValueError):
+            track.length = 65
+
+    def test_scale_setter(self):
+        """scale property can be set."""
+        track = AudioPatternTrack()
+        track.scale = 0  # 2x
+        assert track.scale == 0
+
+    def test_scale_validation(self):
+        """scale must be 0-6."""
+        track = AudioPatternTrack()
+        with pytest.raises(ValueError):
+            track.scale = 7
+
+    def test_length_in_to_dict(self):
+        """to_dict() includes length."""
+        track = AudioPatternTrack(length=32)
+        d = track.to_dict()
+        assert d["length"] == 32
+
+    def test_scale_in_to_dict(self):
+        """to_dict() includes scale."""
+        track = AudioPatternTrack(scale=4)
+        d = track.to_dict()
+        assert d["scale"] == 4
+
+    def test_length_from_dict(self):
+        """from_dict() restores length."""
+        original = AudioPatternTrack(length=48)
+        restored = AudioPatternTrack.from_dict(original.to_dict())
+        assert restored.length == 48
+
+    def test_scale_from_dict(self):
+        """from_dict() restores scale."""
+        original = AudioPatternTrack(scale=5)
+        restored = AudioPatternTrack.from_dict(original.to_dict())
+        assert restored.scale == 5
+
+    def test_length_preserved_in_read_write(self):
+        """read(write(x)) preserves length."""
+        original = AudioPatternTrack(track_num=1, length=32)
+        data = original.write()
+        restored = AudioPatternTrack.read(1, data)
+        assert restored.length == 32
+
+    def test_scale_preserved_in_read_write(self):
+        """read(write(x)) preserves scale."""
+        original = AudioPatternTrack(track_num=1, scale=3)
+        data = original.write()
+        restored = AudioPatternTrack.read(1, data)
+        assert restored.scale == 3
+
 
 class TestAudioPatternTrackRepr:
     """Tests for AudioPatternTrack string representation."""
@@ -2461,8 +2545,9 @@ class TestPatternStandalone:
 
         assert pattern.pattern_num == 1
         assert pattern.part == 1
-        assert pattern.scale_length == 16
-        assert pattern.scale_mult == 1
+        assert pattern.scale_length == 64  # Max fallback for per-track mode
+        assert pattern.scale_mult == 2     # 1x speed
+        assert pattern.scale_mode == 1     # PER_TRACK mode
 
         # Should have 8 audio tracks
         for i in range(1, 9):
@@ -2561,6 +2646,46 @@ class TestPatternStandalone:
         assert restored.pattern_num == original.pattern_num
         assert restored.part == original.part
         assert restored.scale_length == original.scale_length
+
+    def test_scale_mode_default(self):
+        """Pattern defaults to PER_TRACK mode (1)."""
+        pattern = Pattern()
+        assert pattern.scale_mode == 1
+
+    def test_scale_mode_constructor(self):
+        """Pattern accepts scale_mode in constructor."""
+        pattern = Pattern(scale_mode=0)  # NORMAL mode
+        assert pattern.scale_mode == 0
+
+    def test_scale_mode_setter(self):
+        """scale_mode property can be set."""
+        pattern = Pattern()
+        pattern.scale_mode = 0
+        assert pattern.scale_mode == 0
+
+    def test_scale_mode_in_to_dict(self):
+        """to_dict() includes scale_mode."""
+        pattern = Pattern(scale_mode=0)
+        d = pattern.to_dict()
+        assert d["scale_mode"] == 0
+
+    def test_scale_mode_from_dict(self):
+        """from_dict() restores scale_mode."""
+        original = Pattern(scale_mode=0)
+        restored = Pattern.from_dict(original.to_dict())
+        assert restored.scale_mode == 0
+
+    def test_scale_mode_in_clone(self):
+        """clone() preserves scale_mode."""
+        original = Pattern(scale_mode=0)
+        cloned = original.clone()
+        assert cloned.scale_mode == 0
+
+    def test_scale_mode_in_equality(self):
+        """Patterns with different scale_mode are not equal."""
+        a = Pattern(pattern_num=1, scale_mode=0)
+        b = Pattern(pattern_num=1, scale_mode=1)
+        assert a != b
 
 
 class TestPatternRepr:
