@@ -133,6 +133,24 @@ class TestThruInputEnum:
 
 
 # =============================================================================
+# RetrigTime Enum Tests
+# =============================================================================
+
+class TestRetrigTimeEnum:
+    """RetrigTime enum tests."""
+
+    def test_retrig_time_enum_values(self):
+        """Test RetrigTime enum values."""
+        from octapy.api.enums import RetrigTime
+        assert RetrigTime.HALF == 79  # Machine default
+
+    def test_enum_as_int(self):
+        """Test RetrigTime values work as integers."""
+        from octapy.api.enums import RetrigTime
+        assert int(RetrigTime.HALF) == 79
+
+
+# =============================================================================
 # Note Length Quantization Tests
 # =============================================================================
 

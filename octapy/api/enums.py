@@ -490,6 +490,21 @@ class TimestretchMode(IntEnum):
     BEAT = 3   # Beat-slicing algorithm (transient-aware)
 
 
+class RetrigTime(IntEnum):
+    """
+    Retrig timing for sampler machines (Flex/Static).
+
+    Controls the time interval between retrigs when retrig count > 0.
+    Set via SRC page, encoder F (RTIM).
+
+    Note: Only HALF is currently mapped. Other values need empirical testing.
+
+    Usage:
+        track.src.retrig_time = RetrigTime.HALF
+    """
+    HALF = 79  # 1/2 note timing (machine default)
+
+
 # === Recorder Setup Enums ===
 
 class RecordingSource(IntEnum):
