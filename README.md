@@ -88,8 +88,9 @@ AudioPartTrack returns machine-specific subclasses based on the track's machine 
 - `NoteLength` — SIXTEENTH, EIGHTH, QUARTER, HALF, WHOLE (all integer 16ths)
 - `FX1Type`, `FX2Type` — Effect types for FX slots
 - `ThruInput` — Input routing for Thru machines
+- `ScaleMode` — NORMAL, PER_TRACK (pattern length modes)
 
-See `demos/` for usage examples.
+See `demos/` for usage examples and `docs/SUPPORTED.md` for feature coverage.
 
 ### Low-Level File API (`octapy._io`)
 
