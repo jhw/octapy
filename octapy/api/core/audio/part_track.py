@@ -33,7 +33,7 @@ from ...._io import (
 )
 from ...enums import MachineType, FX1Type, FX2Type
 from .recorder import AudioRecorderSetup
-from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, _AMP_KEY
+from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, SRC_VALUE_TRANSFORMS, _AMP_KEY
 
 
 class TrackDataOffset(IntEnum):
@@ -891,6 +891,7 @@ class AudioPartTrack:
 
         Usage:
             track.src.pitch = 64         # Flex/Static param1
+            track.src.retrig = 2         # Play sample twice (1-128)
             track.src.in_ab = 1          # Thru param1
         """
         if not hasattr(self, '_src_accessor'):
@@ -900,6 +901,7 @@ class AudioPartTrack:
                 get_type=lambda: self.machine_type,
                 get_param=self._get_playback_param,
                 set_param=self._set_playback_param,
+                value_transforms=SRC_VALUE_TRANSFORMS,
             )
         return self._src_accessor
 

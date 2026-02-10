@@ -40,6 +40,14 @@ AMP_PARAM_NAMES: Dict[str, Tuple[Optional[str], ...]] = {
     _AMP_KEY: ('attack', 'hold', 'release', 'volume', 'balance', None),
 }
 
+# Value transforms for parameters that need offset adjustment
+# Maps param name to (get_transform, set_transform, min_value, max_value)
+# get_transform: raw -> display, set_transform: display -> raw
+SRC_VALUE_TRANSFORMS: Dict[str, Tuple[Callable, Callable, int, int]] = {
+    # retrig: raw 0-127 maps to display 1-128 (number of plays)
+    'retrig': (lambda x: x + 1, lambda x: x - 1, 1, 128),
+}
+
 # FX pages: names depend on FX type (6 params)
 FX_PARAM_NAMES: Dict[int, Tuple[Optional[str], ...]] = {
     FX1Type.OFF: (None, None, None, None, None, None),
@@ -73,12 +81,13 @@ class PageAccessor:
 
     Usage:
         track.src.pitch = 64         # SRC playback (machine-type-dependent)
+        track.src.retrig = 2         # Play sample twice (1-indexed)
         track.setup.loop = 0         # SRC setup (machine-type-dependent)
         track.amp.attack = 10        # AMP page (fixed names)
         track.fx1.base = 100         # FX1 (FX-type-dependent)
     """
 
-    __slots__ = ('_page_name', '_param_names_map', '_get_type', '_get_param', '_set_param')
+    __slots__ = ('_page_name', '_param_names_map', '_get_type', '_get_param', '_set_param', '_value_transforms')
 
     def __init__(
         self,
@@ -87,6 +96,7 @@ class PageAccessor:
         get_type: Callable,
         get_param: Callable[[int], Optional[int]],
         set_param: Callable[[int, int], None],
+        value_transforms: Optional[Dict[str, Tuple[Callable, Callable, int, int]]] = None,
     ):
         """
         Create a PageAccessor.
@@ -97,12 +107,15 @@ class PageAccessor:
             get_type: Callable returning the current type key for name lookup
             get_param: Callable(n) that gets param n (1-6)
             set_param: Callable(n, value) that sets param n (1-6)
+            value_transforms: Optional dict mapping param names to
+                (get_transform, set_transform, min_value, max_value) tuples
         """
         object.__setattr__(self, '_page_name', page_name)
         object.__setattr__(self, '_param_names_map', param_names_map)
         object.__setattr__(self, '_get_type', get_type)
         object.__setattr__(self, '_get_param', get_param)
         object.__setattr__(self, '_set_param', set_param)
+        object.__setattr__(self, '_value_transforms', value_transforms or {})
 
     def _get_param_names(self) -> Tuple[Optional[str], ...]:
         """Get parameter names for current type."""
@@ -128,7 +141,12 @@ class PageAccessor:
 
         idx = self._name_to_param_index(name)
         if idx is not None:
-            return self._get_param(idx)
+            raw_value = self._get_param(idx)
+            # Apply get transform if defined
+            if name in self._value_transforms:
+                get_transform, _, _, _ = self._value_transforms[name]
+                return get_transform(raw_value)
+            return raw_value
 
         valid_names = self.get_param_names()
         raise AttributeError(
@@ -143,6 +161,12 @@ class PageAccessor:
 
         idx = self._name_to_param_index(name)
         if idx is not None:
+            # Apply set transform and validation if defined
+            if name in self._value_transforms:
+                _, set_transform, min_val, max_val = self._value_transforms[name]
+                if not min_val <= value <= max_val:
+                    raise ValueError(f"{name} must be {min_val}-{max_val}, got {value}")
+                value = set_transform(value)
             self._set_param(idx, value)
             return
 

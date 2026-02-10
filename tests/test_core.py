@@ -2198,7 +2198,7 @@ class TestAudioSceneTrackDynamicAccessors:
         track.src.start = 16
         track.src.length = 64
         track.src.rate = 100
-        track.src.retrig = 32
+        track.src.retrig = 32  # 1-indexed: play 32 times = raw value 31
         track.src.retrig_time = 48
 
         # Verify via playback params
@@ -2206,7 +2206,7 @@ class TestAudioSceneTrackDynamicAccessors:
         assert track.playback_param2 == 16
         assert track.playback_param3 == 64
         assert track.playback_param4 == 100
-        assert track.playback_param5 == 32
+        assert track.playback_param5 == 31  # raw value is retrig - 1
         assert track.playback_param6 == 48
 
     def test_src_accessor_with_thru_machine(self):
@@ -2286,6 +2286,54 @@ class TestAudioSceneTrackDynamicAccessors:
 
         assert track.playback_param1 == 70
         assert track.playback_param5 == 50
+
+
+class TestRetrig1Indexed:
+    """Tests for retrig 1-indexed API (display value = raw + 1)."""
+
+    def test_retrig_default_is_1(self):
+        """Default retrig is 1 (play once, raw value 0)."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        # Default playback_param5 is None/unset for scenes
+        # For parts, we need to check the raw value
+        track.playback_param5 = 0  # raw default
+        assert track.src.retrig == 1
+
+    def test_retrig_set_2_stores_raw_1(self):
+        """Setting retrig=2 stores raw value 1."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        track.src.retrig = 2
+        assert track.playback_param5 == 1  # raw value
+
+    def test_retrig_set_1_stores_raw_0(self):
+        """Setting retrig=1 stores raw value 0."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        track.src.retrig = 1
+        assert track.playback_param5 == 0  # raw value
+
+    def test_retrig_get_converts_raw_to_display(self):
+        """Getting retrig converts raw value to display value."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        track.playback_param5 = 7  # raw value
+        assert track.src.retrig == 8  # display value
+
+    def test_retrig_validation_min(self):
+        """Retrig must be >= 1."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        with pytest.raises(ValueError, match="retrig must be 1-128"):
+            track.src.retrig = 0
+
+    def test_retrig_validation_max(self):
+        """Retrig must be <= 128."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        with pytest.raises(ValueError, match="retrig must be 1-128"):
+            track.src.retrig = 129
+
+    def test_retrig_max_value(self):
+        """Retrig=128 stores raw value 127."""
+        track = AudioSceneTrack(track_num=1, machine_type=MachineType.FLEX)
+        track.src.retrig = 128
+        assert track.playback_param5 == 127
 
 
 # =============================================================================

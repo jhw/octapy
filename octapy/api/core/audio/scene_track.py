@@ -11,7 +11,7 @@ from typing import Optional
 
 from ...._io import SceneParamsOffset, SCENE_PARAMS_SIZE, SCENE_LOCK_DISABLED
 from ...enums import MachineType
-from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, _AMP_KEY
+from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, SRC_VALUE_TRANSFORMS, _AMP_KEY
 
 
 class AudioSceneTrack:
@@ -364,6 +364,7 @@ class AudioSceneTrack:
 
         Usage:
             track.src.pitch = 64       # Lock pitch to 64
+            track.src.retrig = 2       # Lock retrig to 2 plays
             track.src.in_ab = 1        # Lock in_ab to 1 (Thru)
         """
         if not hasattr(self, '_src_accessor'):
@@ -373,6 +374,7 @@ class AudioSceneTrack:
                 get_type=lambda: self._machine_type,
                 get_param=self._get_playback_param,
                 set_param=self._set_playback_param,
+                value_transforms=SRC_VALUE_TRANSFORMS,
             )
         return self._src_accessor
 
