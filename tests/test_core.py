@@ -454,6 +454,67 @@ class TestAudioStepStandalone:
         assert restored.volume == original.volume
 
 
+class TestAudioStepSampleLock:
+    """Tests for AudioStep sample_lock property (Issue 2 fix).
+
+    sample_lock now uses 1-indexed values (1-128) to match the convention
+    used by add_sample() and configure_flex(), eliminating the need for
+    manual index conversion.
+    """
+
+    def test_sample_lock_one_indexed(self):
+        """sample_lock uses 1-indexed values (1-128)."""
+        step = AudioStep(step_num=1)
+
+        step.sample_lock = 1
+        assert step.sample_lock == 1
+
+        step.sample_lock = 128
+        assert step.sample_lock == 128
+
+    def test_sample_lock_validation_lower_bound(self):
+        """sample_lock rejects values below 1."""
+        step = AudioStep(step_num=1)
+        with pytest.raises(ValueError, match="sample_lock must be 1-128"):
+            step.sample_lock = 0
+
+    def test_sample_lock_validation_upper_bound(self):
+        """sample_lock rejects values above 128."""
+        step = AudioStep(step_num=1)
+        with pytest.raises(ValueError, match="sample_lock must be 1-128"):
+            step.sample_lock = 129
+
+    def test_sample_lock_none_clears(self):
+        """sample_lock can be cleared with None."""
+        step = AudioStep(step_num=1, sample_lock=5)
+        assert step.sample_lock == 5
+
+        step.sample_lock = None
+        assert step.sample_lock is None
+
+    def test_sample_lock_roundtrip(self):
+        """sample_lock value persists through write/read roundtrip."""
+        original = AudioStep(step_num=1, sample_lock=42)
+
+        active, trigless, condition_data, plock_data = original.write()
+        restored = AudioStep.read(1, active, trigless, condition_data, plock_data)
+
+        assert restored.sample_lock == 42
+
+    def test_sample_lock_in_to_dict(self):
+        """sample_lock appears in to_dict() with 1-indexed value."""
+        step = AudioStep(step_num=1, sample_lock=10)
+        d = step.to_dict()
+        assert d["sample_lock"] == 10
+
+    def test_sample_lock_from_dict(self):
+        """sample_lock is restored from dict with 1-indexed value."""
+        original = AudioStep(step_num=1, sample_lock=15)
+        d = original.to_dict()
+        restored = AudioStep.from_dict(d)
+        assert restored.sample_lock == 15
+
+
 class TestAudioStepConditions:
     """Tests for AudioStep condition handling."""
 
@@ -1449,6 +1510,46 @@ class TestAudioPatternTrackStandalone:
         # Step should retain modifications
         assert track.step(5).active == True
         assert track.step(5).volume == 100
+
+    def test_step_active_immediately_updates_buffer(self):
+        """Setting step.active = True immediately updates active_steps property.
+
+        This tests the fix for Issue 1 from OCTAPY-ISSUES.md:
+        Setting step.active should immediately be reflected in active_steps,
+        not just after calling write().
+        """
+        track = AudioPatternTrack(track_num=1)
+
+        # Set active via step property
+        track.step(1).active = True
+        track.step(5).active = True
+
+        # active_steps should immediately reflect the change
+        assert track.active_steps == [1, 5]
+
+        # Can add more steps
+        track.step(9).active = True
+        assert track.active_steps == [1, 5, 9]
+
+        # Can deactivate
+        track.step(5).active = False
+        assert track.active_steps == [1, 9]
+
+    def test_step_active_with_roundtrip(self):
+        """Setting step.active persists through write/read roundtrip."""
+        track = AudioPatternTrack(track_num=1)
+
+        # Use the previously broken approach
+        track.step(1).active = True
+        track.step(5).active = True
+        track.step(5).volume = 100
+
+        # Verify roundtrip
+        data = track.write()
+        restored = AudioPatternTrack.read(1, data)
+
+        assert restored.active_steps == [1, 5]
+        assert restored.step(5).volume == 100
 
     def test_active_steps_setter(self):
         """Setting active_steps updates the track."""

@@ -181,7 +181,7 @@ class MidiPatternTrack:
         return self._steps[step_num]
 
     def _load_step(self, step_num: int) -> MidiStep:
-        """Load a step from the buffer."""
+        """Load a step from the buffer and connect sync callback."""
         step_idx = step_num - 1
 
         # Get active bit
@@ -199,7 +199,14 @@ class MidiPatternTrack:
         plock_offset = MidiTrackTrigsOffset.PLOCKS + step_idx * MIDI_PLOCK_SIZE
         plock_data = bytes(self._data[plock_offset:plock_offset + MIDI_PLOCK_SIZE])
 
-        return MidiStep.read(step_num, active, trigless, condition_data, plock_data)
+        step = MidiStep.read(step_num, active, trigless, condition_data, plock_data)
+        # Connect sync callback so step changes immediately update the buffer
+        step._sync_callback = self._on_step_changed
+        return step
+
+    def _on_step_changed(self, step: MidiStep):
+        """Called when a step's active/trigless state changes. Syncs to buffer."""
+        self._sync_step_to_buffer(step.step_num, step)
 
     def set_step(self, step_num: int, step: MidiStep):
         """
@@ -214,7 +221,11 @@ class MidiPatternTrack:
 
         # Update step's internal step_num to match position
         step._step_num = step_num
+        # Connect sync callback
+        step._sync_callback = self._on_step_changed
         self._steps[step_num] = step
+        # Sync immediately to buffer
+        self._sync_step_to_buffer(step_num, step)
 
     # === Trig mask properties ===
 

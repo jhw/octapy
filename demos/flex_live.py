@@ -71,17 +71,18 @@ def configure_pattern_track(pattern, track_num: int, steps_with_volume: List[Tup
         use_volume: If True, set volume p-locks
         use_probability: If True, set probability p-locks
     """
-    step_nums = [s[0] for s in steps_with_volume]
-    pattern.track(track_num).active_steps = step_nums
+    track = pattern.track(track_num)
+    step_nums = []
 
-    # Add p-locks for volume and/or probability
-    if use_volume or use_probability:
-        for step_num, volume in steps_with_volume:
-            step = pattern.track(track_num).step(step_num)
-            if use_volume:
-                step.volume = volume
-            if use_probability:
-                step.probability = DEFAULT_PROBABILITY
+    for step_num, volume in steps_with_volume:
+        step = track.step(step_num)
+        step.active = True  # Now works directly thanks to API fix
+        step_nums.append(step_num)
+
+        if use_volume:
+            step.volume = volume
+        if use_probability:
+            step.probability = DEFAULT_PROBABILITY
 
     return step_nums
 

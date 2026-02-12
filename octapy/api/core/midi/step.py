@@ -7,7 +7,7 @@ with constructor arguments or read from binary data.
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Dict
+from typing import Callable, Optional, Tuple, Dict
 
 from ...._io import MIDI_PLOCK_SIZE, PLOCK_DISABLED, MidiPlockOffset
 from ...utils import quantize_note_length
@@ -76,6 +76,9 @@ class MidiStep:
         self._active = active
         self._trigless = trigless
 
+        # Callback to sync changes back to track buffer (set by MidiPatternTrack)
+        self._sync_callback: Optional[Callable[["MidiStep"], None]] = None
+
         # Condition data: 2 bytes [microtiming_count, condition_microtiming]
         self._condition_data = bytearray(2)
 
@@ -127,6 +130,7 @@ class MidiStep:
         instance._step_num = step_num
         instance._active = active
         instance._trigless = trigless
+        instance._sync_callback = None
         instance._condition_data = bytearray(condition_data[:2])
         instance._plock_data = bytearray(plock_data[:MIDI_PLOCK_SIZE])
         return instance
@@ -154,12 +158,13 @@ class MidiStep:
         Create a copy of this MidiStep.
 
         Returns:
-            New MidiStep with copied data
+            New MidiStep with copied data (without sync callback)
         """
         instance = MidiStep.__new__(MidiStep)
         instance._step_num = self._step_num
         instance._active = self._active
         instance._trigless = self._trigless
+        instance._sync_callback = None  # Clone doesn't inherit callback
         instance._condition_data = bytearray(self._condition_data)
         instance._plock_data = bytearray(self._plock_data)
         return instance
@@ -171,6 +176,11 @@ class MidiStep:
         """Get the step number (1-64)."""
         return self._step_num
 
+    def _notify_sync(self):
+        """Notify parent track to sync this step's data to buffer."""
+        if self._sync_callback is not None:
+            self._sync_callback(self)
+
     @property
     def active(self) -> bool:
         """Get/set whether this step has an active trigger."""
@@ -179,6 +189,7 @@ class MidiStep:
     @active.setter
     def active(self, value: bool):
         self._active = value
+        self._notify_sync()
 
     @property
     def trigless(self) -> bool:
@@ -188,6 +199,7 @@ class MidiStep:
     @trigless.setter
     def trigless(self, value: bool):
         self._trigless = value
+        self._notify_sync()
 
     # === Condition properties ===
 
