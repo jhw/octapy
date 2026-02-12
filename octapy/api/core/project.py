@@ -60,6 +60,7 @@ class Project:
         name: str = "UNTITLED",
         tempo: float = 120.0,
         banks: Optional[List[Bank]] = None,
+        audio_subdir: str = "projects",
     ):
         """
         Create a Project with optional configurations.
@@ -68,8 +69,10 @@ class Project:
             name: Project name (will be uppercased)
             tempo: Project tempo in BPM (default 120.0)
             banks: Optional list of 16 Bank objects
+            audio_subdir: Subdirectory under AUDIO for samples (default "projects")
         """
         self._name = name.upper()
+        self._audio_subdir = audio_subdir
         self._project_file = ProjectFile()
         self._project_file.tempo = tempo
         self._markers = MarkersFile.new() if MarkersFile else None
@@ -99,7 +102,7 @@ class Project:
         self._settings = None  # Lazily initialized
 
     @classmethod
-    def from_template(cls, name: str) -> "Project":
+    def from_template(cls, name: str, audio_subdir: str = "projects") -> "Project":
         """
         Create a new project from the embedded template.
 
@@ -109,6 +112,7 @@ class Project:
 
         Args:
             name: Project name (will be uppercased)
+            audio_subdir: Subdirectory under AUDIO for samples (default "projects")
 
         Returns:
             Project instance with octapy defaults
@@ -117,6 +121,7 @@ class Project:
 
         instance = cls.__new__(cls)
         instance._name = name.upper()
+        instance._audio_subdir = audio_subdir
         instance._project_file = ProjectFile.new()
         instance._markers = MarkersFile.new()
         instance._arr_files = {}
@@ -153,6 +158,7 @@ class Project:
 
         instance = cls.__new__(cls)
         instance._name = name.upper()
+        instance._audio_subdir = "projects"  # Default for loaded projects
         instance._banks = {}
         instance._arr_files = {}
         instance._sample_pool = {}
@@ -505,6 +511,7 @@ class Project:
 
         instance = Project.__new__(Project)
         instance._name = self._name
+        instance._audio_subdir = self._audio_subdir
         instance._project_file = ProjectFile()
         instance._project_file.settings = deepcopy(self._project_file.settings)
         instance._project_file.state = deepcopy(self._project_file.state)
@@ -657,7 +664,7 @@ class Project:
 
         The sample is added to the sample pool and will be bundled with the
         project when saved. The OT path is auto-generated as:
-        ../AUDIO/projects/{PROJECT_NAME}/{filename}.wav
+        ../AUDIO/{audio_subdir}/{PROJECT_NAME}/{filename}.wav
 
         Args:
             local_path: Local path to WAV file
@@ -678,7 +685,7 @@ class Project:
             raise FileNotFoundError(f"Sample file not found: {local_path}")
 
         filename = local_path.name
-        ot_path = f"../AUDIO/projects/{self._name}/{filename}"
+        ot_path = f"../AUDIO/{self._audio_subdir}/{self._name}/{filename}"
         is_flex = slot_type.upper() == "FLEX"
 
         # Check if this path already has a slot assigned
@@ -726,7 +733,7 @@ class Project:
         Returns:
             Slot number if found, None otherwise
         """
-        ot_path = f"../AUDIO/projects/{self._name}/{filename}"
+        ot_path = f"../AUDIO/{self._audio_subdir}/{self._name}/{filename}"
         for slot in self._project_file.sample_slots:
             if slot.path == ot_path and slot.slot_type == slot_type.upper():
                 return slot.slot_number
