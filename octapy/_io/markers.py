@@ -384,9 +384,17 @@ class SlotMarkers(OTBlock):
         # Clear all existing slices
         self.clear_all_slices()
 
-        # Set new slices
+        # OT uses each entry's trim_start as a boundary marker:
+        #   STRT=1 plays from 0 to entry[0].trim_start
+        #   STRT=N plays from entry[N-2].trim_start to entry[N-1].trim_start
+        # So entry[i].trim_start = end of user-slice i (the boundary).
         for i, (start_ms, end_ms) in enumerate(slices):
-            self.set_slice_ms(i, start_ms, end_ms, sample_rate=sample_rate)
+            boundary = self._ms_to_samples(end_ms, sample_rate)
+            if i + 1 < len(slices):
+                next_boundary = self._ms_to_samples(slices[i + 1][1], sample_rate)
+            else:
+                next_boundary = boundary
+            self.set_slice(i, trim_start=boundary, trim_end=next_boundary)
 
         # Store slice count (Octatrack reads this to know how many slices exist)
         self.slice_count = len(slices)
@@ -396,24 +404,29 @@ class SlotMarkers(OTBlock):
         sample_rate: int = 44100,
     ) -> List[Tuple[int, int, Optional[int]]]:
         """
-        Get all non-empty slices in milliseconds.
+        Get all slices in milliseconds (inverse of set_slices_ms).
+
+        Reconstructs user-facing (start_ms, end_ms) from boundary markers.
 
         Args:
             sample_rate: Audio sample rate (default 44100 Hz)
 
         Returns:
-            List of (start_ms, end_ms, loop_ms) tuples for non-empty slices.
+            List of (start_ms, end_ms, loop_ms) tuples.
         """
+        n = self.slice_count
+        if n == 0:
+            return []
         result = []
-        for i in range(MAX_USER_SLICES):
-            slice_obj = self.get_slice(i)
-            if not slice_obj.is_empty:
-                start_ms = self._samples_to_ms(slice_obj.trim_start, sample_rate)
-                end_ms = self._samples_to_ms(slice_obj.trim_end, sample_rate)
-                loop_ms = None
-                if slice_obj.loop_start is not None:
-                    loop_ms = self._samples_to_ms(slice_obj.loop_start, sample_rate)
-                result.append((start_ms, end_ms, loop_ms))
+        for i in range(n):
+            entry = self.get_slice(i)
+            if i == 0:
+                start_ms = 0
+            else:
+                prev = self.get_slice(i - 1)
+                start_ms = self._samples_to_ms(prev.trim_start, sample_rate)
+            end_ms = self._samples_to_ms(entry.trim_start, sample_rate)
+            result.append((start_ms, end_ms, None))
         return result
 
 
