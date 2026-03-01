@@ -838,10 +838,13 @@ class Project:
             gain=gain,
         )
 
-        # Update markers.work with sample length
+        # Update markers.work with sample length and trim end
         frame_count = _get_wav_frame_count(local_path)
         if frame_count > 0 and self._markers:
             self._markers.set_sample_length(slot, frame_count, is_static=not is_flex)
+            slot_markers = self._markers.get_slot(slot, is_static=not is_flex)
+            slot_markers.trim_end = frame_count
+            self._markers.set_slot(slot, slot_markers, is_static=not is_flex)
 
         # Auto-update flex_count in banks
         if is_flex:

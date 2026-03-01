@@ -74,6 +74,28 @@ class TestSlotAutoAssignment:
         assert project.get_slot("snare.wav") == 1  # First available
 
 
+class TestSlotMarkers:
+    """Tests for markers set by add_sample."""
+
+    def test_add_sample_sets_trim_end(self, sample_files):
+        """Test that add_sample sets trim_end to sample length in markers."""
+        project = Project.from_template("TEST")
+        slot = project.add_sample(sample_files["kick.wav"])
+
+        markers = project.markers.get_slot(slot)
+        assert markers.sample_length > 0
+        assert markers.trim_end == markers.sample_length
+
+    def test_add_static_sample_sets_trim_end(self, sample_files):
+        """Test that add_sample sets trim_end for static samples too."""
+        project = Project.from_template("TEST")
+        slot = project.add_sample(sample_files["kick.wav"], slot_type="STATIC")
+
+        markers = project.markers.get_slot(slot, is_static=True)
+        assert markers.sample_length > 0
+        assert markers.trim_end == markers.sample_length
+
+
 class TestSlotTracking:
     """Tests for slot count tracking."""
 
