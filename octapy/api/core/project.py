@@ -266,9 +266,17 @@ class Project:
                     "recorder_track cannot use track 8 when master_track is enabled"
                 )
 
+        # Validate recorder_slices requires recorder_track
+        if rs.recorder_slices is not None and rs.recorder_track is None:
+            raise ValueError("recorder_slices requires recorder_track to be set")
+
         # Apply recorder track first (configures machine type before propagation)
         if rs.recorder_track is not None:
             self._apply_recorder_track()
+
+        # Apply recorder slices (after recorder_track, before propagation)
+        if rs.recorder_slices is not None:
+            self._apply_recorder_slices()
 
         # Apply propagation settings (Part 1 -> Parts 2-4)
         for bank in self._banks.values():
@@ -297,6 +305,97 @@ class Project:
             for part_num in range(1, 5):
                 part = bank.part(part_num)
                 part.track(track_num).configure_recorder(source)
+
+    def _apply_recorder_slices(self) -> None:
+        """
+        Pre-configure slices on the recorder buffer and place trigs with STRT p-locks.
+
+        Does 4 things:
+        a) Sets N equal slice markers on the recorder buffer in markers.work
+        b) Enables slice mode on the recorder track's SRC setup page across all parts
+        c) Places trigs at evenly-spaced step positions in patterns with activity
+        d) Sets STRT p-locks on each trig to select the correct slice
+        """
+        track_num, _ = self._render_settings.recorder_track
+        num_slices = self._render_settings.recorder_slices
+
+        # Read RLEN from Part 1, Bank 1 recorder setup
+        # Stored value is 0-indexed, display value is stored + 1
+        stored_rlen = self.bank(1).part(1).track(track_num).recorder.rlen
+        displayed_rlen = stored_rlen + 1
+
+        # Validate that RLEN divides evenly by num_slices
+        if displayed_rlen % num_slices != 0:
+            raise ValueError(
+                f"recorder_slices={num_slices} does not divide evenly into "
+                f"RLEN={displayed_rlen} steps"
+            )
+
+        # a) Set slice markers on the recorder buffer
+        # Buffer duration = displayed_rlen steps * step_duration_ms
+        step_duration_ms = 60000.0 / self.tempo / 4  # ms per step (16th note)
+        buffer_duration_ms = displayed_rlen * step_duration_ms
+        slice_duration_ms = buffer_duration_ms / num_slices
+
+        # Recorder buffer slot: 128 + track_num (1-indexed in markers)
+        buffer_slot = 128 + track_num
+        slot_markers = self.markers.get_slot(buffer_slot)
+
+        # Set sample_length in frames
+        sample_rate = 44100
+        total_frames = int(buffer_duration_ms * sample_rate / 1000)
+        slot_markers.sample_length = total_frames
+
+        # Build slice list as (start_ms, end_ms) tuples
+        slices = []
+        for i in range(num_slices):
+            start_ms = int(i * slice_duration_ms)
+            end_ms = int((i + 1) * slice_duration_ms)
+            slices.append((start_ms, end_ms))
+
+        slot_markers.set_slices_ms(slices, sample_rate=sample_rate)
+        self.markers.set_slot(buffer_slot, slot_markers)
+
+        # b) Enable slice mode on all banks/parts for the recorder track
+        for bank in self._banks.values():
+            for part_num in range(1, 5):
+                track = bank.part(part_num).track(track_num)
+                track.setup.slice = 1  # SliceMode.ON
+
+        # c) Place trigs at evenly-spaced positions in patterns with activity
+        # d) Set STRT p-locks on each trig
+        step_spacing = displayed_rlen // num_slices
+
+        for bank in self._banks.values():
+            for pattern_num in range(1, 17):
+                pattern = bank.pattern(pattern_num)
+
+                # Check if any other track has activity (same pattern as auto_master_trig)
+                has_activity = False
+                for other_track_num in range(1, 9):
+                    if other_track_num == track_num:
+                        continue
+                    if pattern.audio_track(other_track_num).active_steps:
+                        has_activity = True
+                        break
+
+                if not has_activity:
+                    continue
+
+                # Place trigs and set STRT p-locks
+                rec_track = pattern.audio_track(track_num)
+                trig_steps = []
+                for i in range(num_slices):
+                    step_num = 1 + i * step_spacing
+                    trig_steps.append(step_num)
+
+                rec_track.active_steps = trig_steps
+
+                # Set STRT p-locks: slice i -> start value = i * (128 // num_slices)
+                strt_increment = 128 // num_slices
+                for i, step_num in enumerate(trig_steps):
+                    step = rec_track.step(step_num)
+                    step.start = i * strt_increment
 
     def _propagate_scenes(self, bank: Bank) -> None:
         """Propagate scenes from Part 1 to Parts 2-4."""
@@ -613,6 +712,7 @@ class Project:
 
         Available settings:
             recorder_track: Configure a track as recorder buffer (track_num, source)
+            recorder_slices: Pre-configure N equal slices on recorder buffer (2-64)
             auto_master_trig: Auto-add track 8 trig when master track enabled
             auto_thru_trig: Auto-add trig to Thru machine tracks
             propagate_scenes: Copy scenes from Part 1 to Parts 2-4

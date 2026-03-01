@@ -51,6 +51,7 @@ class AudioStep:
         # Common p-locks
         volume: Optional[int] = None,
         pitch: Optional[int] = None,
+        start: Optional[int] = None,
         sample_lock: Optional[int] = None,
     ):
         """
@@ -64,6 +65,7 @@ class AudioStep:
             probability: Trigger probability (0.0-1.0), sets condition
             volume: P-locked volume (0-127)
             pitch: P-locked pitch (0-127, 64=center)
+            start: P-locked STRT value (0-127, selects slice when slice mode ON)
             sample_lock: P-locked sample slot (1-128, matching add_sample() return value)
         """
         self._step_num = step_num
@@ -92,6 +94,8 @@ class AudioStep:
             self.volume = volume
         if pitch is not None:
             self.pitch = pitch
+        if start is not None:
+            self.start = start
         if sample_lock is not None:
             self.sample_lock = sample_lock
 
@@ -285,6 +289,21 @@ class AudioStep:
         self._set_plock(PlockOffset.MACHINE_PARAM1, value)
 
     @property
+    def start(self) -> Optional[int]:
+        """
+        Get/set p-locked STRT for this step.
+
+        Value range: 0-127
+        When slice mode is ON, selects which slice to play.
+        Returns None if no p-lock is set (uses Part default).
+        """
+        return self._get_plock(PlockOffset.MACHINE_PARAM2)
+
+    @start.setter
+    def start(self, value: Optional[int]):
+        self._set_plock(PlockOffset.MACHINE_PARAM2, value)
+
+    @property
     def sample_lock(self) -> Optional[int]:
         """
         Get/set p-locked sample slot for this step (1-128).
@@ -339,6 +358,8 @@ class AudioStep:
             result["volume"] = self.volume
         if self.pitch is not None:
             result["pitch"] = self.pitch
+        if self.start is not None:
+            result["start"] = self.start
         if self.sample_lock is not None:
             result["sample_lock"] = self.sample_lock
 
@@ -378,6 +399,9 @@ class AudioStep:
 
         if "pitch" in data:
             kwargs["pitch"] = data["pitch"]
+
+        if "start" in data:
+            kwargs["start"] = data["start"]
 
         if "sample_lock" in data:
             kwargs["sample_lock"] = data["sample_lock"]

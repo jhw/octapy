@@ -704,3 +704,152 @@ class TestSampleNormalization:
         result_path = output_dir / "samples" / "test.wav"
         result = AudioSegment.from_wav(str(result_path))
         assert len(result) == 500
+
+
+class TestRecorderSlices:
+    """Tests for recorder_slices render setting."""
+
+    def test_recorder_slices_default_none(self):
+        """Test recorder_slices defaults to None."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.recorder_slices is None
+
+    def test_recorder_slices_valid_values(self):
+        """Test recorder_slices accepts all valid values."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        for value in [2, 4, 8, 16, 32, 64]:
+            project.render_settings.recorder_slices = value
+            assert project.render_settings.recorder_slices == value
+
+    def test_recorder_slices_invalid_value(self):
+        """Test recorder_slices rejects invalid values."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        for value in [3, 5, 6, 7, 10, 128]:
+            with pytest.raises(ValueError, match="recorder_slices must be one of"):
+                project.render_settings.recorder_slices = value
+
+    def test_recorder_slices_requires_recorder_track(self, temp_dir):
+        """Test recorder_slices raises ValueError without recorder_track."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_slices = 4
+
+        with pytest.raises(ValueError, match="recorder_slices requires recorder_track"):
+            project.to_directory(temp_dir / "TEST")
+
+    @pytest.mark.slow
+    def test_recorder_slices_sets_slice_mode(self, temp_dir):
+        """Test recorder_slices enables slice mode on all parts."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+        project.render_settings.recorder_slices = 4
+
+        # Add activity so trigs get placed
+        project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+
+        # Save and reload
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        # Verify slice mode is ON for all parts in bank 1
+        for part_num in range(1, 5):
+            track = loaded.bank(1).part(part_num).track(7)
+            assert track.setup.slice == 1, (
+                f"Part {part_num}: expected slice=1, got {track.setup.slice}"
+            )
+
+    def test_recorder_slices_places_trigs(self):
+        """Test 4 slices with RLEN=16 places trigs at 1, 5, 9, 13."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+        project.render_settings.recorder_slices = 4
+
+        # Add activity on track 1
+        project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+
+        # Apply render settings (triggered by save)
+        project._apply_render_settings()
+
+        # Check trigs on the recorder track
+        rec_track = project.bank(1).pattern(1).audio_track(7)
+        assert rec_track.active_steps == [1, 5, 9, 13]
+
+    def test_recorder_slices_sets_strt_plocks(self):
+        """Test 4 slices sets STRT p-locks to 0, 32, 64, 96."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+        project.render_settings.recorder_slices = 4
+
+        # Add activity on track 1
+        project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+
+        # Apply render settings
+        project._apply_render_settings()
+
+        # Check STRT p-locks
+        rec_track = project.bank(1).pattern(1).audio_track(7)
+        expected_starts = [0, 32, 64, 96]
+        for i, step_num in enumerate([1, 5, 9, 13]):
+            step = rec_track.step(step_num)
+            assert step.start == expected_starts[i], (
+                f"Step {step_num}: expected start={expected_starts[i]}, got {step.start}"
+            )
+
+    def test_recorder_slices_no_trigs_in_empty_patterns(self):
+        """Test no trigs are placed in patterns without activity."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+        project.render_settings.recorder_slices = 4
+
+        # Don't add any activity - all patterns are empty
+
+        # Apply render settings
+        project._apply_render_settings()
+
+        # Check no trigs on recorder track in any pattern
+        for pattern_num in range(1, 17):
+            rec_track = project.bank(1).pattern(pattern_num).audio_track(7)
+            assert rec_track.active_steps == [], (
+                f"Pattern {pattern_num}: expected no trigs, got {rec_track.active_steps}"
+            )
+
+    def test_recorder_slices_8_trig_positions(self):
+        """Test 8 slices with RLEN=16 places trigs at 1, 3, 5, 7, 9, 11, 13, 15."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+        project.render_settings.recorder_slices = 8
+
+        # Add activity on track 1
+        project.bank(1).pattern(1).audio_track(1).active_steps = [1]
+
+        # Apply render settings
+        project._apply_render_settings()
+
+        # Check trigs
+        rec_track = project.bank(1).pattern(1).audio_track(7)
+        assert rec_track.active_steps == [1, 3, 5, 7, 9, 11, 13, 15]
+
+        # Check STRT p-locks: 0, 16, 32, 48, 64, 80, 96, 112
+        expected_starts = [0, 16, 32, 48, 64, 80, 96, 112]
+        for i, step_num in enumerate([1, 3, 5, 7, 9, 11, 13, 15]):
+            step = rec_track.step(step_num)
+            assert step.start == expected_starts[i], (
+                f"Step {step_num}: expected start={expected_starts[i]}, got {step.start}"
+            )

@@ -221,6 +221,7 @@ class RenderSettings:
         self._propagate_src = False
         self._propagate_fx = False
         self._recorder_track = None
+        self._recorder_slices = None
         from .enums import NoteLength
         self._sample_duration = NoteLength.EIGHTH
 
@@ -354,6 +355,30 @@ class RenderSettings:
         if not isinstance(source, RecordingSource):
             raise TypeError(f"source must be a RecordingSource, got {type(source).__name__}")
         self._recorder_track = value
+
+    @property
+    def recorder_slices(self):
+        """
+        Number of equal slices to pre-configure on the recorder buffer.
+
+        When set, the recorder buffer is divided into N equal slices,
+        slice mode is enabled, and trigs with STRT p-locks are placed
+        at evenly-spaced positions so playback sounds identical to the
+        original recording by default.
+
+        Valid values: 2, 4, 8, 16, 32, 64, or None (disabled).
+        Requires recorder_track to be set.
+
+        Default is None (no automatic slice configuration).
+        """
+        return self._recorder_slices
+
+    @recorder_slices.setter
+    def recorder_slices(self, value):
+        valid = {2, 4, 8, 16, 32, 64}
+        if value is not None and value not in valid:
+            raise ValueError(f"recorder_slices must be one of {sorted(valid)}, got {value}")
+        self._recorder_slices = value
 
     @property
     def sample_duration(self):
