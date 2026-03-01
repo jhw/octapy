@@ -122,9 +122,6 @@ def configure_bank(project, bank, bank_num: int, pools: dict, rng: random.Random
             track.configure_flex(slot)
             track.fx1_type = FX1Type.DJ_EQ
 
-        # Configure T7 as transition buffer (records from Main, plays back via recorder buffer 7)
-        part.track(7).configure_recorder(RecordingSource.MAIN)
-
         # Configure scenes for crossfader transitions
         # Scene 1: T1-6 loud, T7 silent (normal playback)
         scene1 = part.scene(1)
@@ -214,6 +211,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     project.render_settings.propagate_scenes = True
     project.render_settings.propagate_src = True
     project.render_settings.propagate_fx = True
+    project.render_settings.recorder_track = (7, RecordingSource.MAIN)
 
     # Configure Banks 1 and 2
     print(f"\nConfiguring Banks 1-2:")

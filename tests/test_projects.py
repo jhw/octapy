@@ -478,6 +478,55 @@ class TestRenderSettings:
         project.render_settings.propagate_fx = True
         assert project.render_settings.propagate_fx is True
 
+    def test_recorder_track_conflicts_with_master_track(self, temp_dir):
+        """Test that recorder_track on track 8 conflicts with master_track."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.settings.master_track = True
+        project.render_settings.recorder_track = (8, RecordingSource.MAIN)
+
+        with pytest.raises(ValueError, match="recorder_track cannot use track 8"):
+            project.to_directory(temp_dir / "TEST")
+
+    def test_recorder_track_default_none(self):
+        """Test recorder_track defaults to None."""
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+        assert project.render_settings.recorder_track is None
+
+    def test_recorder_track_can_be_set(self):
+        """Test recorder_track can be set and read back."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+        assert project.render_settings.recorder_track == (7, RecordingSource.MAIN)
+
+    @pytest.mark.slow
+    def test_recorder_track_applies_to_all_parts(self, temp_dir):
+        """Test recorder_track configures all parts in all used banks."""
+        from octapy import Project, RecordingSource
+        from octapy.api.enums import MachineType
+
+        project = Project.from_template("TEST")
+        project.render_settings.recorder_track = (7, RecordingSource.TRACK_8)
+
+        # Add some activity to bank 1 so it's a real bank
+        project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+
+        # Save and reload
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        # Verify all 4 parts in bank 1 have track 7 configured as recorder
+        for part_num in range(1, 5):
+            track = loaded.bank(1).part(part_num).track(7)
+            assert track.machine_type == MachineType.FLEX, (
+                f"Bank 1, Part {part_num}: expected FLEX, got {track.machine_type}"
+            )
+
 
 class TestSceneIsBlank:
     """Tests for Scene.is_blank property."""

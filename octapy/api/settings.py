@@ -220,6 +220,7 @@ class RenderSettings:
         self._propagate_scenes = False
         self._propagate_src = False
         self._propagate_fx = False
+        self._recorder_track = None
         from .enums import NoteLength
         self._sample_duration = NoteLength.EIGHTH
 
@@ -318,6 +319,41 @@ class RenderSettings:
     @propagate_fx.setter
     def propagate_fx(self, value: bool):
         self._propagate_fx = value
+
+    @property
+    def recorder_track(self):
+        """
+        Configure a track as a recorder buffer across all parts/banks.
+
+        When set, the specified track is configured as a Flex machine playing
+        its own recorder buffer, recording from the given source. This is
+        applied to all parts in all banks before saving.
+
+        Value is a tuple of (track_num, source) or None:
+        - track_num: int 1-8
+        - source: RecordingSource enum value
+
+        The recorder track is automatically excluded from propagate_src and
+        propagate_fx to avoid overwriting its machine configuration.
+
+        Default is None (no automatic recorder track configuration).
+        """
+        return self._recorder_track
+
+    @recorder_track.setter
+    def recorder_track(self, value):
+        if value is None:
+            self._recorder_track = None
+            return
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise TypeError("recorder_track must be a (track_num, source) tuple or None")
+        track_num, source = value
+        if not isinstance(track_num, int) or not 1 <= track_num <= 8:
+            raise ValueError(f"track_num must be 1-8, got {track_num}")
+        from .enums import RecordingSource
+        if not isinstance(source, RecordingSource):
+            raise TypeError(f"source must be a RecordingSource, got {type(source).__name__}")
+        self._recorder_track = value
 
     @property
     def sample_duration(self):

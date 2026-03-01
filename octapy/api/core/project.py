@@ -258,6 +258,18 @@ class Project:
         """
         rs = self._render_settings
 
+        # Validate conflicting settings
+        if rs.recorder_track is not None and self.master_track:
+            rec_track_num = rs.recorder_track[0]
+            if rec_track_num == 8:
+                raise ValueError(
+                    "recorder_track cannot use track 8 when master_track is enabled"
+                )
+
+        # Apply recorder track first (configures machine type before propagation)
+        if rs.recorder_track is not None:
+            self._apply_recorder_track()
+
         # Apply propagation settings (Part 1 -> Parts 2-4)
         for bank in self._banks.values():
             if rs.propagate_scenes:
@@ -272,6 +284,19 @@ class Project:
             self._apply_auto_master_trig()
         if rs.auto_thru_trig:
             self._apply_auto_thru_trig()
+
+    def _apply_recorder_track(self) -> None:
+        """
+        Configure the recorder track across all banks and parts.
+
+        Iterates all banks, all 4 parts, and calls configure_recorder(source)
+        on the specified track number.
+        """
+        track_num, source = self._render_settings.recorder_track
+        for bank in self._banks.values():
+            for part_num in range(1, 5):
+                part = bank.part(part_num)
+                part.track(track_num).configure_recorder(source)
 
     def _propagate_scenes(self, bank: Bank) -> None:
         """Propagate scenes from Part 1 to Parts 2-4."""
@@ -304,6 +329,8 @@ class Project:
         skip_tracks = set()
         if self._settings.master_track:
             skip_tracks.add(8)
+        if self._render_settings.recorder_track is not None:
+            skip_tracks.add(self._render_settings.recorder_track[0])
 
         source_part = bank.part(1)
         for track_num in range(1, 9):
@@ -343,6 +370,8 @@ class Project:
         skip_tracks = set()
         if self._settings.master_track:
             skip_tracks.add(8)
+        if self._render_settings.recorder_track is not None:
+            skip_tracks.add(self._render_settings.recorder_track[0])
 
         source_part = bank.part(1)
         for track_num in range(1, 9):
@@ -583,6 +612,7 @@ class Project:
         and saving. They are NOT saved to Octatrack files.
 
         Available settings:
+            recorder_track: Configure a track as recorder buffer (track_num, source)
             auto_master_trig: Auto-add track 8 trig when master track enabled
             auto_thru_trig: Auto-add trig to Thru machine tracks
             propagate_scenes: Copy scenes from Part 1 to Parts 2-4
