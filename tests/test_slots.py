@@ -96,6 +96,35 @@ class TestSlotMarkers:
         assert markers.trim_end == markers.sample_length
 
 
+class TestSliceCount:
+    """Tests for slice count stored in markers."""
+
+    def test_set_slices_ms_sets_count(self, sample_files):
+        """Test that set_slices_ms writes the slice count."""
+        project = Project.from_template("TEST")
+        slot = project.add_sample(sample_files["kick.wav"])
+
+        markers = project.markers.get_slot(slot)
+        markers.set_slices_ms([(0, 25), (25, 50), (50, 75), (75, 100)])
+        project.markers.set_slot(slot, markers)
+
+        result = project.markers.get_slot(slot)
+        assert result.slice_count == 4
+
+    def test_clear_all_slices_resets_count(self, sample_files):
+        """Test that clearing slices zeros the count."""
+        project = Project.from_template("TEST")
+        slot = project.add_sample(sample_files["kick.wav"])
+
+        markers = project.markers.get_slot(slot)
+        markers.set_slices_ms([(0, 50), (50, 100)])
+        markers.clear_all_slices()
+        project.markers.set_slot(slot, markers)
+
+        result = project.markers.get_slot(slot)
+        assert result.slice_count == 0
+
+
 class TestSlotTracking:
     """Tests for slot count tracking."""
 

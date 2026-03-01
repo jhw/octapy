@@ -44,9 +44,11 @@ MARKERS_FILE_VERSION = 4
 NUM_FLEX_SLOTS = 136      # 128 sample + 8 recorder
 NUM_STATIC_SLOTS = 128
 SLOT_SIZE = 0x310         # 784 bytes per slot
-NUM_SLICES = 64           # 64 slices per slot
+NUM_SLICES = 64           # 64 slice entries per slot
+MAX_USER_SLICES = 63      # Last entry (index 63) stores slice count
 SLICE_SIZE = 12           # 12 bytes per slice (3 × uint32)
 SLICE_LOOP_DISABLED = 0xFFFFFFFF  # Magic value for disabled loop point
+SLICE_COUNT_OFFSET = 16 + 63 * 12 + 4  # trim_start field of entry 63
 
 
 # =============================================================================
@@ -195,6 +197,18 @@ class SlotMarkers(OTBlock):
         """Set the loop point."""
         write_u32_be(self._data, SlotOffset.LOOP_POINT, value)
 
+    # === Slice count ===
+
+    @property
+    def slice_count(self) -> int:
+        """Get the number of active slices (stored in entry 63 metadata)."""
+        return read_u32_be(self._data, SLICE_COUNT_OFFSET)
+
+    @slice_count.setter
+    def slice_count(self, value: int):
+        """Set the number of active slices."""
+        write_u32_be(self._data, SLICE_COUNT_OFFSET, value)
+
     # === Slice access (raw samples) ===
 
     def _slice_offset(self, index: int) -> int:
@@ -262,21 +276,6 @@ class SlotMarkers(OTBlock):
         for i in range(NUM_SLICES):
             self.clear_slice(i)
 
-    @property
-    def slice_count(self) -> int:
-        """
-        Get the number of non-empty slices.
-
-        Returns:
-            Count of slices where trim_start != trim_end or either is non-zero.
-        """
-        count = 0
-        for i in range(NUM_SLICES):
-            slice_obj = self.get_slice(i)
-            if not slice_obj.is_empty:
-                count += 1
-        return count
-
     def get_all_slices(self) -> List[Slice]:
         """
         Get all non-empty slices.
@@ -285,7 +284,7 @@ class SlotMarkers(OTBlock):
             List of Slice objects (only non-empty ones).
         """
         slices = []
-        for i in range(NUM_SLICES):
+        for i in range(MAX_USER_SLICES):
             slice_obj = self.get_slice(i)
             if not slice_obj.is_empty:
                 slices.append(slice_obj)
@@ -379,8 +378,8 @@ class SlotMarkers(OTBlock):
                 (750, 1000),
             ], sample_rate=44100)
         """
-        if len(slices) > NUM_SLICES:
-            raise ValueError(f"Maximum {NUM_SLICES} slices allowed, got {len(slices)}")
+        if len(slices) > MAX_USER_SLICES:
+            raise ValueError(f"Maximum {MAX_USER_SLICES} slices allowed, got {len(slices)}")
 
         # Clear all existing slices
         self.clear_all_slices()
@@ -388,6 +387,9 @@ class SlotMarkers(OTBlock):
         # Set new slices
         for i, (start_ms, end_ms) in enumerate(slices):
             self.set_slice_ms(i, start_ms, end_ms, sample_rate=sample_rate)
+
+        # Store slice count (Octatrack reads this to know how many slices exist)
+        self.slice_count = len(slices)
 
     def get_all_slices_ms(
         self,
@@ -403,7 +405,7 @@ class SlotMarkers(OTBlock):
             List of (start_ms, end_ms, loop_ms) tuples for non-empty slices.
         """
         result = []
-        for i in range(NUM_SLICES):
+        for i in range(MAX_USER_SLICES):
             slice_obj = self.get_slice(i)
             if not slice_obj.is_empty:
                 start_ms = self._samples_to_ms(slice_obj.trim_start, sample_rate)

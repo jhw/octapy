@@ -296,20 +296,17 @@ class TestSlotMarkersSliceRaw:
             assert slot.get_slice(i).is_empty is True
 
     def test_slice_count(self, markers_file):
-        """Test slice count property."""
+        """Test stored slice count property."""
         slot = markers_file.get_slot(1)
         assert slot.slice_count == 0
 
-        # Add slices
-        slot.set_slice(0, 0, 1000)
-        assert slot.slice_count == 1
+        # Stored count is set explicitly
+        slot.slice_count = 4
+        assert slot.slice_count == 4
 
-        slot.set_slice(1, 1000, 2000)
-        assert slot.slice_count == 2
-
-        # Clear one
-        slot.clear_slice(0)
-        assert slot.slice_count == 1
+        # Clear resets to 0
+        slot.clear_all_slices()
+        assert slot.slice_count == 0
 
     def test_get_all_slices(self, markers_file):
         """Test getting all non-empty slices."""
@@ -416,11 +413,11 @@ class TestSlotMarkersSliceMilliseconds:
         assert slot.slice_count == 2
 
     def test_set_slices_ms_max_limit(self, markers_file):
-        """Test that set_slices_ms enforces max 64 slices."""
+        """Test that set_slices_ms enforces max 63 slices."""
         slot = markers_file.get_slot(1)
 
         # Try to set 65 slices
-        with pytest.raises(ValueError, match="Maximum 64 slices"):
+        with pytest.raises(ValueError, match="Maximum 63 slices"):
             slot.set_slices_ms([(i, i + 1) for i in range(65)])
 
     def test_different_sample_rates(self, markers_file):
