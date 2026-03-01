@@ -17,9 +17,9 @@ File layout:
 - Checksum: 2 bytes (big-endian)
 
 Slice data format (per slice, 12 bytes):
+- loop_start: 4 bytes (big-endian uint32) - loop point (0xFFFFFFFF = disabled)
 - trim_start: 4 bytes (big-endian uint32) - start position in audio samples
 - trim_end: 4 bytes (big-endian uint32) - end position in audio samples
-- loop_start: 4 bytes (big-endian uint32) - loop point (0xFFFFFFFF = disabled)
 """
 
 from dataclasses import dataclass
@@ -215,9 +215,9 @@ class SlotMarkers(OTBlock):
             loop_start is None if disabled.
         """
         offset = self._slice_offset(index)
-        trim_start = read_u32_be(self._data, offset)
-        trim_end = read_u32_be(self._data, offset + 4)
-        loop_start = read_u32_be(self._data, offset + 8)
+        loop_start = read_u32_be(self._data, offset)
+        trim_start = read_u32_be(self._data, offset + 4)
+        trim_end = read_u32_be(self._data, offset + 8)
         return Slice.from_raw(trim_start, trim_end, loop_start)
 
     def set_slice(
@@ -241,9 +241,9 @@ class SlotMarkers(OTBlock):
         start, end, loop = slice_obj.to_raw()
 
         offset = self._slice_offset(index)
-        write_u32_be(self._data, offset, start)
-        write_u32_be(self._data, offset + 4, end)
-        write_u32_be(self._data, offset + 8, loop)
+        write_u32_be(self._data, offset, loop)
+        write_u32_be(self._data, offset + 4, start)
+        write_u32_be(self._data, offset + 8, end)
 
     def clear_slice(self, index: int) -> None:
         """
