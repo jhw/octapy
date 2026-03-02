@@ -400,12 +400,12 @@ class TestSlotMarkersSliceMilliseconds:
         assert slices[2] == (500, 750, None)
         assert slices[3] == (750, 1000, None)
 
-    def test_set_slices_ms_writes_boundary_format(self, markers_file):
-        """Test that set_slices_ms writes end boundaries as trim_start.
+    def test_set_slices_ms_writes_direct_format(self, markers_file):
+        """Test that set_slices_ms writes direct (start, end) per entry.
 
-        The OT uses each entry's trim_start as a boundary marker:
-        STRT=1 plays from 0 to entry[0].trim_start, so entry[i].trim_start
-        must be the end position of user-slice i.
+        Confirmed by ot-tools-io reference: each slice entry stores its own
+        trim_start and trim_end positions directly. The slot-level trim_end
+        remains the full sample length.
         """
         slot = markers_file.get_slot(1)
 
@@ -416,17 +416,20 @@ class TestSlotMarkersSliceMilliseconds:
             (750, 1000),
         ], sample_rate=44100)
 
-        # Entry 0 trim_start should be end of first slice (250ms = 11025 samples)
+        # Entry 0: direct start/end of first slice
         s0 = slot.get_slice(0)
-        assert s0.trim_start == 11025  # 250ms at 44.1kHz
+        assert s0.trim_start == 0      # 0ms
+        assert s0.trim_end == 11025    # 250ms at 44.1kHz
 
-        # Entry 1 trim_start should be end of second slice (500ms)
+        # Entry 1: direct start/end of second slice
         s1 = slot.get_slice(1)
-        assert s1.trim_start == 22050  # 500ms at 44.1kHz
+        assert s1.trim_start == 11025  # 250ms
+        assert s1.trim_end == 22050    # 500ms
 
-        # Last entry trim_start should be end of last slice (1000ms)
+        # Last entry: direct start/end of last slice
         s3 = slot.get_slice(3)
-        assert s3.trim_start == 44100  # 1000ms at 44.1kHz
+        assert s3.trim_start == 33075  # 750ms
+        assert s3.trim_end == 44100    # 1000ms
 
     def test_set_slices_ms_clears_existing(self, markers_file):
         """Test that set_slices_ms clears existing slices."""
