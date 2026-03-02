@@ -400,11 +400,11 @@ class TestSlotMarkersSliceMilliseconds:
         assert slices[2] == (500, 750, None)
         assert slices[3] == (750, 1000, None)
 
-    def test_set_slices_ms_writes_direct_format(self, markers_file):
-        """Test that set_slices_ms writes direct (start, end) per entry.
+    def test_set_slices_ms_slot_and_entry_layout(self, markers_file):
+        """Test that first slice is in slot fields, rest in entries.
 
-        Confirmed by ot-tools-io reference: each slice entry stores its own
-        trim_start and trim_end positions directly.
+        The OT encodes the first slice in slot-level fields and remaining
+        slices in entries 0..N-2. Confirmed by device comparisons.
         """
         slot = markers_file.get_slot(1)
 
@@ -415,24 +415,30 @@ class TestSlotMarkersSliceMilliseconds:
             (750, 1000),
         ], sample_rate=44100)
 
-        # Entry 0: direct start/end of first slice
+        # Slot-level: first slice encoded as trim_end=0, loop_point=first_end
+        assert slot.trim_end == 0
+        assert slot.loop_point == 11025  # 250ms at 44.1kHz
+
+        # Entry 0 = second slice (250-500ms)
         s0 = slot.get_slice(0)
-        assert s0.trim_start == 0      # 0ms
-        assert s0.trim_end == 11025    # 250ms at 44.1kHz
+        assert s0.trim_start == 11025  # 250ms
+        assert s0.trim_end == 22050    # 500ms
 
-        # Entry 1: direct start/end of second slice
+        # Entry 1 = third slice (500-750ms)
         s1 = slot.get_slice(1)
-        assert s1.trim_start == 11025  # 250ms
-        assert s1.trim_end == 22050    # 500ms
+        assert s1.trim_start == 22050  # 500ms
+        assert s1.trim_end == 33075    # 750ms
 
-        # Last entry: direct start/end of last slice
-        s3 = slot.get_slice(3)
-        assert s3.trim_start == 33075  # 750ms
-        assert s3.trim_end == 44100    # 1000ms
+        # Entry 2 = fourth slice (750-1000ms)
+        s2 = slot.get_slice(2)
+        assert s2.trim_start == 33075  # 750ms
+        assert s2.trim_end == 44100    # 1000ms
 
-        # Slot-level fields for OT slice activation
-        assert slot.trim_end == 0      # signals slices are active
-        assert slot.loop_point == 11025  # 250ms = end of first slice
+        # Entry 3 should be empty (only 3 entries for 4 slices)
+        assert slot.get_slice(3).is_empty
+
+        # slice_count = total including implicit first
+        assert slot.slice_count == 4
 
     def test_set_slices_ms_clears_existing(self, markers_file):
         """Test that set_slices_ms clears existing slices."""

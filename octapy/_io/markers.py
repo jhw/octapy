@@ -384,44 +384,58 @@ class SlotMarkers(OTBlock):
         # Clear all existing slices
         self.clear_all_slices()
 
-        # Each slice entry stores direct (start, end) positions.
-        # Confirmed by ot-tools-io reference implementation.
-        for i, (start_ms, end_ms) in enumerate(slices):
-            self.set_slice_ms(i, start_ms, end_ms, sample_rate=sample_rate)
-
-        # Store slice count (Octatrack reads this to know how many slices exist)
-        self.slice_count = len(slices)
-
-        # Set slot-level fields for OT slice playback activation.
-        # Device consistently writes trim_end=0 and loop_point=first_slice_end
-        # when slices are configured. Without this, the OT ignores slices.
+        # The OT encodes the first slice in slot-level fields (trim_end=0,
+        # loop_point=first_slice_end). Remaining slices go in entries 0..N-2.
+        # Confirmed by device comparisons: the OT always absorbs entry[0]
+        # into slot fields, so we write them there directly to avoid duplication.
         if slices:
             self.trim_end = 0
             self.loop_point = self._ms_to_samples(slices[0][1], sample_rate)
+
+        # Write remaining slices (skip the first, it's in slot fields)
+        for i, (start_ms, end_ms) in enumerate(slices[1:]):
+            self.set_slice_ms(i, start_ms, end_ms, sample_rate=sample_rate)
+
+        # Store slice count (total including the implicit first slice)
+        self.slice_count = len(slices)
 
     def get_all_slices_ms(
         self,
         sample_rate: int = 44100,
     ) -> List[Tuple[int, int, Optional[int]]]:
         """
-        Get all non-empty slices in milliseconds.
+        Get all slices in milliseconds (inverse of set_slices_ms).
+
+        Reconstructs the full slice list: first slice from slot-level fields
+        (trim_start..loop_point), remaining slices from entries.
 
         Args:
             sample_rate: Audio sample rate (default 44100 Hz)
 
         Returns:
-            List of (start_ms, end_ms, loop_ms) tuples for non-empty slices.
+            List of (start_ms, end_ms, loop_ms) tuples.
         """
+        n = self.slice_count
+        if n == 0:
+            return []
+
         result = []
-        for i in range(MAX_USER_SLICES):
+        # First slice is in slot-level fields
+        start_ms = self._samples_to_ms(self.trim_start, sample_rate)
+        end_ms = self._samples_to_ms(self.loop_point, sample_rate)
+        result.append((start_ms, end_ms, None))
+
+        # Remaining slices in entries 0..N-2
+        for i in range(n - 1):
             slice_obj = self.get_slice(i)
-            if not slice_obj.is_empty:
-                start_ms = self._samples_to_ms(slice_obj.trim_start, sample_rate)
-                end_ms = self._samples_to_ms(slice_obj.trim_end, sample_rate)
-                loop_ms = None
-                if slice_obj.loop_start is not None:
-                    loop_ms = self._samples_to_ms(slice_obj.loop_start, sample_rate)
-                result.append((start_ms, end_ms, loop_ms))
+            if slice_obj.is_empty:
+                break
+            s = self._samples_to_ms(slice_obj.trim_start, sample_rate)
+            e = self._samples_to_ms(slice_obj.trim_end, sample_rate)
+            loop_ms = None
+            if slice_obj.loop_start is not None:
+                loop_ms = self._samples_to_ms(slice_obj.loop_start, sample_rate)
+            result.append((s, e, loop_ms))
         return result
 
 
