@@ -404,8 +404,7 @@ class TestSlotMarkersSliceMilliseconds:
         """Test that set_slices_ms writes direct (start, end) per entry.
 
         Confirmed by ot-tools-io reference: each slice entry stores its own
-        trim_start and trim_end positions directly. The slot-level trim_end
-        remains the full sample length.
+        trim_start and trim_end positions directly.
         """
         slot = markers_file.get_slot(1)
 
@@ -430,6 +429,9 @@ class TestSlotMarkersSliceMilliseconds:
         s3 = slot.get_slice(3)
         assert s3.trim_start == 33075  # 750ms
         assert s3.trim_end == 44100    # 1000ms
+
+        # Slot-level trim_end set to first slice end for OT slice activation
+        assert slot.trim_end == 11025  # 250ms = end of first slice
 
     def test_set_slices_ms_clears_existing(self, markers_file):
         """Test that set_slices_ms clears existing slices."""
