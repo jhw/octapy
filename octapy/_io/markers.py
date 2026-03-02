@@ -392,10 +392,12 @@ class SlotMarkers(OTBlock):
         # Store slice count (Octatrack reads this to know how many slices exist)
         self.slice_count = len(slices)
 
-        # Set slot-level trim to first slice end so OT activates slice playback.
-        # Without this, trim_end = sample_length and the OT ignores slices.
+        # Set slot-level fields for OT slice playback activation.
+        # Device consistently writes trim_end=0 and loop_point=first_slice_end
+        # when slices are configured. Without this, the OT ignores slices.
         if slices:
-            self.trim_end = self._ms_to_samples(slices[0][1], sample_rate)
+            self.trim_end = 0
+            self.loop_point = self._ms_to_samples(slices[0][1], sample_rate)
 
     def get_all_slices_ms(
         self,
