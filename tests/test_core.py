@@ -2694,9 +2694,9 @@ class TestPatternStandalone:
 
         assert pattern.pattern_num == 1
         assert pattern.part == 1
-        assert pattern.scale_length == 64  # Max fallback for per-track mode
+        assert pattern.scale_length == 16  # One page of 16 steps
         assert pattern.scale_mult == 2     # 1x speed
-        assert pattern.scale_mode == 1     # PER_TRACK mode
+        assert pattern.scale_mode == 0     # NORMAL mode
 
         # Should have 8 audio tracks
         for i in range(1, 9):
@@ -2797,9 +2797,9 @@ class TestPatternStandalone:
         assert restored.scale_length == original.scale_length
 
     def test_scale_mode_default(self):
-        """Pattern defaults to PER_TRACK mode (1)."""
+        """Pattern defaults to NORMAL mode (0)."""
         pattern = Pattern()
-        assert pattern.scale_mode == 1
+        assert pattern.scale_mode == 0
 
     def test_scale_mode_constructor(self):
         """Pattern accepts scale_mode in constructor."""

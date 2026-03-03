@@ -45,9 +45,9 @@ class Pattern:
         self,
         pattern_num: int = 1,
         part: int = 1,
-        scale_length: int = 64,
+        scale_length: int = 16,
         scale_mult: int = 2,
-        scale_mode: int = 1,
+        scale_mode: int = 0,
         audio_tracks: Optional[List[AudioPatternTrack]] = None,
         midi_tracks: Optional[List[MidiPatternTrack]] = None,
     ):
@@ -316,9 +316,9 @@ class Pattern:
         pattern = cls(
             pattern_num=data.get("pattern", 1),
             part=data.get("part", 1),
-            scale_length=data.get("scale_length", 64),
+            scale_length=data.get("scale_length", 16),
             scale_mult=data.get("scale_mult", 2),
-            scale_mode=data.get("scale_mode", 1),
+            scale_mode=data.get("scale_mode", 0),
         )
 
         if "audio_tracks" in data:

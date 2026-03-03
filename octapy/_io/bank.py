@@ -148,15 +148,15 @@ class PatternOffset(IntEnum):
     AUDIO_TRACKS = 8            # 8 audio tracks, each AUDIO_TRACK_SIZE bytes
     MIDI_TRACKS = 18712         # 8 MIDI tracks start here (0x4918)
     # PatternScaleSettings (6 bytes starting at 36574):
-    # - master_len_per_track_multiplier (36574)
-    # - master_len_per_track (36575)
-    # - master_scale_per_track (36576)
-    # - master_len (36577) = SCALE_LENGTH
+    # - scale_mode (36574) = SCALE_MODE
+    # - per_track_multiplier (36575)
+    # - per_track_scale (36576)
+    # - per_track_len (36577)
     # - master_scale (36578) = SCALE_MULT
-    # - scale_mode (36579) = SCALE_MODE
-    SCALE_LENGTH = 36577        # 1 byte: pattern length (16 = 16 steps)
+    # - master_len (36579) = SCALE_LENGTH
+    SCALE_MODE = 36574          # 1 byte: 0=NORMAL, 1=PER_TRACK
     SCALE_MULT = 36578          # 1 byte: scale multiplier
-    SCALE_MODE = 36579          # 1 byte: 0=NORMAL, 1=PER_TRACK
+    SCALE_LENGTH = 36579        # 1 byte: pattern length (16 = 16 steps)
     PART_ASSIGNMENT = 36581     # 1 byte: assigned part (0-3 = Part 1-4)
 
 
