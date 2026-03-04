@@ -304,6 +304,27 @@ class AudioStep:
         self._set_plock(PlockOffset.MACHINE_PARAM2, value)
 
     @property
+    def slice_index(self) -> Optional[int]:
+        """
+        Get/set slice index for this step (for use when slice mode is ON).
+
+        Converts between the natural slice index (0, 1, 2, ...) and the
+        raw STRT value the Octatrack expects (slice_index * 2).
+
+        When slice mode is OFF, use the `start` property instead.
+        Returns None if no p-lock is set.
+        """
+        raw = self._get_plock(PlockOffset.MACHINE_PARAM2)
+        return None if raw is None else raw // 2
+
+    @slice_index.setter
+    def slice_index(self, value: Optional[int]):
+        if value is None:
+            self._set_plock(PlockOffset.MACHINE_PARAM2, None)
+        else:
+            self._set_plock(PlockOffset.MACHINE_PARAM2, value * 2)
+
+    @property
     def sample_lock(self) -> Optional[int]:
         """
         Get/set p-locked sample slot for this step (1-128).
