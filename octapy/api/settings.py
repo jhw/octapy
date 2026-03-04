@@ -208,118 +208,15 @@ class RenderSettings:
     Access via project.render_settings.
 
     Usage:
-        project.render_settings.auto_master_trig = True
-        project.render_settings.auto_thru_trig = True
-        project.render_settings.propagate_scenes = True
         project.render_settings.sample_duration = NoteLength.QUARTER
+        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
     """
 
     def __init__(self):
-        self._auto_master_trig = False
-        self._auto_thru_trig = False
-        self._propagate_scenes = False
-        self._propagate_src = False
-        self._propagate_fx = False
         self._recorder_track = None
         self._recorder_slices = None
         from .enums import NoteLength
         self._sample_duration = NoteLength.EIGHTH
-
-    @property
-    def auto_master_trig(self) -> bool:
-        """
-        Auto-add trig to track 8 when master track is enabled.
-
-        When True, automatically adds a step 1 trig to track 8 for any
-        pattern where tracks 1-7 have trigs. This ensures the master
-        track processes audio.
-
-        Default is False (manual control over track 8 trigs).
-        """
-        return self._auto_master_trig
-
-    @auto_master_trig.setter
-    def auto_master_trig(self, value: bool):
-        self._auto_master_trig = value
-
-    @property
-    def auto_thru_trig(self) -> bool:
-        """
-        Auto-add trig to tracks with Thru machines.
-
-        When True, automatically adds a step 1 trig to any track with a
-        Thru machine in patterns that have audio activity. Thru machines
-        need a trig to process incoming external audio.
-
-        Default is False (manual control over Thru track trigs).
-        """
-        return self._auto_thru_trig
-
-    @auto_thru_trig.setter
-    def auto_thru_trig(self, value: bool):
-        self._auto_thru_trig = value
-
-    @property
-    def propagate_scenes(self) -> bool:
-        """
-        Propagate scenes from Part 1 to Parts 2-4 within each bank.
-
-        When True, any scene with locks defined in Part 1 is automatically
-        copied to the same scene number in Parts 2, 3, and 4. This ensures
-        consistent scene behavior when switching Parts.
-
-        Default is False (manual scene configuration per Part).
-        """
-        return self._propagate_scenes
-
-    @propagate_scenes.setter
-    def propagate_scenes(self, value: bool):
-        self._propagate_scenes = value
-
-    @property
-    def propagate_src(self) -> bool:
-        """
-        Propagate SRC and AMP page settings from Part 1 to Parts 2-4 within each bank.
-
-        When True, copies SRC (playback) settings and AMP (envelope/volume) settings
-        from Part 1 to Parts 2-4 for each track, but only if the target Part's
-        settings are at template defaults.
-
-        SRC page: pitch, start, length, rate, retrig, retrig_time,
-                  loop_mode, slice_mode, length_mode, rate_mode,
-                  timestretch_mode, timestretch_sensitivity
-        AMP page: attack, hold, release, volume, balance
-
-        Exclusions:
-        - Track 8 is excluded if master_track is enabled
-
-        Default is False (manual SRC/AMP configuration per Part).
-        """
-        return self._propagate_src
-
-    @propagate_src.setter
-    def propagate_src(self, value: bool):
-        self._propagate_src = value
-
-    @property
-    def propagate_fx(self) -> bool:
-        """
-        Propagate FX1 and FX2 page settings from Part 1 to Parts 2-4 within each bank.
-
-        When True, copies FX type and parameters from Part 1 to Parts 2-4
-        for each track, but only if the target Part's FX type matches the
-        template defaults (FX1=FILTER, FX2=DELAY).
-
-        Exclusions:
-        - Track 8 is excluded if master_track is enabled
-
-        Default is False (manual FX configuration per Part).
-        """
-        return self._propagate_fx
-
-    @propagate_fx.setter
-    def propagate_fx(self, value: bool):
-        self._propagate_fx = value
 
     @property
     def recorder_track(self):

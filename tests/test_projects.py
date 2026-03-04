@@ -376,21 +376,6 @@ class TestRenderSettings:
         project = Project.from_template("TEST")
         assert project.render_settings is not None
 
-    def test_auto_master_trig_default_false(self):
-        """Test auto_master_trig defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.auto_master_trig is False
-
-    def test_auto_master_trig_can_be_enabled(self):
-        """Test auto_master_trig can be set to True."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.auto_master_trig = True
-        assert project.render_settings.auto_master_trig is True
-
     def test_sample_duration_default_eighth(self):
         """Test sample_duration defaults to EIGHTH."""
         from octapy import Project
@@ -417,66 +402,6 @@ class TestRenderSettings:
         project.sample_duration = NoteLength.HALF
         assert project.sample_duration == NoteLength.HALF
         assert project.render_settings.sample_duration == NoteLength.HALF
-
-    def test_auto_thru_trig_default_false(self):
-        """Test auto_thru_trig defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.auto_thru_trig is False
-
-    def test_auto_thru_trig_can_be_enabled(self):
-        """Test auto_thru_trig can be set to True."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.auto_thru_trig = True
-        assert project.render_settings.auto_thru_trig is True
-
-    def test_propagate_scenes_default_false(self):
-        """Test propagate_scenes defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_scenes is False
-
-    def test_propagate_scenes_can_be_enabled(self):
-        """Test propagate_scenes can be set to True."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_scenes = True
-        assert project.render_settings.propagate_scenes is True
-
-    def test_propagate_src_default_false(self):
-        """Test propagate_src defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_src is False
-
-    def test_propagate_src_can_be_enabled(self):
-        """Test propagate_src can be set to True."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_src = True
-        assert project.render_settings.propagate_src is True
-
-    def test_propagate_fx_default_false(self):
-        """Test propagate_fx defaults to False."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.propagate_fx is False
-
-    def test_propagate_fx_can_be_enabled(self):
-        """Test propagate_fx can be set to True."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.propagate_fx = True
-        assert project.render_settings.propagate_fx is True
 
     def test_recorder_track_conflicts_with_master_track(self, temp_dir):
         """Test that recorder_track on track 8 conflicts with master_track."""

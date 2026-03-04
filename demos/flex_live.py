@@ -205,12 +205,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     project.settings.master_track = True
 
     # Configure render settings (octapy-specific, not saved to OT files)
-    # Enable propagation so all 4 parts are consistent when switching
     project.render_settings.sample_duration = NoteLength.SIXTEENTH
-    project.render_settings.auto_master_trig = True
-    project.render_settings.propagate_scenes = True
-    project.render_settings.propagate_src = True
-    project.render_settings.propagate_fx = True
     project.render_settings.recorder_track = (7, RecordingSource.MAIN)
 
     # Configure Banks 1 and 2
