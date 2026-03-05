@@ -52,6 +52,10 @@ class AudioStep:
         volume: Optional[int] = None,
         pitch: Optional[int] = None,
         start: Optional[int] = None,
+        length: Optional[int] = None,
+        rate: Optional[int] = None,
+        retrig: Optional[int] = None,
+        retrig_time: Optional[int] = None,
         sample_lock: Optional[int] = None,
     ):
         """
@@ -66,6 +70,10 @@ class AudioStep:
             volume: P-locked volume (0-127)
             pitch: P-locked pitch (0-127, 64=center)
             start: P-locked STRT value (0-127, selects slice when slice mode ON)
+            length: P-locked LEN value (0-127, 127=full sample)
+            rate: P-locked RATE value (0-127, 127=forward, 0=reverse)
+            retrig: P-locked retrig count (1-128, 1=no retrig)
+            retrig_time: P-locked retrig time (0-127, see RetrigTime enum)
             sample_lock: P-locked sample slot (1-128, matching add_sample() return value)
         """
         self._step_num = step_num
@@ -96,6 +104,14 @@ class AudioStep:
             self.pitch = pitch
         if start is not None:
             self.start = start
+        if length is not None:
+            self.length = length
+        if rate is not None:
+            self.rate = rate
+        if retrig is not None:
+            self.retrig = retrig
+        if retrig_time is not None:
+            self.retrig_time = retrig_time
         if sample_lock is not None:
             self.sample_lock = sample_lock
 
@@ -304,6 +320,74 @@ class AudioStep:
         self._set_plock(PlockOffset.MACHINE_PARAM2, value)
 
     @property
+    def length(self) -> Optional[int]:
+        """
+        Get/set p-locked LEN for this step.
+
+        Value range: 0-127 (127 = full sample length)
+        Controls how much of the sample plays. Useful for cut effects:
+        e.g. length=64 plays the first half only.
+        Returns None if no p-lock is set (uses Part default).
+        """
+        return self._get_plock(PlockOffset.MACHINE_PARAM3)
+
+    @length.setter
+    def length(self, value: Optional[int]):
+        self._set_plock(PlockOffset.MACHINE_PARAM3, value)
+
+    @property
+    def rate(self) -> Optional[int]:
+        """
+        Get/set p-locked RATE for this step.
+
+        Value range: 0-127 (127 = full speed forward, 0 = full speed reverse)
+        When rate_mode is PITCH, values below 64 play in reverse.
+        Returns None if no p-lock is set (uses Part default).
+        """
+        return self._get_plock(PlockOffset.MACHINE_PARAM4)
+
+    @rate.setter
+    def rate(self, value: Optional[int]):
+        self._set_plock(PlockOffset.MACHINE_PARAM4, value)
+
+    @property
+    def retrig(self) -> Optional[int]:
+        """
+        Get/set p-locked retrig count for this step.
+
+        Value range: 1-128 (1 = normal single play, 2 = play twice, etc.)
+        Uses the same 1-indexed convention as track.src.retrig.
+        Returns None if no p-lock is set (uses Part default).
+        """
+        raw = self._get_plock(PlockOffset.MACHINE_PARAM5)
+        return None if raw is None else raw + 1
+
+    @retrig.setter
+    def retrig(self, value: Optional[int]):
+        if value is None:
+            self._set_plock(PlockOffset.MACHINE_PARAM5, None)
+        else:
+            if not 1 <= value <= 128:
+                raise ValueError(f"retrig must be 1-128, got {value}")
+            self._set_plock(PlockOffset.MACHINE_PARAM5, value - 1)
+
+    @property
+    def retrig_time(self) -> Optional[int]:
+        """
+        Get/set p-locked retrig time for this step.
+
+        Value range: 0-127
+        Controls the time interval between retrigs.
+        See RetrigTime enum for common values (HALF=79, QUARTER=67).
+        Returns None if no p-lock is set (uses Part default).
+        """
+        return self._get_plock(PlockOffset.MACHINE_PARAM6)
+
+    @retrig_time.setter
+    def retrig_time(self, value: Optional[int]):
+        self._set_plock(PlockOffset.MACHINE_PARAM6, value)
+
+    @property
     def slice_index(self) -> Optional[int]:
         """
         Get/set slice index for this step (for use when slice mode is ON).
@@ -381,6 +465,14 @@ class AudioStep:
             result["pitch"] = self.pitch
         if self.start is not None:
             result["start"] = self.start
+        if self.length is not None:
+            result["length"] = self.length
+        if self.rate is not None:
+            result["rate"] = self.rate
+        if self.retrig is not None:
+            result["retrig"] = self.retrig
+        if self.retrig_time is not None:
+            result["retrig_time"] = self.retrig_time
         if self.sample_lock is not None:
             result["sample_lock"] = self.sample_lock
 
@@ -423,6 +515,18 @@ class AudioStep:
 
         if "start" in data:
             kwargs["start"] = data["start"]
+
+        if "length" in data:
+            kwargs["length"] = data["length"]
+
+        if "rate" in data:
+            kwargs["rate"] = data["rate"]
+
+        if "retrig" in data:
+            kwargs["retrig"] = data["retrig"]
+
+        if "retrig_time" in data:
+            kwargs["retrig_time"] = data["retrig_time"]
 
         if "sample_lock" in data:
             kwargs["sample_lock"] = data["sample_lock"]
