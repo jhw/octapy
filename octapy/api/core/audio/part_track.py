@@ -307,7 +307,8 @@ class AudioPartTrack:
         self.machine_type = MachineType.STATIC
         self.static_slot = slot - 1  # Convert to 0-indexed
 
-    def configure_recorder(self, source: "RecordingSource") -> None:
+    def configure_recorder(self, source: "RecordingSource",
+                           rlen: int = None) -> None:
         """
         Configure this track as a one-shot recorder buffer player.
 
@@ -315,19 +316,22 @@ class AudioPartTrack:
         - Flex machine playing this track's own recorder buffer
         - Recorder source set to the specified source (typically another track or MAIN)
         - Recommended Flex defaults applied (length=127, length_mode=TIME, loop=OFF)
+        - Optional recording length in steps
 
         The recorder buffer number matches the track number (track 3 -> buffer 3).
 
         Args:
             source: What to record from (e.g. RecordingSource.TRACK_5,
                     RecordingSource.MAIN, RecordingSource.INPUT_AB)
+            rlen: Recording length in steps (1-64, display value). 64 means MAX.
+                  If None, keeps the default (16 steps).
 
         Usage:
             # Track 3 records from track 2's output
             part.track(3).configure_recorder(RecordingSource.TRACK_2)
 
-            # Track 7 records the master output
-            part.track(7).configure_recorder(RecordingSource.MAIN)
+            # Track 7 records 64 steps from the master output
+            part.track(7).configure_recorder(RecordingSource.MAIN, rlen=64)
         """
         from ...enums import RecordingSource as _RS
 
@@ -338,6 +342,10 @@ class AudioPartTrack:
         self.recorder_slot = self._track_num - 1  # Track N -> buffer N (0-indexed)
         self.apply_recommended_flex_defaults()
         self.recorder.source = source
+        if rlen is not None:
+            if not 1 <= rlen <= 64:
+                raise ValueError(f"rlen must be 1-64, got {rlen}")
+            self.recorder.rlen = rlen - 1  # Display value to stored value
 
     def configure_neighbor(self) -> None:
         """

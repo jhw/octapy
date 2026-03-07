@@ -3280,3 +3280,30 @@ class TestConfigureAsRecorder:
             track.configure_recorder(RecordingSource.MAIN)
             assert track.recorder_slot == track_num - 1
             assert track.recorder.source == RecordingSource.MAIN
+
+    def test_sets_rlen(self):
+        """configure_recorder sets recording length when rlen is provided."""
+        track = AudioPartTrack(track_num=7)
+        track.configure_recorder(RecordingSource.MAIN, rlen=64)
+        assert track.recorder.rlen == 63  # Display 64 stored as 63
+
+    def test_rlen_32_steps(self):
+        """configure_recorder sets rlen for 32 steps (2 bars)."""
+        track = AudioPartTrack(track_num=7)
+        track.configure_recorder(RecordingSource.MAIN, rlen=32)
+        assert track.recorder.rlen == 31  # Display 32 stored as 31
+
+    def test_rlen_none_keeps_default(self):
+        """configure_recorder keeps default rlen when not specified."""
+        track = AudioPartTrack(track_num=7)
+        default_rlen = track.recorder.rlen
+        track.configure_recorder(RecordingSource.MAIN)
+        assert track.recorder.rlen == default_rlen
+
+    def test_rlen_rejects_out_of_range(self):
+        """configure_recorder rejects rlen outside 1-64."""
+        track = AudioPartTrack(track_num=7)
+        with pytest.raises(ValueError):
+            track.configure_recorder(RecordingSource.MAIN, rlen=0)
+        with pytest.raises(ValueError):
+            track.configure_recorder(RecordingSource.MAIN, rlen=65)
