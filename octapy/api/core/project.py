@@ -281,6 +281,28 @@ class Project:
         if self.master_track:
             self._apply_auto_master_trig()
 
+        # Fix up recorder sources: TRACK_8 → MAIN when master track is enabled
+        if self.master_track:
+            self._fixup_recorder_sources()
+
+    def _fixup_recorder_sources(self) -> None:
+        """
+        Substitute TRACK_8 → MAIN for recorder sources when master track is enabled.
+
+        On the Octatrack, when track 8 is the master track, recording from
+        TRACK_8 doesn't capture the master output. The correct source is MAIN.
+        This fixup runs at save time so callers can use TRACK_8 as a logical
+        reference without needing to know about this hardware quirk.
+        """
+        from ..enums import RecordingSource
+        for bank in self._banks.values():
+            for part_num in range(1, 5):
+                part = bank.part(part_num)
+                for track_num in range(1, 9):
+                    track = part.track(track_num)
+                    if track.recorder.source == RecordingSource.TRACK_8:
+                        track.recorder.source = RecordingSource.MAIN
+
     def _apply_recorder_track(self) -> None:
         """
         Configure the recorder track across all banks and parts.

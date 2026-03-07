@@ -3307,3 +3307,48 @@ class TestConfigureAsRecorder:
             track.configure_recorder(RecordingSource.MAIN, rlen=0)
         with pytest.raises(ValueError):
             track.configure_recorder(RecordingSource.MAIN, rlen=65)
+
+
+class TestRecorderSourceFixup:
+    """Tests for TRACK_8 → MAIN fixup when master track is enabled."""
+
+    def test_track8_becomes_main_with_master(self, tmp_path):
+        """Recorder source TRACK_8 is swapped to MAIN when master_track is enabled."""
+        project = Project(name="TEST")
+        project.settings.master_track = True
+        part = project.bank(1).part(1)
+        part.track(7).configure_recorder(RecordingSource.TRACK_8, rlen=32)
+        assert part.track(7).recorder.source == RecordingSource.TRACK_8
+        project.to_directory(tmp_path / "TEST")
+        # After save, source should have been fixed up
+        assert part.track(7).recorder.source == RecordingSource.MAIN
+
+    def test_track8_unchanged_without_master(self, tmp_path):
+        """Recorder source TRACK_8 is kept when master_track is disabled."""
+        project = Project(name="TEST")
+        project.settings.master_track = False
+        project.render_settings.sample_duration = None
+        part = project.bank(1).part(1)
+        part.track(7).configure_recorder(RecordingSource.TRACK_8, rlen=32)
+        project.to_directory(tmp_path / "TEST")
+        assert part.track(7).recorder.source == RecordingSource.TRACK_8
+
+    def test_main_source_unchanged(self, tmp_path):
+        """Recorder source MAIN is not affected by fixup."""
+        project = Project(name="TEST")
+        project.settings.master_track = True
+        part = project.bank(1).part(1)
+        part.track(7).configure_recorder(RecordingSource.MAIN, rlen=32)
+        project.to_directory(tmp_path / "TEST")
+        assert part.track(7).recorder.source == RecordingSource.MAIN
+
+    def test_fixup_applies_across_banks(self, tmp_path):
+        """Fixup applies to all banks and parts."""
+        project = Project(name="TEST")
+        project.settings.master_track = True
+        for bank_num in [1, 2]:
+            part = project.bank(bank_num).part(1)
+            part.track(7).configure_recorder(RecordingSource.TRACK_8, rlen=32)
+        project.to_directory(tmp_path / "TEST")
+        for bank_num in [1, 2]:
+            assert project.bank(bank_num).part(1).track(7).recorder.source == RecordingSource.MAIN
