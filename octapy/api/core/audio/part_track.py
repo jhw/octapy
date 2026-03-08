@@ -308,15 +308,16 @@ class AudioPartTrack:
         self.static_slot = slot - 1  # Convert to 0-indexed
 
     def configure_recorder(self, source: "RecordingSource",
-                           rlen: int = None) -> None:
+                           rlen: int = None, loop: bool = False) -> None:
         """
-        Configure this track as a one-shot recorder buffer player.
+        Configure this track as a recorder buffer player.
 
         Sets up the classic Octatrack recording pattern:
         - Flex machine playing this track's own recorder buffer
         - Recorder source set to the specified source (typically another track or MAIN)
         - Recommended Flex defaults applied (length=127, length_mode=TIME, loop=OFF)
         - Optional recording length in steps
+        - Optional loop mode for buffer playback
 
         The recorder buffer number matches the track number (track 3 -> buffer 3).
 
@@ -325,13 +326,15 @@ class AudioPartTrack:
                     RecordingSource.MAIN, RecordingSource.INPUT_AB)
             rlen: Recording length in steps (1-64, display value). 64 means MAX.
                   If None, keeps the default (16 steps).
+            loop: If True, set Flex machine playback to loop. Default False
+                  (one-shot playback).
 
         Usage:
-            # Track 3 records from track 2's output
+            # Track 3 records from track 2's output (one-shot)
             part.track(3).configure_recorder(RecordingSource.TRACK_2)
 
-            # Track 7 records 64 steps from the master output
-            part.track(7).configure_recorder(RecordingSource.MAIN, rlen=64)
+            # Track 7 records 64 steps from the master output, looping playback
+            part.track(7).configure_recorder(RecordingSource.MAIN, rlen=64, loop=True)
         """
         from ...enums import RecordingSource as _RS
 
@@ -341,6 +344,8 @@ class AudioPartTrack:
         self.machine_type = MachineType.FLEX
         self.recorder_slot = self._track_num - 1  # Track N -> buffer N (0-indexed)
         self.apply_recommended_flex_defaults()
+        if loop:
+            self.setup.loop = 1
         self.recorder.source = source
         if rlen is not None:
             if not 1 <= rlen <= 64:
