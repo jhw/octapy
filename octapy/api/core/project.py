@@ -401,11 +401,10 @@ class Project:
 
                 rec_track.active_steps = trig_steps
 
-                # Set STRT p-locks: slice i -> start value = i * (128 // num_slices)
-                strt_increment = 128 // num_slices
+                # Set STRT p-locks via slice_index (0, 1, 2, ...)
                 for i, step_num in enumerate(trig_steps):
                     step = rec_track.step(step_num)
-                    step.start = i * strt_increment
+                    step.slice_index = i
 
     def _apply_auto_master_trig(self) -> None:
         """
