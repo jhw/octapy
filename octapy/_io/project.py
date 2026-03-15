@@ -408,22 +408,27 @@ class ProjectFile:
 def zip_project(project_dir: Path, zip_path: Path) -> None:
     """Zip a project directory into a single archive.
 
+    The project name (directory name) is used as the zip prefix,
+    so the archive extracts directly to a named project folder.
+
     Structure:
-        project/   - .work files (goes to OT project folder)
-        samples/   - .wav files (goes to OT AUDIO folder)
+        {project_name}/   - .work files (goes to OT project folder)
+        AUDIO/            - .wav files (goes to OT AUDIO folder)
     """
     import zipfile
+
+    project_name = project_dir.name
 
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         for file_path in project_dir.iterdir():
             if file_path.is_file() and file_path.suffix == '.work':
-                zf.write(file_path, f"project/{file_path.name}")
+                zf.write(file_path, f"{project_name}/{file_path.name}")
 
         # Include samples/ directory if present
         samples_dir = project_dir / "samples"
         if samples_dir.exists():
             for sample_file in samples_dir.glob("*.wav"):
-                zf.write(sample_file, f"samples/{sample_file.name}")
+                zf.write(sample_file, f"AUDIO/{project_name}/{sample_file.name}")
 
 
 def unzip_project(zip_path: Path, dest_dir: Path) -> None:

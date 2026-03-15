@@ -711,7 +711,7 @@ class TestRecorderSlices:
         assert rec_track.active_steps == [1, 5, 9, 13]
 
     def test_recorder_slices_sets_strt_plocks(self):
-        """Test 4 slices sets STRT p-locks to 0, 32, 64, 96."""
+        """Test 4 slices sets slice_index p-locks to 0, 1, 2, 3."""
         from octapy import Project, RecordingSource
 
         project = Project.from_template("TEST")
@@ -724,13 +724,12 @@ class TestRecorderSlices:
         # Apply render settings
         project._apply_render_settings()
 
-        # Check STRT p-locks
+        # Check slice_index p-locks
         rec_track = project.bank(1).pattern(1).audio_track(7)
-        expected_starts = [0, 32, 64, 96]
         for i, step_num in enumerate([1, 5, 9, 13]):
             step = rec_track.step(step_num)
-            assert step.start == expected_starts[i], (
-                f"Step {step_num}: expected start={expected_starts[i]}, got {step.start}"
+            assert step.slice_index == i, (
+                f"Step {step_num}: expected slice_index={i}, got {step.slice_index}"
             )
 
     def test_recorder_slices_no_trigs_in_empty_patterns(self):
@@ -771,10 +770,9 @@ class TestRecorderSlices:
         rec_track = project.bank(1).pattern(1).audio_track(7)
         assert rec_track.active_steps == [1, 3, 5, 7, 9, 11, 13, 15]
 
-        # Check STRT p-locks: 0, 16, 32, 48, 64, 80, 96, 112
-        expected_starts = [0, 16, 32, 48, 64, 80, 96, 112]
+        # Check slice_index p-locks: 0, 1, 2, 3, 4, 5, 6, 7
         for i, step_num in enumerate([1, 3, 5, 7, 9, 11, 13, 15]):
             step = rec_track.step(step_num)
-            assert step.start == expected_starts[i], (
-                f"Step {step_num}: expected start={expected_starts[i]}, got {step.start}"
+            assert step.slice_index == i, (
+                f"Step {step_num}: expected slice_index={i}, got {step.slice_index}"
             )

@@ -210,8 +210,10 @@ class Project:
         Load a project from a zip file.
 
         Zip structure:
-            project/   - .work files
-            samples/   - .wav files
+            {project_name}/   - .work files
+            AUDIO/{project_name}/  - .wav files (optional)
+
+        Also supports legacy zip format (project/ and samples/ prefixes).
 
         Args:
             zip_path: Path to project zip file
@@ -229,21 +231,29 @@ class Project:
         tmp_path = Path(tmp_dir.name)
         unzip_project(zip_path, tmp_path)
 
-        # Load .work files from project/ subdirectory
-        project_subdir = tmp_path / "project"
-        if project_subdir.exists():
+        # Find the subdirectory containing .work files
+        project_subdir = None
+        for subdir in tmp_path.iterdir():
+            if subdir.is_dir() and any(subdir.glob("*.work")):
+                project_subdir = subdir
+                break
+
+        if project_subdir is not None:
             instance = cls.from_directory(project_subdir)
         else:
-            # Fallback for old flat structure
+            # Fallback for flat structure
             instance = cls.from_directory(tmp_path)
 
         instance._name = zip_path.stem.upper()
         instance._temp_dir = tmp_dir  # Keep alive until Project is garbage collected
 
-        # Load samples from samples/ subdirectory
+        # Load samples from AUDIO/{project_name}/ or legacy samples/
+        project_name = zip_path.stem.upper()
+        audio_dir = tmp_path / "AUDIO" / project_name
         samples_dir = tmp_path / "samples"
-        if samples_dir.exists():
-            for sample_file in samples_dir.glob("*.wav"):
+        sample_source = audio_dir if audio_dir.exists() else samples_dir
+        if sample_source.exists():
+            for sample_file in sample_source.glob("*.wav"):
                 instance._sample_pool[sample_file.name] = sample_file
 
         return instance

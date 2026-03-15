@@ -373,6 +373,46 @@ class AudioPartTrack:
         """
         self.machine_type = MachineType.NEIGHBOR
 
+    def configure_thru(
+        self,
+        in_ab: "ThruInput" = None,
+        in_cd: "ThruInput" = None,
+    ) -> None:
+        """
+        Configure this track as a Thru machine for routing external audio.
+
+        A Thru track passes audio from the selected inputs directly through
+        the Octatrack's mixer and FX chain without recording. Use it to
+        process external synths or drum machines through the OT's effects
+        and scenes in real time.
+
+        Args:
+            in_ab: Input A/B selection (ThruInput enum, default A_PLUS_B)
+            in_cd: Input C/D selection (ThruInput enum, default OFF)
+
+        Usage:
+            from octapy.api.enums import ThruInput
+
+            # Route inputs A+B through the OT
+            track.configure_thru()
+
+            # Route input A only
+            track.configure_thru(in_ab=ThruInput.A)
+
+            # Route both input pairs
+            track.configure_thru(in_ab=ThruInput.A_PLUS_B, in_cd=ThruInput.A_PLUS_B)
+        """
+        from ...enums import ThruInput as _TI
+
+        if in_ab is None:
+            in_ab = _TI.A_PLUS_B
+        if in_cd is None:
+            in_cd = _TI.OFF
+
+        self.machine_type = MachineType.THRU
+        self.src.in_ab = in_ab
+        self.src.in_cd = in_cd
+
     @classmethod
     def read_from_part(
         cls,

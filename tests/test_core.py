@@ -3,7 +3,7 @@ Tests for core API objects.
 """
 
 import pytest
-from octapy import AudioRecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type
+from octapy import AudioRecorderSetup, RecordingSource, RecTrigMode, QRecMode, TrigCondition, MachineType, FX1Type, FX2Type, ThruInput
 from octapy._io import RECORDER_SETUP_SIZE, OCTAPY_DEFAULT_RECORDER_SETUP, PLOCK_SIZE, MIDI_PLOCK_SIZE, AUDIO_TRACK_SIZE, MIDI_TRACK_PATTERN_SIZE, SCENE_SIZE, SCENE_PARAMS_SIZE
 from octapy.api.core import AudioStep, MidiStep, AudioPartTrack, AudioPatternTrack, MidiPartTrack, MidiPatternTrack, AudioSceneTrack, Scene, Part, Pattern
 from octapy.api.core.midi.part_track import MIDI_PART_TRACK_SIZE
@@ -3214,6 +3214,56 @@ class TestConfigureAsNeighbor:
         """Neighbor track can have FX configured."""
         track = AudioPartTrack()
         track.configure_neighbor()
+        track.fx1_type = FX1Type.CHORUS
+        track.fx2_type = FX2Type.PLATE_REVERB
+        assert track.fx1_type == FX1Type.CHORUS
+        assert track.fx2_type == FX2Type.PLATE_REVERB
+
+
+class TestConfigureAsThru:
+    """Tests for AudioPartTrack.configure_thru()."""
+
+    def test_sets_thru_machine_type(self):
+        """configure_thru sets machine type to THRU."""
+        track = AudioPartTrack()
+        track.configure_thru()
+        assert track.machine_type == MachineType.THRU
+
+    def test_defaults_to_a_plus_b(self):
+        """configure_thru defaults in_ab to A_PLUS_B."""
+        track = AudioPartTrack()
+        track.configure_thru()
+        assert track.src.in_ab == ThruInput.A_PLUS_B
+
+    def test_defaults_in_cd_off(self):
+        """configure_thru defaults in_cd to OFF."""
+        track = AudioPartTrack()
+        track.configure_thru()
+        assert track.src.in_cd == ThruInput.OFF
+
+    def test_custom_in_ab(self):
+        """configure_thru accepts custom in_ab."""
+        track = AudioPartTrack()
+        track.configure_thru(in_ab=ThruInput.A)
+        assert track.src.in_ab == ThruInput.A
+
+    def test_custom_in_cd(self):
+        """configure_thru accepts custom in_cd."""
+        track = AudioPartTrack()
+        track.configure_thru(in_cd=ThruInput.A_PLUS_B)
+        assert track.src.in_cd == ThruInput.A_PLUS_B
+
+    def test_both_inputs(self):
+        """configure_thru can set both input pairs."""
+        track = AudioPartTrack()
+        track.configure_thru(in_ab=ThruInput.A_PLUS_B, in_cd=ThruInput.A_PLUS_B)
+        assert track.src.in_ab == ThruInput.A_PLUS_B
+        assert track.src.in_cd == ThruInput.A_PLUS_B
+
+    def test_thru_has_fx_slots(self):
+        """Thru track can have FX configured."""
+        track = AudioPartTrack()
+        track.configure_thru()
         track.fx1_type = FX1Type.CHORUS
         track.fx2_type = FX2Type.PLATE_REVERB
         assert track.fx1_type == FX1Type.CHORUS

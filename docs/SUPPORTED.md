@@ -21,7 +21,7 @@ This document compares octapy's coverage with the Octatrack's full feature set, 
 | STATIC | Yes | Full SRC page support |
 | THRU | Yes | Input routing |
 | NEIGHBOR | Yes | Adjacent track routing |
-| PICKUP | Yes | Looper (basic) |
+| PICKUP | Partial | Binary offsets only, no configure method or tests |
 
 ### Parameter Pages
 
@@ -96,7 +96,7 @@ LFO offsets exist in `_io/bank.py` but no high-level accessor:
 | Master track | Yes | Enable/disable |
 | Sample slots | Yes | Flex and Static pools |
 | Audio routing | No | CUE/MAIN settings not exposed |
-| MIDI settings | No | Sync, channels, control not exposed |
+| MIDI settings | Partial | Clock, transport, program change send/receive exposed; channels, control not exposed |
 | Metronome | No | Not exposed |
 
 ## Not Implemented
@@ -130,7 +130,7 @@ Custom 16-step arp sequences are not exposed.
 ## Quick Reference
 
 ### Fully Supported
-- Machine types (FLEX, STATIC, THRU, NEIGHBOR, PICKUP)
+- Machine types (FLEX, STATIC, THRU, NEIGHBOR)
 - SRC/AMP/FX pages with named parameters
 - Pattern sequencing (audio and MIDI)
 - Trig conditions and probability

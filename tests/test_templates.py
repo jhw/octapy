@@ -110,9 +110,9 @@ class TestProjectZip:
         unzip_project(zip_path, unzip_dir)
 
         # Verify files exist in project/ subdirectory
-        assert (unzip_dir / "project" / "project.work").exists()
-        assert (unzip_dir / "project" / "bank01.work").exists()
-        assert (unzip_dir / "project" / "markers.work").exists()
+        assert (unzip_dir / "TEST_PROJECT" / "project.work").exists()
+        assert (unzip_dir / "TEST_PROJECT" / "bank01.work").exists()
+        assert (unzip_dir / "TEST_PROJECT" / "markers.work").exists()
 
     def test_zip_unzip_roundtrip(self, template_project, temp_dir):
         """Test that zip/unzip preserves file contents."""
@@ -128,7 +128,7 @@ class TestProjectZip:
         unzip_project(zip_path, unzip_dir)
 
         # Read unzipped bank from project/ subdirectory
-        loaded_bank = BankFile.from_file(unzip_dir / "project" / "bank01.work")
+        loaded_bank = BankFile.from_file(unzip_dir / "TEST_PROJECT" / "bank01.work")
 
         # Compare
         assert loaded_bank._data == original_bank._data
@@ -147,5 +147,5 @@ class TestProjectZip:
         unzip_project(zip_path, unzip_dir)
 
         # extra.txt should not be in the zip
-        assert not (unzip_dir / "project" / "extra.txt").exists()
+        assert not (unzip_dir / "TEST_PROJECT" / "extra.txt").exists()
         assert not (unzip_dir / "extra.txt").exists()
