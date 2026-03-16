@@ -221,6 +221,29 @@ class TestPlaybackLocks:
         track.start = 32
         assert track.start == 32
 
+    def test_slice_index(self, scene):
+        """Test slice_index lock encodes as raw STRT value * 2."""
+        track = scene.track(1)
+        track.slice_index = 3
+        assert track.slice_index == 3
+        # Raw STRT value should be slice_index * 2
+        assert track.start == 6
+
+    def test_slice_index_zero(self, scene):
+        """Test slice_index 0 maps to raw STRT 0."""
+        track = scene.track(1)
+        track.slice_index = 0
+        assert track.slice_index == 0
+        assert track.start == 0
+
+    def test_slice_index_none_clears(self, scene):
+        """Test setting slice_index to None clears the lock."""
+        track = scene.track(1)
+        track.slice_index = 5
+        assert track.slice_index == 5
+        track.slice_index = None
+        assert track.slice_index is None
+
     def test_length(self, scene):
         """Test length lock."""
         track = scene.track(1)

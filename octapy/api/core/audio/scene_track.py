@@ -312,6 +312,27 @@ class AudioSceneTrack:
         self.playback_param2 = value
 
     @property
+    def slice_index(self) -> Optional[int]:
+        """
+        Get/set slice index for scene lock (for use when slice mode is ON).
+
+        Converts between the natural slice index (0, 1, 2, ...) and the
+        raw STRT value the Octatrack expects (slice_index * 2).
+
+        When slice mode is OFF, use the `start` property instead.
+        Returns None if no lock is set.
+        """
+        raw = self.playback_param2
+        return None if raw is None else raw // 2
+
+    @slice_index.setter
+    def slice_index(self, value: Optional[int]):
+        if value is None:
+            self.playback_param2 = None
+        else:
+            self.playback_param2 = value * 2
+
+    @property
     def length(self) -> Optional[int]:
         """Alias for playback_param3 (FLEX: length)."""
         return self.playback_param3
