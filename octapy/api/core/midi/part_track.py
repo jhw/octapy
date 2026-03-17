@@ -151,7 +151,7 @@ class MidiPartTrack:
 
         Args:
             track_num: Track number (1-8)
-            channel: MIDI channel (0-15)
+            channel: MIDI channel (0=AUTO, 1-16=explicit channel)
             bank: Bank select (0-127, 128=off)
             program: Program change (0-127, 128=off)
             default_note: Default note (0-127, 60=Middle C)
@@ -311,12 +311,12 @@ class MidiPartTrack:
 
     @property
     def channel(self) -> int:
-        """Get/set the MIDI channel (0-15)."""
+        """Get/set the MIDI channel (0=AUTO, 1-16=explicit channel)."""
         return self._data[TrackDataOffset.CHANNEL]
 
     @channel.setter
     def channel(self, value: int):
-        self._data[TrackDataOffset.CHANNEL] = value & 0x0F
+        self._data[TrackDataOffset.CHANNEL] = value & 0x1F
 
     @property
     def bank(self) -> int:
