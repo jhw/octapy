@@ -3010,6 +3010,65 @@ class TestBankFromTemplate:
         assert bank.pattern(1) is not None
 
 
+class TestBankSavedUnsavedSync:
+    """Tests for Bank syncing Parts to both saved and unsaved slots."""
+
+    def test_sync_writes_to_both_slots(self):
+        """_sync_to_buffer() writes Parts to both unsaved and saved locations."""
+        from octapy._io import (
+            BankFile, MidiPartOffset, MidiTrackSetupOffset,
+            MIDI_TRACK_SETUP_SIZE, PART_BLOCK_SIZE,
+        )
+        from octapy.api.enums import MachineType
+
+        bank = Bank.from_template(bank_num=1)
+
+        # Modify Part 1: set MIDI channel to 5 and machine type to THRU
+        part = bank.part(1)
+        part.midi_track(1).channel = 5
+        part.audio_track(1).configure_thru()
+
+        # Write to buffer
+        bank._sync_to_buffer()
+        data = bank._bank_file._data
+
+        # Check unsaved slot
+        unsaved_offset = bank._bank_file.part_offset(1, saved=False)
+        unsaved_ch = data[
+            unsaved_offset + MidiPartOffset.MIDI_TRACK_PARAMS_SETUP
+            + MidiTrackSetupOffset.CHANNEL
+        ]
+        assert unsaved_ch == 5
+
+        # Check saved slot
+        saved_offset = bank._bank_file.part_offset(1, saved=True)
+        saved_ch = data[
+            saved_offset + MidiPartOffset.MIDI_TRACK_PARAMS_SETUP
+            + MidiTrackSetupOffset.CHANNEL
+        ]
+        assert saved_ch == 5
+
+    def test_thru_machine_in_saved_slot(self):
+        """THRU machine type appears in both saved and unsaved Part slots."""
+        from octapy._io import PartOffset
+        from octapy.api.enums import MachineType
+
+        bank = Bank.from_template(bank_num=1)
+        bank.part(1).audio_track(1).configure_thru()
+
+        bank._sync_to_buffer()
+        data = bank._bank_file._data
+
+        unsaved_offset = bank._bank_file.part_offset(1, saved=False)
+        saved_offset = bank._bank_file.part_offset(1, saved=True)
+
+        unsaved_mt = data[unsaved_offset + PartOffset.AUDIO_TRACK_MACHINE_TYPES]
+        saved_mt = data[saved_offset + PartOffset.AUDIO_TRACK_MACHINE_TYPES]
+
+        assert unsaved_mt == int(MachineType.THRU)
+        assert saved_mt == int(MachineType.THRU)
+
+
 class TestBankRepr:
     """Tests for Bank string representation."""
 

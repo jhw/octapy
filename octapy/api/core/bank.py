@@ -218,10 +218,15 @@ class Bank:
 
     def _sync_to_buffer(self):
         """Sync all parts and patterns back to the bank buffer."""
-        # Sync parts
+        # Sync parts to both unsaved and saved locations.
+        # The OT bank file stores two copies of each Part: unsaved (working)
+        # and saved (confirmed). Both must be written for the OT to load
+        # the correct Part state (machine types, MIDI channels, FX, etc.).
         for i in range(1, 5):
-            part_offset = self._bank_file.part_offset(i)
-            self._parts[i].write_to_bank(self._bank_file._data, part_offset)
+            unsaved_offset = self._bank_file.part_offset(i)
+            saved_offset = self._bank_file.part_offset(i, saved=True)
+            self._parts[i].write_to_bank(self._bank_file._data, unsaved_offset)
+            self._parts[i].write_to_bank(self._bank_file._data, saved_offset)
 
         # Sync patterns
         for i in range(1, 17):
