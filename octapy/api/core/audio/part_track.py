@@ -411,6 +411,7 @@ class AudioPartTrack:
 
         self.machine_type = MachineType.THRU
         self.src.in_ab = in_ab
+        self.src.vol_ab = 127
         self.src.in_cd = in_cd
 
     @classmethod
