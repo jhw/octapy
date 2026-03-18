@@ -889,7 +889,7 @@ class BankFile(OTBlock):
         self._apply_octapy_recorder_defaults()
 
     def _apply_octapy_src_defaults(self) -> None:
-        """Apply octapy SRC page defaults for Flex machines.
+        """Apply octapy SRC page defaults for Flex and Static machines.
 
         OVERRIDES from OT template:
         - SRC VALUES: length = 127 (was 0)
@@ -898,17 +898,16 @@ class BankFile(OTBlock):
         for part_num in range(1, 5):
             part_offset = self.part_offset(part_num)
             for track_idx in range(8):
-                # Machine params values offset (for Flex machine SRC page)
-                # Structure: 5 machines * 6 bytes = 30 bytes per track
-                # Flex is at offset 6 within each track's params
                 values_base = part_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_VALUES
-                flex_values_offset = values_base + track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX
-                self._data[flex_values_offset:flex_values_offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
-
-                # Machine params setup offset (for Flex machine FUNC+SRC page)
                 setup_base = part_offset + PartOffset.AUDIO_TRACK_MACHINE_PARAMS_SETUP
-                flex_setup_offset = setup_base + track_idx * MACHINE_PARAMS_SIZE + MachineParamsOffset.FLEX
-                self._data[flex_setup_offset:flex_setup_offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
+
+                # Apply to both Flex and Static machine parameter slots
+                for machine_offset in (MachineParamsOffset.FLEX, MachineParamsOffset.STATIC):
+                    values_offset = values_base + track_idx * MACHINE_PARAMS_SIZE + machine_offset
+                    self._data[values_offset:values_offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
+
+                    setup_offset = setup_base + track_idx * MACHINE_PARAMS_SIZE + machine_offset
+                    self._data[setup_offset:setup_offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
     def _apply_octapy_recorder_defaults(self) -> None:
         """Apply octapy recorder defaults for one-shot quantized recording.

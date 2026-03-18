@@ -265,6 +265,29 @@ class AudioPartTrack:
         offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
         self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
+    def apply_recommended_static_defaults(self):
+        """
+        Apply octapy recommended defaults for Static machine SRC page.
+
+        Sets:
+        - length = 127 (full sample length)
+        - length_mode = TIME
+        - loop = OFF
+
+        These differ from OT machine defaults and are optimized for
+        one-shot sample playback.
+
+        Note: Only affects STATIC machine parameters. Call this after
+        setting machine_type to STATIC.
+        """
+        # Apply octapy recommended SRC values (includes length=127)
+        offset = TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.STATIC
+        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
+
+        # Apply octapy recommended SRC setup (includes length_mode=TIME, loop=OFF)
+        offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.STATIC
+        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
+
     def configure_flex(self, slot: int) -> None:
         """
         Configure this track as a Flex machine with sensible defaults.
@@ -289,7 +312,7 @@ class AudioPartTrack:
 
     def configure_static(self, slot: int) -> None:
         """
-        Configure this track as a Static machine.
+        Configure this track as a Static machine with sensible defaults.
 
         Args:
             slot: Sample slot number (1-128, matching add_sample() return value)
@@ -297,6 +320,7 @@ class AudioPartTrack:
         Sets:
         - Machine type to STATIC
         - Static slot to the specified sample
+        - Recommended defaults (length=127, length_mode=TIME, loop=OFF)
 
         Usage:
             slot = project.add_sample(pad_sample, slot_type="STATIC")
@@ -306,6 +330,7 @@ class AudioPartTrack:
             raise ValueError(f"slot must be 1-128, got {slot}")
         self.machine_type = MachineType.STATIC
         self.static_slot = slot - 1  # Convert to 0-indexed
+        self.apply_recommended_static_defaults()
 
     def configure_recorder(self, source: "RecordingSource",
                            rlen: int = None, loop: bool = False) -> None:

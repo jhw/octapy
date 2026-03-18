@@ -1054,6 +1054,53 @@ class TestAudioPartTrackRecommendedDefaults:
         # Now should be 127
         assert track.src.length == 127
 
+    def test_apply_recommended_static_defaults(self):
+        """apply_recommended_static_defaults() sets octapy recommended values."""
+        track = AudioPartTrack(machine_type=MachineType.STATIC)
+
+        # Default (template) length is 0
+        assert track.src.length == 0
+
+        track.apply_recommended_static_defaults()
+
+        # Now should be 127
+        assert track.src.length == 127
+
+    def test_configure_static_applies_defaults(self):
+        """configure_static() applies recommended defaults like configure_flex()."""
+        track = AudioPartTrack()
+
+        track.configure_static(1)
+
+        assert track.machine_type == MachineType.STATIC
+        assert track.static_slot == 0  # 1-indexed input -> 0-indexed storage
+        assert track.src.length == 127
+        # Verify setup defaults: length_mode=TIME (1), loop=OFF (0)
+        assert track.setup.length_mode == 1
+        assert track.setup.loop == 0
+
+    def test_configure_flex_applies_defaults(self):
+        """configure_flex() applies recommended defaults."""
+        track = AudioPartTrack()
+
+        track.configure_flex(1)
+
+        assert track.machine_type == MachineType.FLEX
+        assert track.flex_slot == 0
+        assert track.src.length == 127
+        assert track.setup.length_mode == 1
+        assert track.setup.loop == 0
+
+    def test_configure_static_validates_slot(self):
+        """configure_static() rejects invalid slot numbers."""
+        track = AudioPartTrack()
+
+        import pytest
+        with pytest.raises(ValueError):
+            track.configure_static(0)
+        with pytest.raises(ValueError):
+            track.configure_static(129)
+
     def test_default_constructor_uses_template_defaults(self):
         """Default constructor uses OT template defaults, not octapy."""
         track = AudioPartTrack(machine_type=MachineType.FLEX)
