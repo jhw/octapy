@@ -413,6 +413,7 @@ class AudioPartTrack:
         self.src.in_ab = in_ab
         self.src.vol_ab = 127
         self.src.in_cd = in_cd
+        self.src.vol_cd = 127
 
     @classmethod
     def read_from_part(
