@@ -503,7 +503,7 @@ class Project:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp) / self._name
             self.to_directory(tmp_path)
-            zip_project(tmp_path, Path(zip_path))
+            zip_project(tmp_path, Path(zip_path), self._audio_subdir)
 
     def clone(self) -> "Project":
         """Create a copy of this Project with all banks cloned."""

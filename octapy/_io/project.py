@@ -405,15 +405,19 @@ class ProjectFile:
 # Project zip/unzip utilities
 # =============================================================================
 
-def zip_project(project_dir: Path, zip_path: Path) -> None:
+def zip_project(project_dir: Path, zip_path: Path, audio_subdir: str = "projects") -> None:
     """Zip a project directory into a single archive.
 
     The project name (directory name) is used as the zip prefix,
     so the archive extracts directly to a named project folder.
 
     Structure:
-        {project_name}/   - .work files (goes to OT project folder)
-        AUDIO/            - .wav files (goes to OT AUDIO folder)
+        {project_name}/                          - .work files
+        AUDIO/{audio_subdir}/{project_name}/     - .wav files
+
+    The audio_subdir must match the subdir used when adding samples
+    (Project._audio_subdir), so that paths in project.work resolve
+    correctly on the Octatrack.
     """
     import zipfile
 
@@ -428,7 +432,7 @@ def zip_project(project_dir: Path, zip_path: Path) -> None:
         samples_dir = project_dir / "samples"
         if samples_dir.exists():
             for sample_file in samples_dir.glob("*.wav"):
-                zf.write(sample_file, f"AUDIO/{project_name}/{sample_file.name}")
+                zf.write(sample_file, f"AUDIO/{audio_subdir}/{project_name}/{sample_file.name}")
 
 
 def unzip_project(zip_path: Path, dest_dir: Path) -> None:

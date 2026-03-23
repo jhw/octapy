@@ -149,3 +149,36 @@ class TestProjectZip:
         # extra.txt should not be in the zip
         assert not (unzip_dir / "TEST_PROJECT" / "extra.txt").exists()
         assert not (unzip_dir / "extra.txt").exists()
+
+    def test_zip_samples_use_audio_subdir(self, template_project, temp_dir):
+        """Test that zipped samples go under AUDIO/{audio_subdir}/{project}/."""
+        import zipfile
+
+        # Create a samples directory with a WAV
+        samples_dir = template_project / "samples"
+        samples_dir.mkdir()
+        (samples_dir / "test.wav").write_bytes(b"RIFF" + b"\x00" * 100)
+
+        zip_path = temp_dir / "test.zip"
+        zip_project(template_project, zip_path, audio_subdir="projects")
+
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            names = zf.namelist()
+            assert "AUDIO/projects/TEST_PROJECT/test.wav" in names
+
+    def test_zip_samples_default_audio_subdir(self, template_project, temp_dir):
+        """Test that default audio_subdir is 'projects'."""
+        import zipfile
+
+        samples_dir = template_project / "samples"
+        samples_dir.mkdir()
+        (samples_dir / "kick.wav").write_bytes(b"RIFF" + b"\x00" * 100)
+
+        zip_path = temp_dir / "test.zip"
+        zip_project(template_project, zip_path)
+
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            names = zf.namelist()
+            assert "AUDIO/projects/TEST_PROJECT/kick.wav" in names
+            # Should NOT be at the old wrong path
+            assert "AUDIO/TEST_PROJECT/kick.wav" not in names
