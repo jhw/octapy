@@ -208,15 +208,12 @@ class RenderSettings:
     Access via project.render_settings.
 
     Usage:
-        project.render_settings.sample_duration = NoteLength.QUARTER
         project.render_settings.recorder_track = (7, RecordingSource.MAIN)
     """
 
     def __init__(self):
         self._recorder_track = None
         self._recorder_slices = None
-        from .enums import NoteLength
-        self._sample_duration = NoteLength.EIGHTH
 
     @property
     def recorder_track(self):
@@ -277,20 +274,3 @@ class RenderSettings:
             raise ValueError(f"recorder_slices must be one of {sorted(valid)}, got {value}")
         self._recorder_slices = value
 
-    @property
-    def sample_duration(self):
-        """
-        Target duration for sample normalization.
-
-        Samples are normalized (trimmed/padded) to this duration
-        based on project BPM when saving.
-
-        Values: NoteLength.SIXTEENTH (1 step), EIGHTH (2 steps, default),
-                QUARTER (4 steps), HALF (8 steps), WHOLE (16 steps),
-                or None (no normalization)
-        """
-        return self._sample_duration
-
-    @sample_duration.setter
-    def sample_duration(self, value):
-        self._sample_duration = value

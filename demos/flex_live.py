@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from octapy import Project, SamplePool, NoteLength, FX1Type, FX2Type, RecordingSource
+from octapy import Project, SamplePool, FX1Type, FX2Type, RecordingSource
 
 from patterns.euclid import get_random_euclidean_pattern
 
@@ -205,7 +205,6 @@ def create_project(name: str, output_dir: Path) -> Path:
     project.settings.master_track = True
 
     # Configure render settings (octapy-specific, not saved to OT files)
-    project.render_settings.sample_duration = NoteLength.SIXTEENTH
     project.render_settings.recorder_track = (7, RecordingSource.MAIN)
 
     # Configure Banks 1 and 2

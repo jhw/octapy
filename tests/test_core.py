@@ -3483,7 +3483,6 @@ class TestRecorderSourceFixup:
         """Recorder source TRACK_8 is kept when master_track is disabled."""
         project = Project(name="TEST")
         project.settings.master_track = False
-        project.render_settings.sample_duration = None
         part = project.bank(1).part(1)
         part.track(7).configure_recorder(RecordingSource.TRACK_8, rlen=32)
         project.to_directory(tmp_path / "TEST")
