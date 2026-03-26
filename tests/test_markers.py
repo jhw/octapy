@@ -453,11 +453,15 @@ class TestSlotMarkersSliceMilliseconds:
         assert slot.slice_count == 2
 
     def test_set_slices_ms_max_limit(self, markers_file):
-        """Test that set_slices_ms enforces max 63 slices."""
+        """Test that set_slices_ms enforces max 64 slices."""
         slot = markers_file.get_slot(1)
 
-        # Try to set 65 slices
-        with pytest.raises(ValueError, match="Maximum 63 slices"):
+        # Exactly 64 slices should succeed (1 implicit + 63 entries)
+        slot.set_slices_ms([(i, i + 1) for i in range(64)])
+        assert slot.slice_count == 64
+
+        # 65 slices should fail
+        with pytest.raises(ValueError, match="Maximum 64 slices"):
             slot.set_slices_ms([(i, i + 1) for i in range(65)])
 
     def test_different_sample_rates(self, markers_file):
