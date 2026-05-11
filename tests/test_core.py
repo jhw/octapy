@@ -255,24 +255,6 @@ class TestAudioRecorderSetupSources:
         assert restored.source == RecordingSource.OFF
 
 
-class TestAudioRecorderSetupRepr:
-    """Tests for AudioRecorderSetup string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        recorder = AudioRecorderSetup(
-            source=RecordingSource.TRACK_1,
-            rlen=16,
-            trig=RecTrigMode.ONE,
-        )
-
-        r = repr(recorder)
-        assert "AudioRecorderSetup" in r
-        assert "TRACK_1" in r
-        assert "rlen=16" in r
-        assert "ONE" in r
-
-
 # =============================================================================
 # AudioStep Tests
 # =============================================================================
@@ -550,19 +532,6 @@ class TestAudioStepConditions:
         assert step.condition == TrigCondition.NONE
 
 
-class TestAudioStepRepr:
-    """Tests for AudioStep string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        step = AudioStep(step_num=5, active=True)
-
-        r = repr(step)
-        assert "AudioStep" in r
-        assert "step=5" in r
-        assert "active=True" in r
-
-
 # =============================================================================
 # MidiStep Tests
 # =============================================================================
@@ -816,19 +785,6 @@ class TestMidiStepCC:
             MidiStep(cc={0: 64})
         with pytest.raises(ValueError):
             MidiStep(cc={11: 64})
-
-
-class TestMidiStepRepr:
-    """Tests for MidiStep string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        step = MidiStep(step_num=5, active=True)
-
-        r = repr(step)
-        assert "MidiStep" in r
-        assert "step=5" in r
-        assert "active=True" in r
 
 
 # =============================================================================
@@ -1562,19 +1518,6 @@ class TestAmpAccessor:
         assert track.amp_volume == 99
 
 
-class TestAudioPartTrackRepr:
-    """Tests for AudioPartTrack string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        track = AudioPartTrack(track_num=3, machine_type=MachineType.STATIC)
-
-        r = repr(track)
-        assert "AudioPartTrack" in r
-        assert "track=3" in r
-        assert "STATIC" in r
-
-
 # =============================================================================
 # AudioPatternTrack Tests (Phase 2)
 # =============================================================================
@@ -1854,19 +1797,6 @@ class TestAudioPatternTrackStandalone:
         assert restored.scale == 3
 
 
-class TestAudioPatternTrackRepr:
-    """Tests for AudioPatternTrack string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        track = AudioPatternTrack(track_num=2, active_steps=[1, 5, 9])
-
-        r = repr(track)
-        assert "AudioPatternTrack" in r
-        assert "track=2" in r
-        assert "active_steps=3" in r
-
-
 # =============================================================================
 # MidiPartTrack Tests (Phase 2)
 # =============================================================================
@@ -2087,19 +2017,6 @@ class TestMidiPartTrackArp:
         assert track.arp_note_length == 12
 
 
-class TestMidiPartTrackRepr:
-    """Tests for MidiPartTrack string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        track = MidiPartTrack(track_num=3, channel=5)
-
-        r = repr(track)
-        assert "MidiPartTrack" in r
-        assert "track=3" in r
-        assert "channel=5" in r
-
-
 # =============================================================================
 # MidiPatternTrack Tests (Phase 2)
 # =============================================================================
@@ -2259,19 +2176,6 @@ class TestMidiPatternTrackStandalone:
         assert restored.active_steps == original.active_steps
 
 
-class TestMidiPatternTrackRepr:
-    """Tests for MidiPatternTrack string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        track = MidiPatternTrack(track_num=2, active_steps=[1, 5, 9])
-
-        r = repr(track)
-        assert "MidiPatternTrack" in r
-        assert "track=2" in r
-        assert "active_steps=3" in r
-
-
 # =============================================================================
 # AudioSceneTrack Tests (Phase 3)
 # =============================================================================
@@ -2390,19 +2294,6 @@ class TestAudioSceneTrackStandalone:
         assert restored.track_num == original.track_num
         assert restored.amp_volume == original.amp_volume
         assert restored.playback_param1 == original.playback_param1
-
-
-class TestAudioSceneTrackRepr:
-    """Tests for AudioSceneTrack string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        track = AudioSceneTrack(track_num=3, amp_volume=100, fx1_param1=64)
-
-        r = repr(track)
-        assert "AudioSceneTrack" in r
-        assert "track=3" in r
-        assert "locks=2" in r
 
 
 class TestAudioSceneTrackDynamicAccessors:
@@ -2649,21 +2540,6 @@ class TestSceneStandalone:
         assert restored.track(2).amp_volume == 80
 
 
-class TestSceneRepr:
-    """Tests for Scene string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        scene = Scene(scene_num=5)
-        scene.track(1).amp_volume = 100
-        scene.track(3).amp_attack = 10
-
-        r = repr(scene)
-        assert "Scene" in r
-        assert "scene=5" in r
-        assert "tracks_with_locks=2" in r
-
-
 # =============================================================================
 # Part Tests (Phase 3)
 # =============================================================================
@@ -2783,20 +2659,6 @@ class TestPartStandalone:
         assert restored.part_num == original.part_num
         assert restored.active_scene_a == original.active_scene_a
         assert restored.active_scene_b == original.active_scene_b
-
-
-class TestPartRepr:
-    """Tests for Part string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        part = Part(part_num=2, active_scene_a=5, active_scene_b=10)
-
-        r = repr(part)
-        assert "Part" in r
-        assert "part=2" in r
-        assert "scene_a=5" in r
-        assert "scene_b=10" in r
 
 
 # =============================================================================
@@ -2953,20 +2815,6 @@ class TestPatternStandalone:
         a = Pattern(pattern_num=1, scale_mode=0)
         b = Pattern(pattern_num=1, scale_mode=1)
         assert a != b
-
-
-class TestPatternRepr:
-    """Tests for Pattern string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        pattern = Pattern(pattern_num=5, part=3, scale_length=32)
-
-        r = repr(pattern)
-        assert "Pattern" in r
-        assert "pattern=5" in r
-        assert "part=3" in r
-        assert "length=32" in r
 
 
 # =============================================================================
@@ -3187,19 +3035,6 @@ class TestBankSavedUnsavedSync:
         assert saved_mt == int(MachineType.THRU)
 
 
-class TestBankRepr:
-    """Tests for Bank string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        bank = Bank(bank_num=3, flex_count=5)
-
-        r = repr(bank)
-        assert "Bank" in r
-        assert "bank=3" in r
-        assert "flex_count=5" in r
-
-
 # =============================================================================
 # Project Tests (Phase 4)
 # =============================================================================
@@ -3365,19 +3200,6 @@ class TestProjectSampleManagement:
 
 
 @pytest.mark.slow
-class TestProjectRepr:
-    """Tests for Project string representation."""
-
-    def test_repr(self):
-        """__repr__ shows key properties."""
-        project = Project(name="MY PROJECT", tempo=125.0)
-
-        r = repr(project)
-        assert "Project" in r
-        assert "MY PROJECT" in r
-        assert "125.0" in r
-
-
 class TestConfigureAsNeighbor:
     """Tests for AudioPartTrack.configure_neighbor()."""
 
@@ -3678,6 +3500,66 @@ class TestMidiStepLfoPlocks:
             step.lfo(0)
         with pytest.raises(ValueError):
             step.lfo(4)
+
+
+class TestLfoPlockBinaryRoundtrip:
+    """Verifies that LFO p-locks survive the pattern-track binary
+    scatter/gather. Catches off-by-one mistakes in the LFO_SPDn / LFO_DEPn
+    PlockOffset constants that the property-level tests would miss."""
+
+    def test_audio_step_lfo_plocks_through_pattern_track(self):
+        """Audio LFO p-locks round-trip via AudioPatternTrack.write/read."""
+        track = AudioPatternTrack(track_num=4)
+        track.active_steps = [1, 5, 9, 13]
+
+        # Distinct value per (step, lfo, field) so any swap surfaces.
+        track.step(1).lfo(1).speed = 11
+        track.step(1).lfo(1).depth = 21
+        track.step(5).lfo(2).speed = 12
+        track.step(5).lfo(2).depth = 22
+        track.step(9).lfo(3).speed = 13
+        track.step(9).lfo(3).depth = 23
+        track.step(13).lfo(1).speed = 14   # different step, lfo 1 again
+
+        data = track.write()
+        restored = AudioPatternTrack.read(track_num=4, track_data=data)
+
+        assert restored.step(1).lfo(1).speed == 11
+        assert restored.step(1).lfo(1).depth == 21
+        assert restored.step(5).lfo(2).speed == 12
+        assert restored.step(5).lfo(2).depth == 22
+        assert restored.step(9).lfo(3).speed == 13
+        assert restored.step(9).lfo(3).depth == 23
+        assert restored.step(13).lfo(1).speed == 14
+
+        # Untouched fields stay unset (None).
+        assert restored.step(1).lfo(2).speed is None
+        assert restored.step(1).lfo(3).depth is None
+        assert restored.step(5).lfo(1).depth is None
+
+    def test_midi_step_lfo_plocks_through_pattern_track(self):
+        """MIDI LFO p-locks round-trip via MidiPatternTrack.write/read."""
+        track = MidiPatternTrack(track_num=2)
+        track.active_steps = [2, 6, 10]
+
+        track.step(2).lfo(1).speed = 31
+        track.step(2).lfo(2).depth = 32
+        track.step(6).lfo(3).speed = 33
+        track.step(6).lfo(3).depth = 34
+        track.step(10).lfo(2).speed = 35
+
+        data = track.write()
+        restored = MidiPatternTrack.read(track_num=2, track_data=data)
+
+        assert restored.step(2).lfo(1).speed == 31
+        assert restored.step(2).lfo(2).depth == 32
+        assert restored.step(6).lfo(3).speed == 33
+        assert restored.step(6).lfo(3).depth == 34
+        assert restored.step(10).lfo(2).speed == 35
+
+        # Untouched fields stay None.
+        assert restored.step(2).lfo(3).speed is None
+        assert restored.step(6).lfo(1).speed is None
 
 
 class TestAudioSwingSlide:

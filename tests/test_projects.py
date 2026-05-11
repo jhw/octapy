@@ -474,32 +474,6 @@ class TestProjectMidiSettings:
         project = Project.from_template("TEST")
         assert project.settings.midi.program_change_receive_ch == -1
 
-    @pytest.mark.slow
-    def test_midi_settings_roundtrip(self, temp_dir):
-        """MIDI settings survive save/load via the grouped API."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.midi.clock_send = True
-        project.settings.midi.clock_receive = True
-        project.settings.midi.transport_send = True
-        project.settings.midi.transport_receive = True
-        project.settings.midi.program_change_send = True
-        project.settings.midi.program_change_send_ch = 10
-        project.settings.midi.program_change_receive = True
-        project.settings.midi.program_change_receive_ch = 5
-
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
-
-        assert loaded.settings.midi.clock_send is True
-        assert loaded.settings.midi.clock_receive is True
-        assert loaded.settings.midi.transport_send is True
-        assert loaded.settings.midi.transport_receive is True
-        assert loaded.settings.midi.program_change_send is True
-        assert loaded.settings.midi.program_change_send_ch == 10
-        assert loaded.settings.midi.program_change_receive is True
-        assert loaded.settings.midi.program_change_receive_ch == 5
 
 
 class TestMasterTrackSettings:
@@ -517,22 +491,6 @@ class TestMasterTrackSettings:
         project = Project.from_template("TEST")
         project.settings.master_track = True
         assert project.settings.master_track is True
-
-    @pytest.mark.slow
-    def test_master_track_roundtrip(self, temp_dir):
-        """Test that master_track setting survives save/load."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-
-        # Save and reload
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
-
-        # Verify
-        assert loaded.settings.master_track is True
-
 
 class TestConfigureRecorderBuffer:
     """Tests for Project.configure_recorder_buffer() — eager replacement
@@ -728,6 +686,94 @@ class TestSettingsGroups:
         assert loaded.pattern_chain.auto_trig_lfos is True
 
 
+class TestProjectEndToEndRoundtrip:
+    """One comprehensive end-to-end roundtrip exercising the high-level
+    Project → ProjectFile → disk wiring across every settings group.
+
+    Replaces several smaller per-group roundtrip tests. Field-level encoding
+    is already validated at the ProjectFile level by
+    TestProjectSettingsFullCoverage.test_all_settings_fields_preserved; this
+    test verifies the Project ↔ ProjectFile glue.
+    """
+
+    @pytest.mark.slow
+    def test_grouped_settings_and_master_track_survive_save_load(self, temp_dir):
+        from octapy import Project
+
+        project = Project.from_template("TEST")
+
+        # Top-level
+        project.settings.tempo = 138.0
+        project.settings.master_track = True
+        project.settings.write_protected = True
+        project.settings.pattern_tempo_enabled = True
+
+        # MIDI group
+        project.settings.midi.clock_send = True
+        project.settings.midi.transport_receive = True
+        project.settings.midi.program_change_send = True
+        project.settings.midi.program_change_send_ch = 10
+        project.settings.midi.set_trig_channel(1, 9)
+        project.settings.midi.auto_channel = 5
+        project.settings.midi.soft_thru = 1
+
+        # Mixer group
+        project.settings.mixer.main_level = 100
+        project.settings.mixer.cue_level = 110
+        project.settings.mixer.phones_mix = 80
+
+        # Metronome group
+        project.settings.metronome.enabled = True
+        project.settings.metronome.cue_volume = 64
+        project.settings.metronome.pitch = 24
+
+        # Memory group
+        project.settings.memory.record_24bit = True
+        project.settings.memory.dynamic_recorders = True
+        project.settings.memory.reserved_recorder_count = 4
+
+        # Pattern-chain group
+        project.settings.pattern_chain.chain_behavior = 1
+        project.settings.pattern_chain.auto_trig_lfos = True
+
+        project.to_directory(temp_dir / "TEST")
+        loaded = Project.from_directory(temp_dir / "TEST")
+
+        # Top-level
+        assert loaded.settings.tempo == 138.0
+        assert loaded.settings.master_track is True
+        assert loaded.settings.write_protected is True
+        assert loaded.settings.pattern_tempo_enabled is True
+
+        # MIDI
+        assert loaded.settings.midi.clock_send is True
+        assert loaded.settings.midi.transport_receive is True
+        assert loaded.settings.midi.program_change_send is True
+        assert loaded.settings.midi.program_change_send_ch == 10
+        assert loaded.settings.midi.trig_channel(1) == 9
+        assert loaded.settings.midi.auto_channel == 5
+        assert loaded.settings.midi.soft_thru == 1
+
+        # Mixer
+        assert loaded.settings.mixer.main_level == 100
+        assert loaded.settings.mixer.cue_level == 110
+        assert loaded.settings.mixer.phones_mix == 80
+
+        # Metronome
+        assert loaded.settings.metronome.enabled is True
+        assert loaded.settings.metronome.cue_volume == 64
+        assert loaded.settings.metronome.pitch == 24
+
+        # Memory
+        assert loaded.settings.memory.record_24bit is True
+        assert loaded.settings.memory.dynamic_recorders is True
+        assert loaded.settings.memory.reserved_recorder_count == 4
+
+        # Pattern-chain
+        assert loaded.settings.pattern_chain.chain_behavior == 1
+        assert loaded.settings.pattern_chain.auto_trig_lfos is True
+
+
 class TestSceneIsBlank:
     """Tests for Scene.is_blank property."""
 
@@ -819,8 +865,7 @@ class TestRecorderSlices:
             with pytest.raises(ValueError, match="slices must be one of"):
                 project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=value)
 
-    @pytest.mark.slow
-    def test_slices_enables_slice_mode_on_all_parts(self, temp_dir):
+    def test_slices_enables_slice_mode_on_all_parts(self):
         """slices=N turns on slice mode for the recorder track across all parts."""
         from octapy import Project, RecordingSource
 
@@ -828,12 +873,9 @@ class TestRecorderSlices:
         project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
         project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
 
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
-
+        # Eager — observable immediately, no save needed.
         for part_num in range(1, 5):
-            track = loaded.bank(1).part(part_num).track(7)
-            assert track.setup.slice == 1
+            assert project.bank(1).part(part_num).track(7).setup.slice == 1
 
     def test_slices_places_trigs(self):
         """4 slices with RLEN=16 places trigs at 1, 5, 9, 13 in patterns with activity."""
