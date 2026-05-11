@@ -143,12 +143,13 @@ Note: Some performers use T4 instead of T7. Any track works.
 project = Project.from_template("MY PROJECT")
 project.settings.master_track = True
 
-# Configure T7 as transition buffer across all parts
+# Configure T7 as transition buffer across all banks/parts in one call.
+project.configure_recorder_buffer(7, RecordingSource.MAIN)
+
+# Per-part scene config still needs an explicit loop (scenes are per-part).
 for bank_num in range(1, 17):
-    bank = project.bank(bank_num)
     for part_num in range(1, 5):
-        part = bank.part(part_num)
-        part.track(7).configure_recorder(RecordingSource.MAIN)
+        part = project.bank(bank_num).part(part_num)
 
         # Scene 1: Normal playback (T1-6 loud, T7 silent)
         scene1 = part.scene(1)

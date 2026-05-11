@@ -89,27 +89,16 @@ The quantization function in `octapy/api/utils.py` snaps to the nearest valid va
 | Range | `arp_range` |
 | Note Length | `arp_note_length` |
 
-## Unified API Design
+## NoteLength enum
 
-The `NoteLength` enum is shared between:
-
-1. **MIDI note lengths** - `default_length`, `arp_note_length`, step p-locks
-2. **Sample duration** - `project.sample_duration` for normalization
-
-This unified approach ensures:
-- Consistent naming across audio and MIDI domains
-- Same musical concepts map to same enum values
-- Step-based timing (1/16 = 1 step) works identically everywhere
+`NoteLength` is used for MIDI note lengths (`default_length`, `arp_note_length`,
+step p-locks) and is shared with anything else in octapy that talks in musical
+subdivisions. Step-based timing (1/16 = 1 step) is the canonical unit.
 
 ```python
 from octapy import Project, NoteLength
 
 project = Project.from_template("MY PROJECT")
-
-# Sample normalization uses NoteLength
-project.sample_duration = NoteLength.EIGHTH  # 2 steps
-
-# MIDI tracks use the same enum
 midi_track = project.bank(1).part(1).midi_track(1)
 midi_track.default_length = NoteLength.EIGHTH  # 2 steps
 ```

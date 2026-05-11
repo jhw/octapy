@@ -1,4 +1,0 @@
-# octapy - Octatrack binary file I/O library
-
-# Core dependencies
-pydub>=0.25.0

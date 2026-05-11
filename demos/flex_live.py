@@ -221,7 +221,7 @@ def create_project(name: str, output_dir: Path) -> Path:
     project.to_zip(zip_path)
 
     print(f"\nTo copy to Octatrack, run:")
-    print(f"  ./tools/copy_project.py '{name}'")
+    print(f"  ./tools/sync.py push project '{name}'")
 
     return zip_path
 

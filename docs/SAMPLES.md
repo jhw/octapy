@@ -39,76 +39,15 @@ This path structure assumes the project is at the set root level and samples are
 
 ## Deployment to Octatrack
 
-The `tools/copy_project.py` script:
-
-1. Unpacks the project zip file
-2. Copies `.work` files to the project directory on the OT
-3. Copies samples to `AUDIO/projects/{PROJECT}/` on the OT
+Use the `tools/sync.py` script:
 
 ```bash
-./tools/copy_project.py "MY PROJECT"
+./tools/sync.py push project "MY PROJECT"
 ```
 
-This ensures the relative paths in project files correctly resolve to the deployed samples.
-
-## Sample Normalization
-
-### Purpose
-
-When using one-shot samples of varying lengths, inconsistent durations can cause rhythmic issues. Sample normalization ensures all samples have a consistent duration based on project tempo.
-
-### Configuration
-
-Set `sample_duration` via render settings:
-
-```python
-from octapy import Project, NoteLength
-
-project = Project.from_template("MY PROJECT")
-project.tempo = 120.0
-project.sample_duration = NoteLength.EIGHTH  # 2 steps = 250ms at 120 BPM
-```
-
-### Available Durations
-
-| NoteLength | Steps | Duration at 120 BPM |
-|------------|-------|---------------------|
-| THIRTY_SECOND | 0.5 | 62ms |
-| SIXTEENTH | 1 | 125ms |
-| EIGHTH | 2 | 250ms |
-| QUARTER | 4 | 500ms |
-| HALF | 8 | 1000ms |
-| WHOLE | 16 | 2000ms |
-
-Duration formula: `(ticks / 24) * (60 / bpm) * 1000` ms
-
-Where `ticks` is the NoteLength enum value (SIXTEENTH=6, EIGHTH=12, QUARTER=24, etc.)
-
-### Normalization Behavior
-
-When `sample_duration` is set:
-- **Long samples**: Trimmed to target duration with 3ms fade-out to avoid clicks
-- **Short samples**: Padded with silence to reach target duration
-- **Exact length samples**: Copied unchanged
-
-When `sample_duration` is `None`:
-- Samples are copied without modification
-
-### Example
-
-```python
-# At 124 BPM with SIXTEENTH duration:
-# Target = (6/24) * (60/124) * 1000 = 121ms
-
-project = Project.from_template("DRUMS")
-project.tempo = 124.0
-project.sample_duration = NoteLength.SIXTEENTH
-
-# All samples normalized to ~121ms when saved
-project.add_sample("path/to/kick.wav")
-project.add_sample("path/to/snare.wav")
-project.to_zip("output/DRUMS.zip")
-```
+This unpacks the zip file, copies the `.work` files to the project directory
+on the OT, and copies samples to `AUDIO/projects/{PROJECT}/` on the OT so the
+relative paths in the project files resolve correctly.
 
 ## Flex Machine Recommended Defaults
 
@@ -162,7 +101,7 @@ Samples can be played in reverse via the `rate` parameter on the SRC page (encod
 ### Usage
 
 ```python
-track = part.flex_track(1)
+track = part.track(1)
 
 # Play sample in reverse
 track.src.rate = 0
@@ -183,8 +122,8 @@ Reversal only works when `rate_mode` is set to PITCH (the default). If set to TS
 from octapy import RateMode
 
 # Check/set rate mode (via FUNC+SRC setup page)
-track.src_setup.rate_mode = RateMode.PITCH  # allows reverse (default)
-track.src_setup.rate_mode = RateMode.TSTR   # timestretch, no reverse
+track.setup.rate_mode = RateMode.PITCH  # allows reverse (default)
+track.setup.rate_mode = RateMode.TSTR   # timestretch, no reverse
 ```
 
 ## Step Probability
