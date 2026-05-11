@@ -88,7 +88,7 @@ that read/write the active machine's parameter block.
 - `ThruInput` — Input routing for Thru machines
 - `ScaleMode` — NORMAL, PER_TRACK (pattern length modes)
 
-See `demos/` for usage examples and `docs/SUPPORTED.md` for feature coverage.
+See `demos/` for usage examples.
 
 ### Low-Level File API (`octapy._io`)
 

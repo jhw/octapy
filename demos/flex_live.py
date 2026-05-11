@@ -2,7 +2,9 @@
 """
 Flex Live - Octatrack project configured for seamless live transitions.
 
-Uses the classic "transition trick" pattern documented in docs/RECORDERS.md.
+Uses the classic "transition trick" pattern: a Flex track plays its own
+recorder buffer; scenes crossfade between live tracks and the captured buffer
+to mask pattern/bank changes.
 
 Demo content:
 - Banks 1-2 with 4 parts and 16 patterns each
