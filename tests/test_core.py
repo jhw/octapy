@@ -1071,29 +1071,35 @@ class TestAudioPartTrackRecommendedDefaults:
         assert track.amp_volume == 100
         assert track.src.length == 127  # Still has recommended defaults
 
-    def test_apply_recommended_flex_defaults(self):
-        """apply_recommended_flex_defaults() sets octapy recommended values."""
+    def test_apply_recommended_defaults_flex(self):
+        """apply_recommended_defaults(FLEX) sets octapy recommended values."""
         track = AudioPartTrack(machine_type=MachineType.FLEX)
-
-        # Default (template) length is 0
-        assert track.src.length == 0
-
-        track.apply_recommended_flex_defaults()
-
-        # Now should be 127
+        assert track.src.length == 0  # template default
+        track.apply_recommended_defaults(MachineType.FLEX)
         assert track.src.length == 127
 
-    def test_apply_recommended_static_defaults(self):
-        """apply_recommended_static_defaults() sets octapy recommended values."""
+    def test_apply_recommended_defaults_static(self):
+        """apply_recommended_defaults(STATIC) sets octapy recommended values."""
         track = AudioPartTrack(machine_type=MachineType.STATIC)
-
-        # Default (template) length is 0
         assert track.src.length == 0
-
-        track.apply_recommended_static_defaults()
-
-        # Now should be 127
+        track.apply_recommended_defaults(MachineType.STATIC)
         assert track.src.length == 127
+
+    def test_apply_recommended_defaults_uses_current_machine_type_by_default(self):
+        """Omitting the argument uses the track's current machine_type."""
+        track = AudioPartTrack(machine_type=MachineType.STATIC)
+        track.apply_recommended_defaults()  # no arg
+        assert track.src.length == 127
+
+    def test_apply_recommended_defaults_rejects_non_sampler(self):
+        """THRU/NEIGHBOR/PICKUP have no recommended SRC defaults."""
+        track = AudioPartTrack(machine_type=MachineType.THRU)
+        with pytest.raises(ValueError):
+            track.apply_recommended_defaults(MachineType.THRU)
+        with pytest.raises(ValueError):
+            track.apply_recommended_defaults(MachineType.NEIGHBOR)
+        with pytest.raises(ValueError):
+            track.apply_recommended_defaults(MachineType.PICKUP)
 
     def test_configure_static_applies_defaults(self):
         """configure_static() applies recommended defaults like configure_flex()."""

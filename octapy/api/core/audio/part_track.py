@@ -249,12 +249,19 @@ class AudioPartTrack:
             flex_slot=flex_slot,
             **kwargs,
         )
-        track.apply_recommended_flex_defaults()
+        track.apply_recommended_defaults(MachineType.FLEX)
         return track
 
-    def apply_recommended_flex_defaults(self):
+    # Only Flex and Static have a meaningful SRC page that benefits from the
+    # octapy recommended overrides (length=127, length_mode=TIME, loop=OFF).
+    _RECOMMENDED_DEFAULTS_MACHINES = {
+        MachineType.FLEX: MachineParamsOffset.FLEX,
+        MachineType.STATIC: MachineParamsOffset.STATIC,
+    }
+
+    def apply_recommended_defaults(self, machine_type: MachineType = None):
         """
-        Apply octapy recommended defaults for Flex machine SRC page.
+        Apply octapy recommended SRC defaults for a sampler machine.
 
         Sets:
         - length = 127 (full sample length)
@@ -262,41 +269,25 @@ class AudioPartTrack:
         - loop = OFF
 
         These differ from OT machine defaults and are optimized for
-        one-shot sample playback.
+        one-shot sample playback. Only Flex and Static use these
+        overrides; other machine types raise ValueError.
 
-        Note: Only affects FLEX machine parameters. Call this after
-        setting machine_type to FLEX.
+        Args:
+            machine_type: FLEX or STATIC. Defaults to this track's
+                current machine_type if omitted.
         """
-        # Apply octapy recommended SRC values (includes length=127)
-        offset = TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.FLEX
-        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
-
-        # Apply octapy recommended SRC setup (includes length_mode=TIME, loop=OFF)
-        offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
-        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
-
-    def apply_recommended_static_defaults(self):
-        """
-        Apply octapy recommended defaults for Static machine SRC page.
-
-        Sets:
-        - length = 127 (full sample length)
-        - length_mode = TIME
-        - loop = OFF
-
-        These differ from OT machine defaults and are optimized for
-        one-shot sample playback.
-
-        Note: Only affects STATIC machine parameters. Call this after
-        setting machine_type to STATIC.
-        """
-        # Apply octapy recommended SRC values (includes length=127)
-        offset = TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.STATIC
-        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
-
-        # Apply octapy recommended SRC setup (includes length_mode=TIME, loop=OFF)
-        offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.STATIC
-        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
+        if machine_type is None:
+            machine_type = self.machine_type
+        try:
+            machine_offset = self._RECOMMENDED_DEFAULTS_MACHINES[machine_type]
+        except KeyError:
+            raise ValueError(
+                f"apply_recommended_defaults only supports FLEX or STATIC, got {machine_type}"
+            )
+        values_offset = TrackDataOffset.MACHINE_PARAMS_VALUES + machine_offset
+        self._data[values_offset:values_offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
+        setup_offset = TrackDataOffset.MACHINE_PARAMS_SETUP + machine_offset
+        self._data[setup_offset:setup_offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
     def configure_flex(self, slot: int) -> None:
         """
@@ -318,7 +309,7 @@ class AudioPartTrack:
             raise ValueError(f"slot must be 1-128, got {slot}")
         self.machine_type = MachineType.FLEX
         self.flex_slot = slot - 1  # Convert to 0-indexed
-        self.apply_recommended_flex_defaults()
+        self.apply_recommended_defaults(MachineType.FLEX)
 
     def configure_static(self, slot: int) -> None:
         """
@@ -340,7 +331,7 @@ class AudioPartTrack:
             raise ValueError(f"slot must be 1-128, got {slot}")
         self.machine_type = MachineType.STATIC
         self.static_slot = slot - 1  # Convert to 0-indexed
-        self.apply_recommended_static_defaults()
+        self.apply_recommended_defaults(MachineType.STATIC)
 
     def configure_recorder(self, source: "RecordingSource",
                            rlen: int = None, loop: bool = False) -> None:
@@ -378,7 +369,7 @@ class AudioPartTrack:
 
         self.machine_type = MachineType.FLEX
         self.recorder_slot = self._track_num - 1  # Track N -> buffer N (0-indexed)
-        self.apply_recommended_flex_defaults()
+        self.apply_recommended_defaults(MachineType.FLEX)
         if loop:
             self.setup.loop = 1
         self.recorder.source = source
