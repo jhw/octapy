@@ -86,119 +86,74 @@ Parts become valuable when you intentionally want different configurations:
 - Part 3: Pitch/tempo variations
 - Part 4: Breakdown scenes
 
-## The Octapy Solution
+## Working with Parts in octapy
 
-Octapy's render settings let you **configure Part 1 once** and **propagate selectively** to Parts 2-4:
-
-```python
-# Propagate everything (Parts 2-4 mirror Part 1)
-project.render_settings.propagate_src = True
-project.render_settings.propagate_fx = True
-project.render_settings.propagate_scenes = True
-```
-
-This eliminates the copy-paste burden while preserving the ability to use Parts intentionally.
-
-### Selective Propagation
-
-You can enable propagation for some settings but not others:
-
-**Example 1: Same machines, different FX**
-```python
-project.render_settings.propagate_src = True    # Same sample playback
-project.render_settings.propagate_scenes = True # Same scene behavior
-# propagate_fx = False (default) - configure FX per Part manually
-```
-
-Result: 8 machine configurations, 16 scenes, but 32 unique FX setups (8 × 4 Parts).
-
-**Example 2: Same FX and scenes, different machines**
-```python
-project.render_settings.propagate_fx = True
-project.render_settings.propagate_scenes = True
-# propagate_src = False - configure machines per Part manually
-```
-
-Result: Different sample assignments per Part, but consistent FX and scene behavior.
-
-**Example 3: Maximum variety**
-```python
-# All propagation disabled (defaults)
-# Configure each Part independently
-```
-
-Result: Full access to 32 machine configs, 32 FX setups, 64 scenes per bank.
-
-## Practical Patterns
+Octapy gives you direct access to each Part — there is no
+"configure Part 1 and propagate" magic. The Python loop is your
+propagation mechanism, and that's enough for most workflows.
 
 ### Pattern: Consistent Sound Design
 
-Most common use case - you want Parts only for live Part-switching effects (reload, mute state, etc.), not for different sounds.
+Most common case — you want all 4 Parts to share machines, FX, and
+scenes, using Parts only for live Part-switching effects:
 
 ```python
-project.render_settings.propagate_src = True
-project.render_settings.propagate_fx = True
-project.render_settings.propagate_scenes = True
+for part_num in range(1, 5):
+    part = bank.part(part_num)
+    for track_num, slot in enumerate(slots, start=1):
+        part.track(track_num).configure_flex(slot)
 ```
-
-Configure Part 1 completely, Parts 2-4 automatically mirror it.
 
 ### Pattern: 32 Flex Machines
 
-Use all 4 Parts to access 32 different samples (8 per Part) while maintaining consistent FX and scenes.
+Use all 4 Parts as independent 8-machine banks (32 samples total per
+bank, switched live by changing Part):
 
 ```python
-project.render_settings.propagate_fx = True
-project.render_settings.propagate_scenes = True
-
-# Part 1: Drums kit A (tracks 1-8)
-# Part 2: Drums kit B (tracks 1-8)
-# Part 3: Melodic samples (tracks 1-8)
-# Part 4: FX/texture samples (tracks 1-8)
+kits = [drums_a, drums_b, melodic, fx]
+for part_num, kit in enumerate(kits, start=1):
+    part = bank.part(part_num)
+    for track_num, slot in enumerate(kit, start=1):
+        part.track(track_num).configure_flex(slot)
 ```
 
-Switching Parts changes all samples but FX and scenes remain consistent.
-
-### Pattern: FX Variations
-
-Use Parts for dramatic sound changes via different FX, while keeping the same samples.
+### Pattern: Same machines, different FX per Part
 
 ```python
-project.render_settings.propagate_src = True
-project.render_settings.propagate_scenes = True
-
-# Part 1: Clean, dry sound
-# Part 2: Heavy reverb on all tracks
-# Part 3: Distortion and bitcrushing
-# Part 4: Filter sweeps and delays
+for part_num in range(1, 5):
+    part = bank.part(part_num)
+    # Same flex slots in every part
+    for t in range(1, 9):
+        part.track(t).configure_flex(slots[t - 1])
+    # Different FX2 type per part
+    part.track(1).fx2_type = (FX2Type.PLATE_REVERB if part_num == 2
+                              else FX2Type.OFF)
 ```
 
-### Pattern: Scene Banks
+### Pattern: Scene banks
 
-Use Parts to access 64 scenes (16 per Part) for maximum crossfader expression.
+Each Part has its own 16 scenes, so 4 Parts gives you 64 scenes worth
+of crossfader expression:
 
 ```python
-project.render_settings.propagate_src = True
-project.render_settings.propagate_fx = True
-
-# Part 1: Scenes 1-16 for verse
-# Part 2: Scenes 1-16 for chorus
-# Part 3: Scenes 1-16 for breakdown
-# Part 4: Scenes 1-16 for build/drop
+for part_num in range(1, 5):
+    part = bank.part(part_num)
+    for scene_num in range(1, 17):
+        scene = part.scene(scene_num)
+        # ... configure scene locks
 ```
 
 ## Interaction with Master Track
 
-T8 is automatically excluded from `propagate_src` and `propagate_fx` when `master_track` is enabled, preserving its dedicated configuration.
+When `settings.master_track = True`, track 8 receives the summed output
+of tracks 1–7. Octapy handles two save-time side effects:
 
-## Summary
+- A step-1 trig is auto-added to track 8 in every pattern with audio
+  activity on tracks 1–7.
+- Any recorder source set to `TRACK_8` is rewritten to `MAIN` at save
+  time (the OT can't actually record track 8 output when track 8 is
+  the master).
 
-| Approach | Machine Configs | FX Configs | Scenes | Use Case |
-|----------|-----------------|------------|--------|----------|
-| Full propagation | 8 | 8 | 16 | Consistent sound, simple setup |
-| Machines only | 32 | 8 | 16 | Multiple sample kits |
-| FX only | 8 | 32 | 16 | Sound design variations |
-| Scenes only | 8 | 8 | 64 | Maximum crossfader expression |
-| No propagation | 32 | 32 | 64 | Full complexity, manual management |
-
-Octapy's render settings let you choose your position on this spectrum, gaining the benefits of Parts without the copy-paste burden.
+You can still configure track 8 like any other track — these fixups
+just ensure the master chain actually carries audio. See
+[render-settings.md](render-settings.md) for details.

@@ -204,8 +204,9 @@ def create_project(name: str, output_dir: Path) -> Path:
     # Enable master track (track 8 receives summed output of tracks 1-7)
     project.settings.master_track = True
 
-    # Configure render settings (octapy-specific, not saved to OT files)
-    project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+    # Configure track 7 as a recorder buffer across every bank/part.
+    # Eager — fully applied at this point; no save-time deferral.
+    project.configure_recorder_buffer(7, RecordingSource.MAIN)
 
     # Configure Banks 1 and 2
     print(f"\nConfiguring Banks 1-2:")

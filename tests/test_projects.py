@@ -534,64 +534,61 @@ class TestMasterTrackSettings:
         assert loaded.settings.master_track is True
 
 
-class TestRenderSettings:
-    """Tests for octapy RenderSettings property access."""
+class TestConfigureRecorderBuffer:
+    """Tests for Project.configure_recorder_buffer() — eager replacement
+    for the old render_settings.recorder_track / recorder_slices pair."""
 
-    def test_render_settings_accessible(self):
-        """Test render_settings is accessible on project."""
+    def _project(self):
         from octapy import Project
+        return Project.from_template("TEST")
 
-        project = Project.from_template("TEST")
-        assert project.render_settings is not None
-
-    def test_recorder_track_conflicts_with_master_track(self, temp_dir):
-        """Test that recorder_track on track 8 conflicts with master_track."""
-        from octapy import Project, RecordingSource
-
-        project = Project.from_template("TEST")
-        project.settings.master_track = True
-        project.render_settings.recorder_track = (8, RecordingSource.MAIN)
-
-        with pytest.raises(ValueError, match="recorder_track cannot use track 8"):
-            project.to_directory(temp_dir / "TEST")
-
-    def test_recorder_track_default_none(self):
-        """Test recorder_track defaults to None."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        assert project.render_settings.recorder_track is None
-
-    def test_recorder_track_can_be_set(self):
-        """Test recorder_track can be set and read back."""
-        from octapy import Project, RecordingSource
-
-        project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
-        assert project.render_settings.recorder_track == (7, RecordingSource.MAIN)
-
-    @pytest.mark.slow
-    def test_recorder_track_applies_to_all_parts(self, temp_dir):
-        """Test recorder_track configures all parts in all used banks."""
-        from octapy import Project, RecordingSource
+    def test_eager_configures_all_64_part_tracks(self):
+        """One call configures the named track across every bank/part."""
+        from octapy import RecordingSource
         from octapy.api.enums import MachineType
 
-        project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.TRACK_8)
+        project = self._project()
+        project.configure_recorder_buffer(7, RecordingSource.MAIN)
 
-        # Add some activity to bank 1 so it's a real bank
-        project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+        for bank_num in range(1, 17):
+            for part_num in range(1, 5):
+                track = project.bank(bank_num).part(part_num).track(7)
+                assert track.machine_type == MachineType.FLEX
+                assert track.recorder.source == RecordingSource.MAIN
 
-        # Save and reload
-        project.to_directory(temp_dir / "TEST")
-        loaded = Project.from_directory(temp_dir / "TEST")
+    def test_immediately_visible_in_project_state(self):
+        """Post-call inspection shows the configured state — no save needed."""
+        from octapy import RecordingSource
 
-        # Verify all 4 parts in bank 1 have track 7 configured as recorder
-        for part_num in range(1, 5):
-            track = loaded.bank(1).part(part_num).track(7)
-            assert track.machine_type == MachineType.FLEX, (
-                f"Bank 1, Part {part_num}: expected FLEX, got {track.machine_type}"
-            )
+        project = self._project()
+        # Default recorder.source is OFF (octapy baseline)
+        assert project.bank(1).part(1).track(7).recorder.source == RecordingSource.OFF
+
+        project.configure_recorder_buffer(7, RecordingSource.MAIN)
+        assert project.bank(1).part(1).track(7).recorder.source == RecordingSource.MAIN
+
+    def test_track_8_rejected_when_master_track_enabled(self):
+        """Validation happens at the call site, not at save time."""
+        from octapy import RecordingSource
+
+        project = self._project()
+        project.settings.master_track = True
+        with pytest.raises(ValueError, match="track 8.*master_track"):
+            project.configure_recorder_buffer(8, RecordingSource.MAIN)
+
+    def test_invalid_track_rejected(self):
+        from octapy import RecordingSource
+
+        project = self._project()
+        with pytest.raises(ValueError):
+            project.configure_recorder_buffer(0, RecordingSource.MAIN)
+        with pytest.raises(ValueError):
+            project.configure_recorder_buffer(9, RecordingSource.MAIN)
+
+    def test_invalid_source_type_rejected(self):
+        project = self._project()
+        with pytest.raises(TypeError):
+            project.configure_recorder_buffer(7, "MAIN")  # not an enum value
 
 
 class TestSettingsGroups:
@@ -790,147 +787,98 @@ class TestSampleCopy:
 
 
 class TestRecorderSlices:
-    """Tests for recorder_slices render setting."""
+    """Tests for the slices=N kwarg on configure_recorder_buffer().
 
-    def test_recorder_slices_default_none(self):
-        """Test recorder_slices defaults to None."""
-        from octapy import Project
+    Workflow: set pattern activity FIRST, then call configure_recorder_buffer
+    last — slice-trig placement is activity-dependent and runs eagerly.
+    """
 
-        project = Project.from_template("TEST")
-        assert project.render_settings.recorder_slices is None
+    def test_slices_valid_values_that_divide_rlen(self):
+        """Valid slice counts that divide the octapy-default RLEN=16 apply cleanly."""
+        from octapy import Project, RecordingSource
 
-    def test_recorder_slices_valid_values(self):
-        """Test recorder_slices accepts all valid values."""
-        from octapy import Project
+        # Octapy default RLEN is 16. Slice values 2, 4, 8, 16 divide it evenly.
+        for value in [2, 4, 8, 16]:
+            project = Project.from_template("TEST")
+            project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=value)
 
-        project = Project.from_template("TEST")
-        for value in [2, 4, 8, 16, 32, 64]:
-            project.render_settings.recorder_slices = value
-            assert project.render_settings.recorder_slices == value
-
-    def test_recorder_slices_invalid_value(self):
-        """Test recorder_slices rejects invalid values."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        for value in [3, 5, 6, 7, 10, 128]:
-            with pytest.raises(ValueError, match="recorder_slices must be one of"):
-                project.render_settings.recorder_slices = value
-
-    def test_recorder_slices_requires_recorder_track(self, temp_dir):
-        """Test recorder_slices raises ValueError without recorder_track."""
-        from octapy import Project
-
-        project = Project.from_template("TEST")
-        project.render_settings.recorder_slices = 4
-
-        with pytest.raises(ValueError, match="recorder_slices requires recorder_track"):
-            project.to_directory(temp_dir / "TEST")
-
-    @pytest.mark.slow
-    def test_recorder_slices_sets_slice_mode(self, temp_dir):
-        """Test recorder_slices enables slice mode on all parts."""
+    def test_slices_must_divide_rlen(self):
+        """slices=32 or 64 raises ValueError when RLEN=16 (octapy default)."""
         from octapy import Project, RecordingSource
 
         project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
-        project.render_settings.recorder_slices = 4
+        with pytest.raises(ValueError, match="does not divide evenly"):
+            project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=32)
 
-        # Add activity so trigs get placed
+    def test_slices_invalid_value(self):
+        """Non-power-of-two slice counts (and similar) are rejected."""
+        from octapy import Project, RecordingSource
+
+        for value in [3, 5, 6, 7, 10, 128]:
+            project = Project.from_template("TEST")
+            with pytest.raises(ValueError, match="slices must be one of"):
+                project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=value)
+
+    @pytest.mark.slow
+    def test_slices_enables_slice_mode_on_all_parts(self, temp_dir):
+        """slices=N turns on slice mode for the recorder track across all parts."""
+        from octapy import Project, RecordingSource
+
+        project = Project.from_template("TEST")
         project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+        project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
 
-        # Save and reload
         project.to_directory(temp_dir / "TEST")
         loaded = Project.from_directory(temp_dir / "TEST")
 
-        # Verify slice mode is ON for all parts in bank 1
         for part_num in range(1, 5):
             track = loaded.bank(1).part(part_num).track(7)
-            assert track.setup.slice == 1, (
-                f"Part {part_num}: expected slice=1, got {track.setup.slice}"
-            )
+            assert track.setup.slice == 1
 
-    def test_recorder_slices_places_trigs(self):
-        """Test 4 slices with RLEN=16 places trigs at 1, 5, 9, 13."""
+    def test_slices_places_trigs(self):
+        """4 slices with RLEN=16 places trigs at 1, 5, 9, 13 in patterns with activity."""
         from octapy import Project, RecordingSource
 
         project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
-        project.render_settings.recorder_slices = 4
-
-        # Add activity on track 1
         project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+        project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
 
-        # Apply render settings (triggered by save)
-        project._apply_render_settings()
-
-        # Check trigs on the recorder track
         rec_track = project.bank(1).pattern(1).audio_track(7)
         assert rec_track.active_steps == [1, 5, 9, 13]
 
-    def test_recorder_slices_sets_strt_plocks(self):
-        """Test 4 slices sets slice_index p-locks to 0, 1, 2, 3."""
+    def test_slices_sets_strt_plocks(self):
+        """4 slices sets slice_index p-locks to 0, 1, 2, 3."""
         from octapy import Project, RecordingSource
 
         project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
-        project.render_settings.recorder_slices = 4
-
-        # Add activity on track 1
         project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+        project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
 
-        # Apply render settings
-        project._apply_render_settings()
-
-        # Check slice_index p-locks
         rec_track = project.bank(1).pattern(1).audio_track(7)
         for i, step_num in enumerate([1, 5, 9, 13]):
-            step = rec_track.step(step_num)
-            assert step.slice_index == i, (
-                f"Step {step_num}: expected slice_index={i}, got {step.slice_index}"
-            )
+            assert rec_track.step(step_num).slice_index == i
 
-    def test_recorder_slices_no_trigs_in_empty_patterns(self):
-        """Test no trigs are placed in patterns without activity."""
+    def test_slices_no_trigs_in_empty_patterns(self):
+        """Patterns with no activity get no recorder-track trigs."""
         from octapy import Project, RecordingSource
 
         project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
-        project.render_settings.recorder_slices = 4
+        # No activity added.
+        project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
 
-        # Don't add any activity - all patterns are empty
-
-        # Apply render settings
-        project._apply_render_settings()
-
-        # Check no trigs on recorder track in any pattern
         for pattern_num in range(1, 17):
             rec_track = project.bank(1).pattern(pattern_num).audio_track(7)
-            assert rec_track.active_steps == [], (
-                f"Pattern {pattern_num}: expected no trigs, got {rec_track.active_steps}"
-            )
+            assert rec_track.active_steps == []
 
-    def test_recorder_slices_8_trig_positions(self):
-        """Test 8 slices with RLEN=16 places trigs at 1, 3, 5, 7, 9, 11, 13, 15."""
+    def test_slices_8_trig_positions(self):
+        """8 slices with RLEN=16 places trigs at 1, 3, 5, 7, 9, 11, 13, 15."""
         from octapy import Project, RecordingSource
 
         project = Project.from_template("TEST")
-        project.render_settings.recorder_track = (7, RecordingSource.MAIN)
-        project.render_settings.recorder_slices = 8
-
-        # Add activity on track 1
         project.bank(1).pattern(1).audio_track(1).active_steps = [1]
+        project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=8)
 
-        # Apply render settings
-        project._apply_render_settings()
-
-        # Check trigs
         rec_track = project.bank(1).pattern(1).audio_track(7)
         assert rec_track.active_steps == [1, 3, 5, 7, 9, 11, 13, 15]
-
-        # Check slice_index p-locks: 0, 1, 2, 3, 4, 5, 6, 7
         for i, step_num in enumerate([1, 3, 5, 7, 9, 11, 13, 15]):
-            step = rec_track.step(step_num)
-            assert step.slice_index == i, (
-                f"Step {step_num}: expected slice_index={i}, got {step.slice_index}"
-            )
+            assert rec_track.step(step_num).slice_index == i

@@ -1,63 +1,65 @@
-# Render Settings
+# Save-time and configuration helpers
 
-Render settings are octapy-specific transformations applied when saving a project. They are **not saved to Octatrack files** - they control how octapy processes and generates project data at save time.
+Octapy applies two kinds of project-wide transformations:
 
-## Settings Overview
+1. **Eager configuration helpers** — methods on `Project` that scatter their
+   effect across all banks and parts immediately when called.
+2. **Save-time finalisation** — a small set of fixups keyed off
+   `settings.master_track` that run inside `to_directory()` / `to_zip()`.
 
-| Setting | Purpose | Scope |
-|---------|---------|-------|
-| `recorder_track` | Configure a track as recorder buffer | All banks/parts |
-| `recorder_slices` | Pre-configure N equal slices on recorder buffer | Per Pattern |
-| `sample_duration` | Normalize sample lengths to target | Sample processing |
+There is no longer a separate `RenderSettings` object; the surface is just
+methods and settings on `Project`.
 
-## Automatic Behavior
-
-### Master Track Trig
-
-When `project.settings.master_track = True`, octapy automatically adds a step 1 trig to track 8 in any pattern with audio activity on tracks 1-7. This ensures the master track processes audio without manual trig management.
-
-No setting is required — enabling the master track is sufficient.
-
-## Usage
+## Eager helper: `configure_recorder_buffer`
 
 ```python
+from octapy import Project, RecordingSource
+
 project = Project.from_template("MY PROJECT")
-
-# Enable master track (T8 receives sum of T1-7, auto-trig added)
-project.settings.master_track = True
-
-# Configure render settings
-project.render_settings.sample_duration = NoteLength.EIGHTH
+project.configure_recorder_buffer(7, RecordingSource.MAIN)
 ```
 
-### sample_duration
+After this call, every part of every bank has track 7 set up as a Flex
+machine playing its own recorder buffer, with `MAIN` as the recording
+source. The change is fully applied and observable in `project` state —
+no save needed.
 
-Normalizes sample lengths to a target duration based on project BPM.
+Pass `slices=N` to additionally:
 
-**Values**:
-- `NoteLength.SIXTEENTH` - 1 step (1/16th note)
-- `NoteLength.EIGHTH` - 2 steps (default)
-- `NoteLength.QUARTER` - 4 steps (1 beat)
-- `NoteLength.HALF` - 8 steps
-- `NoteLength.WHOLE` - 16 steps (1 bar)
-- `None` - No normalization
-
-See [SAMPLES.md](SAMPLES.md) for details on sample normalization.
-
-### recorder_track
-
-Configure a track as a recorder buffer across all parts/banks.
+- Slice the recorder buffer into N equal pieces (writes `markers.work`).
+- Enable slice mode for the recorder track in every part.
+- Place N evenly-spaced trigs with `slice_index` p-locks in every pattern
+  that already has activity on the other tracks.
 
 ```python
-project.render_settings.recorder_track = (7, RecordingSource.MAIN)
+# 1. Build your patterns first
+project.bank(1).pattern(1).audio_track(1).active_steps = [1, 5, 9, 13]
+
+# 2. Then configure the recorder buffer
+project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
 ```
 
-### recorder_slices
+Constraints:
+- `track` must be 1–8. Cannot be 8 when `settings.master_track` is enabled.
+- `slices` must be one of `{2, 4, 8, 16, 32, 64}`.
+- The recorder `rlen` (default 16) must divide evenly by `slices`.
+- Slice trigs are placed eagerly — call `configure_recorder_buffer` *after*
+  setting pattern activity, not before.
 
-Pre-configure slices on the recorder buffer with evenly-spaced trigs.
+## Save-time finalisation
 
-```python
-project.render_settings.recorder_slices = 16  # 2, 4, 8, 16, 32, or 64
-```
+When `settings.master_track = True` the save pipeline runs two narrow
+fixups that have to be late-bound (they react to patterns and recorder
+sources you may have set at any point):
 
-Requires `recorder_track` to be set. See [RECORDERS.md](RECORDERS.md) for the complete workflow.
+- **Auto master trig.** For every pattern with audio activity on tracks
+  1–7, a step-1 trig is added to track 8 so the master chain actually
+  processes audio.
+- **TRACK_8 → MAIN substitution.** Any recorder source set to `TRACK_8`
+  is rewritten to `MAIN` at save time. The OT can't record track 8
+  output when track 8 is the master; this lets you write `TRACK_8` as a
+  logical reference and not worry about the hardware quirk.
+
+These run automatically inside `project.to_directory()` and
+`project.to_zip()`. There is no public flag or knob — they're triggered
+by `master_track` alone.

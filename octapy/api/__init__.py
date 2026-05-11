@@ -47,5 +47,5 @@ from .core import (
     Project,
 )
 
-from .settings import Settings, RenderSettings
+from .settings import Settings
 from .sample_pool import SamplePool

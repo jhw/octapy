@@ -84,7 +84,6 @@ from .api import (
     Project,
     # Settings
     Settings,
-    RenderSettings,
     # Utilities
     SamplePool,
 )
@@ -111,7 +110,6 @@ __all__ = [
     "SamplePool",
     "AudioRecorderSetup",
     "Settings",
-    "RenderSettings",
     # Enums
     "MachineType",
     "ThruInput",

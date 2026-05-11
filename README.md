@@ -41,7 +41,7 @@ Project
 ```
 octapy/api/
 ├── enums.py            # MachineType, TrigCondition, NoteLength, MidiNote, FX types, etc.
-├── settings.py         # Settings, RenderSettings (project-level)
+├── settings.py         # Settings (project-level — grouped under mixer/midi/metronome/memory/pattern_chain)
 ├── sample_pool.py      # SamplePool for loading samples
 ├── slot_manager.py     # Sample slot management
 ├── utils.py            # Quantization utilities

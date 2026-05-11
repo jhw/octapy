@@ -17,7 +17,7 @@ from ..._io import (
     zip_project,
     unzip_project,
 )
-from ..settings import Settings, RenderSettings
+from ..settings import Settings
 from ..slot_manager import SlotManager
 from .bank import Bank
 
@@ -96,9 +96,12 @@ class Project:
         # Temp directory reference (kept alive when loading from zip)
         self._temp_dir = None
 
-        # Octapy rendering settings (not saved to OT files)
-        self._render_settings = RenderSettings()
         self._settings = None  # Lazily initialized
+
+        # Tracks (track_num, source) if configure_recorder_buffer was called.
+        # Used by _save_finalize to skip the auto-master-trig fixup on the
+        # recorder track itself.
+        self._recorder_buffer_track: Optional[int] = None
 
     @classmethod
     def from_template(cls, name: str, audio_subdir: str = "projects") -> "Project":
@@ -128,8 +131,8 @@ class Project:
         instance._sample_pool = {}
         instance._slot_manager = SlotManager()
         instance._temp_dir = None
-        instance._render_settings = RenderSettings()
         instance._settings = None
+        instance._recorder_buffer_track = None
 
         # Load all 16 banks from template with octapy defaults
         for i in range(1, 17):
@@ -163,8 +166,8 @@ class Project:
         instance._sample_pool = {}
         instance._slot_manager = SlotManager()
         instance._temp_dir = None
-        instance._render_settings = RenderSettings()
         instance._settings = None
+        instance._recorder_buffer_track = None
 
         # Load project.work
         project_work = path / "project.work"
@@ -258,190 +261,175 @@ class Project:
 
         return instance
 
-    def _apply_render_settings(self) -> None:
+    # =========================================================================
+    # Configuration helpers (eager — applied immediately, no save-time deferral)
+    # =========================================================================
+
+    def configure_recorder_buffer(
+        self,
+        track: int,
+        source: "RecordingSource",
+        slices: Optional[int] = None,
+    ) -> None:
         """
-        Apply render settings to all banks before saving.
+        Configure a track as a recorder buffer across every bank and part.
 
-        This method is called automatically during to_directory/to_zip.
-        It applies octapy-specific transformations based on render_settings.
+        Sets the given track as a Flex machine playing its own recorder
+        buffer, with the given recording source, in all 4 parts of all
+        16 banks. Optionally pre-divides the buffer into N equal slices,
+        enables slice mode, and places trigs with slice_index p-locks in
+        every pattern that has activity on the other tracks.
+
+        Args:
+            track: Track number (1-8). Cannot be 8 when master_track is enabled.
+            source: Recording source (use the RecordingSource enum).
+            slices: If set, divide the buffer into N equal slices and place
+                trigs with slice_index p-locks. Must be one of 2, 4, 8, 16,
+                32, or 64. RLEN must divide evenly by `slices`.
+
+        Usage:
+            from octapy import Project, RecordingSource
+            project = Project.from_template("MY PROJECT")
+            project.configure_recorder_buffer(7, RecordingSource.MAIN)
+
+            # With slice grid:
+            project.configure_recorder_buffer(7, RecordingSource.MAIN, slices=4)
         """
-        rs = self._render_settings
+        from ..enums import RecordingSource as _RS
 
-        # Validate conflicting settings
-        if rs.recorder_track is not None and self.master_track:
-            rec_track_num = rs.recorder_track[0]
-            if rec_track_num == 8:
-                raise ValueError(
-                    "recorder_track cannot use track 8 when master_track is enabled"
-                )
+        if not isinstance(track, int) or not 1 <= track <= 8:
+            raise ValueError(f"track must be 1-8, got {track}")
+        if not isinstance(source, _RS):
+            raise TypeError(f"source must be a RecordingSource, got {type(source).__name__}")
+        if track == 8 and self.master_track:
+            raise ValueError("recorder buffer cannot use track 8 when master_track is enabled")
+        if slices is not None:
+            valid = {2, 4, 8, 16, 32, 64}
+            if slices not in valid:
+                raise ValueError(f"slices must be one of {sorted(valid)}, got {slices}")
 
-        # Validate recorder_slices requires recorder_track
-        if rs.recorder_slices is not None and rs.recorder_track is None:
-            raise ValueError("recorder_slices requires recorder_track to be set")
-
-        # Apply recorder track first (configures machine type before other steps)
-        if rs.recorder_track is not None:
-            self._apply_recorder_track()
-
-        # Apply recorder slices (after recorder_track)
-        if rs.recorder_slices is not None:
-            self._apply_recorder_slices()
-
-        # Auto-add master trig when master track is enabled
-        if self.master_track:
-            self._apply_auto_master_trig()
-
-        # Fix up recorder sources: TRACK_8 → MAIN when master track is enabled
-        if self.master_track:
-            self._fixup_recorder_sources()
-
-    def _fixup_recorder_sources(self) -> None:
-        """
-        Substitute TRACK_8 → MAIN for recorder sources when master track is enabled.
-
-        On the Octatrack, when track 8 is the master track, recording from
-        TRACK_8 doesn't capture the master output. The correct source is MAIN.
-        This fixup runs at save time so callers can use TRACK_8 as a logical
-        reference without needing to know about this hardware quirk.
-        """
-        from ..enums import RecordingSource
+        # 1. Configure machine type + recorder source in every part of every bank.
         for bank in self._banks.values():
             for part_num in range(1, 5):
-                part = bank.part(part_num)
-                for track_num in range(1, 9):
-                    track = part.track(track_num)
-                    if track.recorder.source == RecordingSource.TRACK_8:
-                        track.recorder.source = RecordingSource.MAIN
+                bank.part(part_num).track(track).configure_recorder(source)
 
-    def _apply_recorder_track(self) -> None:
+        # Remember the recorder track so _save_finalize can skip it when
+        # auto-adding master trigs (otherwise the recorder's own trig would
+        # collide with the auto-master-trig logic).
+        self._recorder_buffer_track = track
+
+        # 2. If a slice grid was requested, apply it now.
+        if slices is not None:
+            self._apply_recorder_slices(track, slices)
+
+    def _apply_recorder_slices(self, track: int, num_slices: int) -> None:
         """
-        Configure the recorder track across all banks and parts.
+        Slice the recorder buffer + place evenly-spaced trigs with slice_index p-locks.
 
-        Iterates all banks, all 4 parts, and calls configure_recorder(source)
-        on the specified track number.
-        """
-        track_num, source = self._render_settings.recorder_track
-        for bank in self._banks.values():
-            for part_num in range(1, 5):
-                part = bank.part(part_num)
-                part.track(track_num).configure_recorder(source)
-
-    def _apply_recorder_slices(self) -> None:
-        """
-        Pre-configure slices on the recorder buffer and place trigs with STRT p-locks.
-
-        Does 4 things:
+        Internal helper for configure_recorder_buffer. Does 4 things:
         a) Sets N equal slice markers on the recorder buffer in markers.work
         b) Enables slice mode on the recorder track's SRC setup page across all parts
         c) Places trigs at evenly-spaced step positions in patterns with activity
-        d) Sets STRT p-locks on each trig to select the correct slice
+        d) Sets slice_index p-locks on each trig to select the correct slice
         """
-        track_num, _ = self._render_settings.recorder_track
-        num_slices = self._render_settings.recorder_slices
-
         # Read RLEN from Part 1, Bank 1 recorder setup
         # Stored value is 0-indexed, display value is stored + 1
-        stored_rlen = self.bank(1).part(1).track(track_num).recorder.rlen
+        stored_rlen = self.bank(1).part(1).track(track).recorder.rlen
         displayed_rlen = stored_rlen + 1
 
-        # Validate that RLEN divides evenly by num_slices
         if displayed_rlen % num_slices != 0:
             raise ValueError(
-                f"recorder_slices={num_slices} does not divide evenly into "
-                f"RLEN={displayed_rlen} steps"
+                f"slices={num_slices} does not divide evenly into RLEN={displayed_rlen} steps"
             )
 
-        # a) Set slice markers on the recorder buffer
-        # Buffer duration = displayed_rlen steps * step_duration_ms
+        # a) Slice markers on the recorder buffer
         step_duration_ms = 60000.0 / self.tempo / 4  # ms per step (16th note)
         buffer_duration_ms = displayed_rlen * step_duration_ms
         slice_duration_ms = buffer_duration_ms / num_slices
-
-        # Recorder buffer slot: 128 + track_num (1-indexed in markers)
-        buffer_slot = 128 + track_num
+        buffer_slot = 128 + track  # Recorder buffer slot: 128 + track_num
         slot_markers = self.markers.get_slot(buffer_slot)
 
-        # Set sample_length in frames
         sample_rate = 44100
         total_frames = int(buffer_duration_ms * sample_rate / 1000)
         slot_markers.sample_length = total_frames
-
-        # Build slice list as (start_ms, end_ms) tuples
-        slices = []
-        for i in range(num_slices):
-            start_ms = int(i * slice_duration_ms)
-            end_ms = int((i + 1) * slice_duration_ms)
-            slices.append((start_ms, end_ms))
-
-        slot_markers.set_slices_ms(slices, sample_rate=sample_rate)
+        slices_ms = [
+            (int(i * slice_duration_ms), int((i + 1) * slice_duration_ms))
+            for i in range(num_slices)
+        ]
+        slot_markers.set_slices_ms(slices_ms, sample_rate=sample_rate)
         self.markers.set_slot(buffer_slot, slot_markers)
 
-        # b) Enable slice mode on all banks/parts for the recorder track
+        # b) Slice mode ON for the recorder track across all banks/parts
         for bank in self._banks.values():
             for part_num in range(1, 5):
-                track = bank.part(part_num).track(track_num)
-                track.setup.slice = 1  # SliceMode.ON
+                bank.part(part_num).track(track).setup.slice = 1
 
-        # c) Place trigs at evenly-spaced positions in patterns with activity
-        # d) Set STRT p-locks on each trig
+        # c+d) Trigs + slice_index p-locks in every pattern with activity
         step_spacing = displayed_rlen // num_slices
-
         for bank in self._banks.values():
             for pattern_num in range(1, 17):
                 pattern = bank.pattern(pattern_num)
-
-                # Check if any other track has activity (same pattern as auto_master_trig)
-                has_activity = False
-                for other_track_num in range(1, 9):
-                    if other_track_num == track_num:
-                        continue
-                    if pattern.audio_track(other_track_num).active_steps:
-                        has_activity = True
-                        break
-
+                has_activity = any(
+                    pattern.audio_track(t).active_steps
+                    for t in range(1, 9) if t != track
+                )
                 if not has_activity:
                     continue
 
-                # Place trigs and set STRT p-locks
-                rec_track = pattern.audio_track(track_num)
-                trig_steps = []
-                for i in range(num_slices):
-                    step_num = 1 + i * step_spacing
-                    trig_steps.append(step_num)
-
+                rec_track = pattern.audio_track(track)
+                trig_steps = [1 + i * step_spacing for i in range(num_slices)]
                 rec_track.active_steps = trig_steps
-
-                # Set STRT p-locks via slice_index (0, 1, 2, ...)
                 for i, step_num in enumerate(trig_steps):
-                    step = rec_track.step(step_num)
-                    step.slice_index = i
+                    rec_track.step(step_num).slice_index = i
+
+    # =========================================================================
+    # Save-time finalizer (narrow — only the bits that genuinely need late binding)
+    # =========================================================================
+
+    def _save_finalize(self) -> None:
+        """
+        Apply save-time fixups that have to be late-bound.
+
+        Called automatically by to_directory/to_zip. Two things happen here,
+        both keyed off `settings.master_track`:
+
+        - Auto-add a step-1 trig on track 8 for any pattern that has trigs
+          on tracks 1-7. We can't do this eagerly because patterns might
+          gain activity after master_track is enabled.
+        - Substitute `TRACK_8 → MAIN` for any recorder source. On the OT,
+          recording from TRACK_8 when track 8 is master doesn't capture
+          the master output. We accept TRACK_8 as a logical reference and
+          translate it at save time so callers don't need to know about
+          the hardware quirk.
+        """
+        if not self.master_track:
+            return
+        self._apply_auto_master_trig()
+        self._fixup_recorder_sources()
 
     def _apply_auto_master_trig(self) -> None:
-        """
-        Auto-add trig to track 8 step 1 for patterns with audio activity.
-
-        Called when master track is enabled. Adds a step 1 trig to track 8
-        for any pattern that has at least one trig on tracks 1-7.
-        """
+        """Add step-1 trig on track 8 for patterns with audio activity on tracks 1-7."""
         for bank in self._banks.values():
             for pattern_num in range(1, 17):
                 pattern = bank.pattern(pattern_num)
+                has_activity = any(
+                    pattern.audio_track(t).active_steps for t in range(1, 8)
+                )
+                if not has_activity:
+                    continue
+                track8 = pattern.audio_track(8)
+                if 1 not in track8.active_steps:
+                    track8.active_steps = list(track8.active_steps) + [1]
 
-                # Check if any track 1-7 has activity
-                has_activity = False
-                for track_num in range(1, 8):
-                    track = pattern.audio_track(track_num)
-                    if track.active_steps:
-                        has_activity = True
-                        break
-
-                # Add trig to track 8 step 1 if there's activity
-                if has_activity:
-                    track8 = pattern.audio_track(8)
-                    if 1 not in track8.active_steps:
-                        current_steps = list(track8.active_steps)
-                        current_steps.append(1)
-                        track8.active_steps = current_steps
+    def _fixup_recorder_sources(self) -> None:
+        """Substitute TRACK_8 → MAIN for recorder sources (master_track hardware quirk)."""
+        from ..enums import RecordingSource
+        for bank in self._banks.values():
+            for part_num in range(1, 5):
+                for track_num in range(1, 9):
+                    track = bank.part(part_num).track(track_num)
+                    if track.recorder.source == RecordingSource.TRACK_8:
+                        track.recorder.source = RecordingSource.MAIN
 
     def to_directory(self, path: Path | str) -> None:
         """
@@ -453,7 +441,7 @@ class Project:
             path: Destination directory (will be created if needed)
         """
         # Apply render settings before saving
-        self._apply_render_settings()
+        self._save_finalize()
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -523,8 +511,8 @@ class Project:
 
         instance._sample_pool = dict(self._sample_pool)
         instance._temp_dir = None
-        instance._render_settings = RenderSettings()
         instance._settings = None
+        instance._recorder_buffer_track = None
 
         return instance
 
@@ -563,24 +551,6 @@ class Project:
         if self._settings is None:
             self._settings = Settings(self._project_file.settings)
         return self._settings
-
-    @property
-    def render_settings(self) -> RenderSettings:
-        """
-        Get octapy rendering settings.
-
-        These settings control octapy's behavior during project processing
-        and saving. They are NOT saved to Octatrack files.
-
-        Available settings:
-            recorder_track: Configure a track as recorder buffer (track_num, source)
-            recorder_slices: Pre-configure N equal slices on recorder buffer (2-64)
-
-        Automatic behavior (no setting required):
-            When master_track is enabled, a step 1 trig is auto-added to
-            track 8 in any pattern with activity on tracks 1-7.
-        """
-        return self._render_settings
 
     # === Bank access ===
 
