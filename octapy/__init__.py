@@ -51,6 +51,9 @@ from .api.enums import (
     QRecMode,
     ScaleMode,
     PatternScale,
+    # LFO
+    LfoWaveform,
+    LfoTrigMode,
 )
 
 # Exceptions
@@ -126,6 +129,8 @@ __all__ = [
     "QRecMode",
     "ScaleMode",
     "PatternScale",
+    "LfoWaveform",
+    "LfoTrigMode",
     # Exceptions
     "OctapyError",
     "SlotLimitExceeded",

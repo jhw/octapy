@@ -14,9 +14,11 @@ from ...._io import (
     MachineSlotOffset,
     MachineParamsOffset,
     AudioTrackParamsOffset,
+    AudioTrackParamsSetupOffset,
     MACHINE_SLOT_SIZE,
     MACHINE_PARAMS_SIZE,
     AUDIO_TRACK_PARAMS_SIZE,
+    AUDIO_TRACK_PARAMS_SETUP_SIZE,
     RECORDER_SETUP_SIZE,
     FX_DEFAULTS,
     # Template (machine) defaults
@@ -33,6 +35,7 @@ from ...._io import (
 )
 from ...enums import MachineType, FX1Type, FX2Type
 from .recorder import AudioRecorderSetup
+from .lfo import AudioLfo
 from .._page import PageAccessor, SRC_PARAM_NAMES, SRC_SETUP_PARAM_NAMES, AMP_PARAM_NAMES, FX_PARAM_NAMES, SRC_VALUE_TRANSFORMS, _AMP_KEY
 
 
@@ -47,9 +50,10 @@ class TrackDataOffset(IntEnum):
     - 5 bytes: machine_slots
     - 30 bytes: machine_params_values (playback page)
     - 30 bytes: machine_params_setup (setup page)
-    - 24 bytes: track_params (LFO/AMP/FX)
+    - 24 bytes: track_params (LFO/AMP/FX values)
     - 12 bytes: recorder_setup
-    = 106 bytes total
+    - 30 bytes: track_params_setup (LFO/AMP/FX setup)
+    = 136 bytes total
     """
     MACHINE_TYPE = 0
     FX1_TYPE = 1
@@ -61,10 +65,11 @@ class TrackDataOffset(IntEnum):
     MACHINE_PARAMS_SETUP = 40   # 30 bytes
     TRACK_PARAMS = 70           # 24 bytes
     RECORDER_SETUP = 94         # 12 bytes
+    TRACK_PARAMS_SETUP = 106    # 30 bytes
 
 
 # Total size of standalone track buffer
-AUDIO_PART_TRACK_SIZE = 106
+AUDIO_PART_TRACK_SIZE = 136
 
 
 class AudioPartTrack:
@@ -194,8 +199,13 @@ class AudioPartTrack:
         offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
         self._data[offset:offset + 6] = TEMPLATE_DEFAULT_SRC_SETUP
 
+        # Track params - LFO values defaults (spd=32, dep=0 for all 3 LFOs)
+        # Matches ot-tools-io AudioTrackParamsValues default.
+        offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.LFO_SPD1
+        self._data[offset:offset + 6] = bytes([32, 32, 32, 0, 0, 0])
+
         # Track params - AMP defaults
-        offset = TrackDataOffset.TRACK_PARAMS
+        offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.AMP_ATK
         self._data[offset:offset + 6] = TEMPLATE_DEFAULT_AMP
 
         # FX1 params
@@ -377,6 +387,25 @@ class AudioPartTrack:
                 raise ValueError(f"rlen must be 1-64, got {rlen}")
             self.recorder.rlen = rlen - 1  # Display value to stored value
 
+    def configure_pickup(self) -> None:
+        """
+        Configure this track as a Pickup machine (live looper).
+
+        Pickup machines record and play back live audio without referencing
+        a sample slot. The track records into its own pickup buffer when
+        triggered (typically via the FUNC+TRIG record button on the device).
+
+        Pickup parameters (live):
+        - `pitch`, `dir` (direction), `length`, `gain`, `op` on the SRC page
+        - `timestretch`, `timestretch_sensitivity` on the setup page
+
+        Usage:
+            track.configure_pickup()
+            track.src.pitch = 64       # No transpose
+            track.src.gain = 64        # 0 dB
+        """
+        self.machine_type = MachineType.PICKUP
+
     def configure_neighbor(self) -> None:
         """
         Configure this track as a neighbor machine for extra FX.
@@ -505,6 +534,11 @@ class AudioPartTrack:
         instance._data[TrackDataOffset.TRACK_PARAMS:TrackDataOffset.TRACK_PARAMS + AUDIO_TRACK_PARAMS_SIZE] = \
             part_data[offset:offset + AUDIO_TRACK_PARAMS_SIZE]
 
+        # Read track params setup (LFO setup, AMP setup, FX setup)
+        offset = part_offset + PartOffset.AUDIO_TRACK_PARAMS_SETUP + track_idx * AUDIO_TRACK_PARAMS_SETUP_SIZE
+        instance._data[TrackDataOffset.TRACK_PARAMS_SETUP:TrackDataOffset.TRACK_PARAMS_SETUP + AUDIO_TRACK_PARAMS_SETUP_SIZE] = \
+            part_data[offset:offset + AUDIO_TRACK_PARAMS_SETUP_SIZE]
+
         # Read recorder setup into AudioRecorderSetup object
         offset = part_offset + PartOffset.RECORDER_SETUP + track_idx * RECORDER_SETUP_SIZE
         instance._recorder = AudioRecorderSetup.read(part_data[offset:offset + RECORDER_SETUP_SIZE])
@@ -560,6 +594,11 @@ class AudioPartTrack:
         offset = part_offset + PartOffset.AUDIO_TRACK_PARAMS_VALUES + track_idx * AUDIO_TRACK_PARAMS_SIZE
         part_data[offset:offset + AUDIO_TRACK_PARAMS_SIZE] = \
             self._data[TrackDataOffset.TRACK_PARAMS:TrackDataOffset.TRACK_PARAMS + AUDIO_TRACK_PARAMS_SIZE]
+
+        # Write track params setup
+        offset = part_offset + PartOffset.AUDIO_TRACK_PARAMS_SETUP + track_idx * AUDIO_TRACK_PARAMS_SETUP_SIZE
+        part_data[offset:offset + AUDIO_TRACK_PARAMS_SETUP_SIZE] = \
+            self._data[TrackDataOffset.TRACK_PARAMS_SETUP:TrackDataOffset.TRACK_PARAMS_SETUP + AUDIO_TRACK_PARAMS_SETUP_SIZE]
 
         # Write recorder setup
         offset = part_offset + PartOffset.RECORDER_SETUP + track_idx * RECORDER_SETUP_SIZE
@@ -909,6 +948,27 @@ class AudioPartTrack:
     def recorder(self, value: AudioRecorderSetup):
         """Set recorder buffer configuration."""
         self._recorder = value
+
+    # === LFOs ===
+
+    def lfo(self, n: int) -> AudioLfo:
+        """
+        Get an accessor for LFO `n` (1, 2, or 3) on this track.
+
+        Each LFO exposes `speed`, `depth`, `destination`, `waveform`,
+        `multiplier`, and `trig_mode`. Speed and depth live on the main LFO
+        page; the other four come from the LFO setup page.
+
+        Usage:
+            from octapy import LfoWaveform, LfoTrigMode
+
+            lfo = track.lfo(1)
+            lfo.waveform = LfoWaveform.SIN
+            lfo.speed = 32
+            lfo.depth = 100
+            lfo.trig_mode = LfoTrigMode.TRIG
+        """
+        return AudioLfo(self, n)
 
     # === SRC/Playback page ===
 

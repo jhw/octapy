@@ -15,6 +15,7 @@ from ..._io import (
     MidiPartOffset,
     SCENE_SIZE,
     SCENE_COUNT,
+    SCENE_XLV_SIZE,
     MIDI_TRACK_VALUES_SIZE,
     MIDI_TRACK_SETUP_SIZE,
 )
@@ -139,13 +140,16 @@ class Part:
             track = MidiPartTrack.read_from_part(i, bank_data, part_offset)
             instance._midi_tracks[i] = track
 
-        # Read scenes
+        # Read scenes (params + XLV crossfader assignments)
         instance._scenes = {}
         scenes_base = part_offset + SceneOffset.SCENES
+        xlvs_base = part_offset + SceneOffset.SCENE_XLVS
         for i in range(1, 17):
             scene_offset = scenes_base + (i - 1) * SCENE_SIZE
             scene_data = bank_data[scene_offset:scene_offset + SCENE_SIZE]
-            instance._scenes[i] = Scene.read(i, scene_data)
+            xlv_offset = xlvs_base + (i - 1) * SCENE_XLV_SIZE
+            xlv_data = bank_data[xlv_offset:xlv_offset + SCENE_XLV_SIZE]
+            instance._scenes[i] = Scene.read(i, scene_data, xlv_data)
 
         return instance
 
@@ -171,12 +175,15 @@ class Part:
         for i in range(1, 9):
             self._midi_tracks[i].write_to_part(bank_data, part_offset)
 
-        # Write scenes
+        # Write scenes (params + XLV crossfader assignments)
         scenes_base = part_offset + SceneOffset.SCENES
+        xlvs_base = part_offset + SceneOffset.SCENE_XLVS
         for i in range(1, 17):
             scene_offset = scenes_base + (i - 1) * SCENE_SIZE
             scene_data = self._scenes[i].write()
             bank_data[scene_offset:scene_offset + SCENE_SIZE] = scene_data
+            xlv_offset = xlvs_base + (i - 1) * SCENE_XLV_SIZE
+            bank_data[xlv_offset:xlv_offset + SCENE_XLV_SIZE] = self._scenes[i].write_xlv()
 
     def clone(self) -> "Part":
         """Create a copy of this Part with all tracks and scenes cloned."""

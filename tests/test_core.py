@@ -788,6 +788,35 @@ class TestMidiStepCC:
         assert restored.cc(1) == 64
         assert restored.cc(3) == 100
 
+    def test_cc_via_constructor(self):
+        """CC values can be set directly on construction."""
+        step = MidiStep(
+            step_num=2,
+            active=True,
+            note=60,
+            cc={1: 32, 4: 100, 10: 127},
+        )
+
+        assert step.cc(1) == 32
+        assert step.cc(4) == 100
+        assert step.cc(10) == 127
+        # Unset slots remain None
+        assert step.cc(2) is None
+        assert step.cc(7) is None
+
+    def test_cc_constructor_default_none(self):
+        """Without cc kwarg, all CC slots are None."""
+        step = MidiStep(step_num=1)
+        for n in range(1, 11):
+            assert step.cc(n) is None
+
+    def test_cc_constructor_invalid_slot_rejected(self):
+        """cc={0: 64} or {11: 64} raises ValueError from set_cc."""
+        with pytest.raises(ValueError):
+            MidiStep(cc={0: 64})
+        with pytest.raises(ValueError):
+            MidiStep(cc={11: 64})
+
 
 class TestMidiStepRepr:
     """Tests for MidiStep string representation."""
@@ -3324,6 +3353,381 @@ class TestConfigureAsNeighbor:
         track.fx2_type = FX2Type.PLATE_REVERB
         assert track.fx1_type == FX1Type.CHORUS
         assert track.fx2_type == FX2Type.PLATE_REVERB
+
+
+class TestConfigureAsPickup:
+    """Tests for AudioPartTrack.configure_pickup()."""
+
+    def test_sets_pickup_machine_type(self):
+        """configure_pickup sets machine type to PICKUP."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        assert track.machine_type == MachineType.PICKUP
+
+    def test_pickup_src_param_names(self):
+        """Pickup SRC page exposes pitch, dir, length, gain, op."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        assert track.src.get_param_names() == ['pitch', 'dir', 'length', 'gain', 'op']
+
+    def test_pickup_setup_param_names(self):
+        """Pickup setup page exposes timestretch + sensitivity (positions 5-6)."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        assert track.setup.get_param_names() == ['timestretch', 'timestretch_sensitivity']
+
+    def test_pickup_src_params_get_set(self):
+        """All pickup SRC params round-trip through getter/setter."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        track.src.pitch = 64
+        track.src.dir = 1
+        track.src.length = 100
+        track.src.gain = 80
+        track.src.op = 2
+        assert track.src.pitch == 64
+        assert track.src.dir == 1
+        assert track.src.length == 100
+        assert track.src.gain == 80
+        assert track.src.op == 2
+
+    def test_pickup_setup_params_get_set(self):
+        """Pickup setup params round-trip through getter/setter."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        track.setup.timestretch = 1
+        track.setup.timestretch_sensitivity = 50
+        assert track.setup.timestretch == 1
+        assert track.setup.timestretch_sensitivity == 50
+
+    def test_pickup_invalid_setup_param_rejected(self):
+        """Unknown setup params raise AttributeError for pickup."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        with pytest.raises(AttributeError):
+            track.setup.loop = 1
+        with pytest.raises(AttributeError):
+            track.setup.slice = 1
+
+    def test_pickup_has_fx_slots(self):
+        """Pickup track can have FX configured."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        track.fx1_type = FX1Type.CHORUS
+        track.fx2_type = FX2Type.PLATE_REVERB
+        assert track.fx1_type == FX1Type.CHORUS
+        assert track.fx2_type == FX2Type.PLATE_REVERB
+
+    def test_pickup_binary_roundtrip(self):
+        """Pickup config round-trips through Part binary I/O."""
+        from octapy._io import BankFile, BankOffset
+
+        track = AudioPartTrack(track_num=3)
+        track.configure_pickup()
+        track.src.pitch = 64
+        track.src.dir = 1
+        track.src.length = 100
+        track.src.gain = 80
+        track.src.op = 2
+        track.setup.timestretch = 1
+        track.setup.timestretch_sensitivity = 50
+
+        bank = BankFile.new()
+        buf = bytearray(bank._data)
+        track.write_to_part(buf, part_offset=BankOffset.PARTS)
+
+        restored = AudioPartTrack.read_from_part(track_num=3, part_data=buf, part_offset=BankOffset.PARTS)
+
+        assert restored.machine_type == MachineType.PICKUP
+        assert restored.src.pitch == 64
+        assert restored.src.dir == 1
+        assert restored.src.length == 100
+        assert restored.src.gain == 80
+        assert restored.src.op == 2
+        assert restored.setup.timestretch == 1
+        assert restored.setup.timestretch_sensitivity == 50
+
+    def test_pickup_does_not_use_sample_slot(self):
+        """configure_pickup leaves flex/static slots at defaults."""
+        track = AudioPartTrack()
+        track.configure_pickup()
+        # Pickup is a live looper — no sample slot required
+        assert track.flex_slot == 0
+        assert track.static_slot == 0
+
+
+class TestAudioLfo:
+    """Tests for AudioPartTrack.lfo(n) accessor."""
+
+    def test_three_lfos_available(self):
+        """Each track has exactly 3 LFOs, 1-3."""
+        track = AudioPartTrack()
+        for n in (1, 2, 3):
+            lfo = track.lfo(n)
+            assert lfo.n == n
+
+    def test_invalid_lfo_index_rejected(self):
+        """LFO numbers outside 1-3 raise ValueError."""
+        track = AudioPartTrack()
+        with pytest.raises(ValueError):
+            track.lfo(0)
+        with pytest.raises(ValueError):
+            track.lfo(4)
+
+    def test_lfo_speed_depth_roundtrip(self):
+        """speed/depth round-trip through the accessor."""
+        track = AudioPartTrack()
+        track.lfo(1).speed = 32
+        track.lfo(1).depth = 100
+        track.lfo(2).speed = 64
+        track.lfo(2).depth = 50
+        assert track.lfo(1).speed == 32
+        assert track.lfo(1).depth == 100
+        assert track.lfo(2).speed == 64
+        assert track.lfo(2).depth == 50
+        # LFO 3 untouched — defaults are spd=32, dep=0 (matches Rust)
+        assert track.lfo(3).speed == 32
+        assert track.lfo(3).depth == 0
+
+    def test_lfo_setup_fields_roundtrip(self):
+        """destination, waveform, multiplier, trig_mode round-trip."""
+        from octapy import LfoWaveform, LfoTrigMode
+        track = AudioPartTrack()
+        track.lfo(1).destination = 12
+        track.lfo(1).waveform = LfoWaveform.SIN
+        track.lfo(1).multiplier = 7
+        track.lfo(1).trig_mode = LfoTrigMode.TRIG
+        assert track.lfo(1).destination == 12
+        assert track.lfo(1).waveform == LfoWaveform.SIN
+        assert track.lfo(1).multiplier == 7
+        assert track.lfo(1).trig_mode == LfoTrigMode.TRIG
+
+    def test_lfos_are_independent(self):
+        """Modifying one LFO doesn't affect the others."""
+        from octapy import LfoWaveform
+        track = AudioPartTrack()
+        track.lfo(1).waveform = LfoWaveform.SIN
+        track.lfo(2).waveform = LfoWaveform.SQR
+        track.lfo(3).waveform = LfoWaveform.SAW
+        assert track.lfo(1).waveform == LfoWaveform.SIN
+        assert track.lfo(2).waveform == LfoWaveform.SQR
+        assert track.lfo(3).waveform == LfoWaveform.SAW
+
+    def test_lfo_binary_roundtrip(self):
+        """LFO values + setup round-trip through Part binary I/O."""
+        from octapy import LfoWaveform, LfoTrigMode
+        from octapy._io import BankFile, BankOffset
+
+        track = AudioPartTrack(track_num=2)
+        track.lfo(1).speed = 32
+        track.lfo(1).depth = 100
+        track.lfo(1).destination = 12
+        track.lfo(1).waveform = LfoWaveform.SIN
+        track.lfo(1).multiplier = 7
+        track.lfo(1).trig_mode = LfoTrigMode.TRIG
+        track.lfo(3).waveform = LfoWaveform.RND
+
+        bank = BankFile.new()
+        buf = bytearray(bank._data)
+        track.write_to_part(buf, part_offset=BankOffset.PARTS)
+        restored = AudioPartTrack.read_from_part(track_num=2, part_data=buf, part_offset=BankOffset.PARTS)
+
+        assert restored.lfo(1).speed == 32
+        assert restored.lfo(1).depth == 100
+        assert restored.lfo(1).destination == 12
+        assert restored.lfo(1).waveform == LfoWaveform.SIN
+        assert restored.lfo(1).multiplier == 7
+        assert restored.lfo(1).trig_mode == LfoTrigMode.TRIG
+        assert restored.lfo(3).waveform == LfoWaveform.RND
+
+
+class TestAudioStepLfoPlocks:
+    """Tests for AudioStep p-lock LFO speed/depth accessors."""
+
+    def test_lfo_speed_unset_default_none(self):
+        step = AudioStep(step_num=1)
+        for n in (1, 2, 3):
+            assert step.lfo_speed(n) is None
+            assert step.lfo_depth(n) is None
+
+    def test_set_lfo_speed_persists(self):
+        step = AudioStep(step_num=1)
+        step.set_lfo_speed(1, 32)
+        step.set_lfo_depth(2, 100)
+        assert step.lfo_speed(1) == 32
+        assert step.lfo_depth(2) == 100
+        assert step.lfo_speed(2) is None  # other LFOs untouched
+        assert step.lfo_depth(1) is None
+
+    def test_clear_lfo_plock_with_none(self):
+        step = AudioStep(step_num=1)
+        step.set_lfo_speed(1, 32)
+        step.set_lfo_speed(1, None)
+        assert step.lfo_speed(1) is None
+
+    def test_invalid_lfo_number(self):
+        step = AudioStep(step_num=1)
+        with pytest.raises(ValueError):
+            step.lfo_speed(0)
+        with pytest.raises(ValueError):
+            step.set_lfo_speed(4, 64)
+
+
+class TestMidiLfo:
+    """Tests for MidiPartTrack.lfo(n) accessor."""
+
+    def test_three_lfos_available(self):
+        track = MidiPartTrack()
+        for n in (1, 2, 3):
+            assert track.lfo(n).n == n
+
+    def test_invalid_lfo_index_rejected(self):
+        track = MidiPartTrack()
+        with pytest.raises(ValueError):
+            track.lfo(0)
+        with pytest.raises(ValueError):
+            track.lfo(4)
+
+    def test_midi_lfo_setup_roundtrip(self):
+        from octapy import LfoWaveform, LfoTrigMode
+
+        track = MidiPartTrack(track_num=3)
+        track.lfo(2).speed = 50
+        track.lfo(2).depth = 80
+        track.lfo(2).destination = 14
+        track.lfo(2).waveform = LfoWaveform.TRI
+        track.lfo(2).multiplier = 5
+        track.lfo(2).trig_mode = LfoTrigMode.HOLD
+
+        # Binary roundtrip via the contiguous standalone buffer
+        data = track.write()
+        restored = MidiPartTrack.__new__(MidiPartTrack)
+        restored._track_num = 3
+        restored._data = bytearray(data)
+
+        assert restored.lfo(2).speed == 50
+        assert restored.lfo(2).depth == 80
+        assert restored.lfo(2).destination == 14
+        assert restored.lfo(2).waveform == LfoWaveform.TRI
+        assert restored.lfo(2).multiplier == 5
+        assert restored.lfo(2).trig_mode == LfoTrigMode.HOLD
+
+
+class TestMidiStepLfoPlocks:
+    """Tests for MidiStep p-lock LFO speed/depth accessors."""
+
+    def test_lfo_unset_default_none(self):
+        step = MidiStep(step_num=1)
+        for n in (1, 2, 3):
+            assert step.lfo_speed(n) is None
+            assert step.lfo_depth(n) is None
+
+    def test_set_lfo_speed_persists(self):
+        step = MidiStep(step_num=1)
+        step.set_lfo_speed(1, 32)
+        step.set_lfo_depth(3, 100)
+        assert step.lfo_speed(1) == 32
+        assert step.lfo_depth(3) == 100
+        assert step.lfo_speed(2) is None
+
+    def test_invalid_lfo_number(self):
+        step = MidiStep(step_num=1)
+        with pytest.raises(ValueError):
+            step.lfo_speed(0)
+        with pytest.raises(ValueError):
+            step.set_lfo_depth(4, 64)
+
+
+class TestAudioSwingSlide:
+    """Tests for swing/slide trig flags on audio steps."""
+
+    def test_defaults_false(self):
+        track = AudioPatternTrack(track_num=1)
+        assert track.swing_steps == []
+        assert track.slide_steps == []
+        for n in range(1, 65):
+            assert track.step(n).swing is False
+            assert track.step(n).slide is False
+
+    def test_step_level_swing_setter(self):
+        track = AudioPatternTrack(track_num=1)
+        track.step(5).swing = True
+        track.step(13).swing = True
+        assert track.swing_steps == [5, 13]
+        # Setting back to False removes from mask
+        track.step(5).swing = False
+        assert track.swing_steps == [13]
+
+    def test_step_level_slide_setter(self):
+        track = AudioPatternTrack(track_num=1)
+        track.step(2).slide = True
+        track.step(10).slide = True
+        assert track.slide_steps == [2, 10]
+
+    def test_swing_steps_list_setter(self):
+        track = AudioPatternTrack(track_num=1)
+        track.swing_steps = [1, 3, 5, 7]
+        for n in (1, 3, 5, 7):
+            assert track.step(n).swing is True
+        for n in (2, 4, 6, 8):
+            assert track.step(n).swing is False
+
+    def test_slide_steps_list_setter(self):
+        track = AudioPatternTrack(track_num=1)
+        track.slide_steps = [2, 4, 6, 8]
+        for n in (2, 4, 6, 8):
+            assert track.step(n).slide is True
+
+    def test_swing_slide_independent(self):
+        track = AudioPatternTrack(track_num=1)
+        track.swing_steps = [1, 5]
+        track.slide_steps = [9, 13]
+        assert track.swing_steps == [1, 5]
+        assert track.slide_steps == [9, 13]
+        # Setting slide doesn't affect swing
+        track.step(1).slide = True
+        assert track.swing_steps == [1, 5]
+        assert track.slide_steps == [1, 9, 13]
+
+    def test_binary_roundtrip(self):
+        track = AudioPatternTrack(track_num=2)
+        track.active_steps = [1, 5, 9, 13]
+        track.swing_steps = [5, 13]
+        track.slide_steps = [1, 9]
+        # All extra step state survives a write/read cycle.
+        data = track.write()
+        restored = AudioPatternTrack.read(track_num=2, track_data=data)
+        assert restored.swing_steps == [5, 13]
+        assert restored.slide_steps == [1, 9]
+        assert restored.step(5).swing is True
+        assert restored.step(1).slide is True
+
+
+class TestMidiSwing:
+    """Tests for swing trig flag on MIDI steps (MIDI tracks have no slide)."""
+
+    def test_defaults_false(self):
+        track = MidiPatternTrack(track_num=1)
+        assert track.swing_steps == []
+        for n in range(1, 65):
+            assert track.step(n).swing is False
+
+    def test_step_level_swing_setter(self):
+        track = MidiPatternTrack(track_num=1)
+        track.step(7).swing = True
+        track.step(15).swing = True
+        assert track.swing_steps == [7, 15]
+
+    def test_swing_steps_list_setter(self):
+        track = MidiPatternTrack(track_num=1)
+        track.swing_steps = [2, 6, 10, 14]
+        for n in (2, 6, 10, 14):
+            assert track.step(n).swing is True
+
+    def test_midi_step_has_no_slide_attr(self):
+        """MidiStep doesn't expose slide — only audio tracks have slide."""
+        step = MidiStep()
+        assert not hasattr(step, "slide")
 
 
 class TestConfigureAsThru:

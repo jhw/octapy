@@ -373,6 +373,99 @@ class TestActiveScenes:
 
 
 # =============================================================================
+# Crossfader (XLV) Tests
+# =============================================================================
+
+class TestSceneCrossfader:
+    """Tests for Scene.crossfader (XLV) assignments."""
+
+    def test_default_no_assignments(self, scene):
+        """A fresh scene has no XLV assignments on any track."""
+        assert scene.crossfader_assignments == {}
+        for n in range(1, 9):
+            assert scene.crossfader(n) is None
+
+    def test_set_and_get_crossfader(self, scene):
+        """Setting an XLV value reads back the same value."""
+        scene.set_crossfader(1, 64)
+        scene.set_crossfader(5, 127)
+        scene.set_crossfader(8, 0)
+        assert scene.crossfader(1) == 64
+        assert scene.crossfader(5) == 127
+        assert scene.crossfader(8) == 0
+        assert scene.crossfader(2) is None
+
+    def test_set_to_none_clears_assignment(self, scene):
+        """Setting XLV to None removes the assignment."""
+        scene.set_crossfader(1, 64)
+        assert scene.crossfader(1) == 64
+        scene.set_crossfader(1, None)
+        assert scene.crossfader(1) is None
+        assert 1 not in scene.crossfader_assignments
+
+    def test_crossfader_assignments_dict(self, scene):
+        """crossfader_assignments returns only set entries."""
+        scene.set_crossfader(2, 30)
+        scene.set_crossfader(7, 100)
+        assert scene.crossfader_assignments == {2: 30, 7: 100}
+
+    def test_invalid_track_number_rejected(self, scene):
+        """Track numbers outside 1-8 raise ValueError."""
+        with pytest.raises(ValueError):
+            scene.crossfader(0)
+        with pytest.raises(ValueError):
+            scene.crossfader(9)
+        with pytest.raises(ValueError):
+            scene.set_crossfader(0, 64)
+        with pytest.raises(ValueError):
+            scene.set_crossfader(9, 64)
+
+    def test_invalid_value_rejected(self, scene):
+        """XLV values outside 0-127 raise ValueError."""
+        with pytest.raises(ValueError):
+            scene.set_crossfader(1, -1)
+        with pytest.raises(ValueError):
+            scene.set_crossfader(1, 128)
+
+    def test_xlv_affects_is_blank(self, scene):
+        """A scene with only XLV assignments is not blank."""
+        assert scene.is_blank
+        scene.set_crossfader(1, 64)
+        assert not scene.is_blank
+        scene.set_crossfader(1, None)
+        assert scene.is_blank
+
+    def test_xlv_binary_roundtrip(self, project):
+        """XLV assignments survive a Part write/read cycle."""
+        from octapy._io import BankFile, BankOffset
+        from octapy.api.core import Part
+
+        part = project.bank(2).part(1)
+        part.scene(5).set_crossfader(2, 100)
+        part.scene(5).set_crossfader(7, 0)
+        part.scene(10).set_crossfader(1, 64)
+
+        bank = BankFile.new()
+        buf = bytearray(bank._data)
+        part.write_to_bank(buf, part_offset=BankOffset.PARTS)
+
+        restored = Part.read_from_bank(part_num=1, bank_data=buf, part_offset=BankOffset.PARTS)
+        assert restored.scene(5).crossfader_assignments == {2: 100, 7: 0}
+        assert restored.scene(10).crossfader_assignments == {1: 64}
+        assert restored.scene(1).crossfader_assignments == {}
+
+    def test_xlv_clone(self, scene):
+        """XLV assignments survive Scene.clone()."""
+        scene.set_crossfader(3, 50)
+        cloned = scene.clone()
+        assert cloned.crossfader_assignments == {3: 50}
+        # Independent buffers
+        cloned.set_crossfader(3, 100)
+        assert scene.crossfader(3) == 50
+        assert cloned.crossfader(3) == 100
+
+
+# =============================================================================
 # Roundtrip Tests
 # =============================================================================
 

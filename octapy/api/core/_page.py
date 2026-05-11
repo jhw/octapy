@@ -31,7 +31,7 @@ SRC_SETUP_PARAM_NAMES: Dict[MachineType, Tuple[Optional[str], ...]] = {
     MachineType.STATIC: ('loop', 'slice', 'length_mode', 'rate_mode', 'timestretch', 'timestretch_sensitivity'),
     MachineType.THRU: (None, None, None, None, None, None),
     MachineType.NEIGHBOR: (None, None, None, None, None, None),
-    MachineType.PICKUP: (None, None, None, None, None, None),
+    MachineType.PICKUP: (None, None, None, None, 'timestretch', 'timestretch_sensitivity'),
 }
 
 # AMP page: fixed names, same for all machine types (5 params + 1 unused)

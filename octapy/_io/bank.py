@@ -264,6 +264,9 @@ class PartOffset(IntEnum):
     # Machine params setup: 8 tracks * 30 bytes = 240 bytes
     AUDIO_TRACK_MACHINE_PARAMS_SETUP = 483
     AUDIO_TRACK_MACHINE_SLOTS = 723 # 40 bytes: 8 tracks * 5 bytes
+    # Track params setup (LFO setup 1, AMP setup, FX1 setup, FX2 setup, LFO setup 2):
+    # 8 tracks * 30 bytes = 240 bytes. Comes right after machine slots (40 bytes).
+    AUDIO_TRACK_PARAMS_SETUP = 763
     # Recorder setup: 8 tracks * 12 bytes = 96 bytes
     RECORDER_SETUP = 1547
 
@@ -523,6 +526,54 @@ class AudioTrackParamsOffset(IntEnum):
     FX2_PARAM4 = 21
     FX2_PARAM5 = 22
     FX2_PARAM6 = 23
+
+
+# AudioTrackParamsSetup is 30 bytes per track, scattered as:
+#   LFO setup 1 (6 bytes), AMP setup (6), FX1 setup (6), FX2 setup (6), LFO setup 2 (6)
+AUDIO_TRACK_PARAMS_SETUP_SIZE = 30
+
+
+class AudioTrackParamsSetupOffset(IntEnum):
+    """Offsets within AudioTrackParamsSetup (30 bytes per track).
+
+    Contains setup values for the LFO destination/waveform/multiplier/trig,
+    plus AMP/FX setup pages.
+    """
+    # LFO setup 1 (offset 0-5): destination + waveform per LFO
+    LFO1_PMTR = 0       # LFO 1 destination parameter
+    LFO2_PMTR = 1       # LFO 2 destination parameter
+    LFO3_PMTR = 2       # LFO 3 destination parameter
+    LFO1_WAVE = 3       # LFO 1 waveform
+    LFO2_WAVE = 4       # LFO 2 waveform
+    LFO3_WAVE = 5       # LFO 3 waveform
+    # AMP setup (offset 6-11)
+    AMP_SETUP_AMP = 6
+    AMP_SETUP_SYNC = 7
+    AMP_SETUP_ATCK = 8
+    AMP_SETUP_FX1 = 9
+    AMP_SETUP_FX2 = 10
+    AMP_SETUP_UNUSED = 11
+    # FX1 setup (offset 12-17)
+    FX1_SETUP_1 = 12
+    FX1_SETUP_2 = 13
+    FX1_SETUP_3 = 14
+    FX1_SETUP_4 = 15
+    FX1_SETUP_5 = 16
+    FX1_SETUP_6 = 17
+    # FX2 setup (offset 18-23)
+    FX2_SETUP_1 = 18
+    FX2_SETUP_2 = 19
+    FX2_SETUP_3 = 20
+    FX2_SETUP_4 = 21
+    FX2_SETUP_5 = 22
+    FX2_SETUP_6 = 23
+    # LFO setup 2 (offset 24-29): multiplier + trig mode per LFO
+    LFO1_MULT = 24      # LFO 1 multiplier
+    LFO2_MULT = 25      # LFO 2 multiplier
+    LFO3_MULT = 26      # LFO 3 multiplier
+    LFO1_TRIG = 27      # LFO 1 trig mode
+    LFO2_TRIG = 28      # LFO 2 trig mode
+    LFO3_TRIG = 29      # LFO 3 trig mode
 
 
 # MIDI track data sizes

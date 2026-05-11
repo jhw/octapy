@@ -21,7 +21,7 @@ This document compares octapy's coverage with the Octatrack's full feature set, 
 | STATIC | Yes | Full SRC page support |
 | THRU | Yes | Input routing |
 | NEIGHBOR | Yes | Adjacent track routing |
-| PICKUP | Partial | Binary offsets only, no configure method or tests |
+| PICKUP | Yes | `configure_pickup()`, SRC params (pitch/dir/length/gain/op), setup (timestretch) |
 
 ### Parameter Pages
 
@@ -30,25 +30,30 @@ This document compares octapy's coverage with the Octatrack's full feature set, 
 | SRC (playback) | Yes | pitch, start, length, rate, retrig (1-indexed), retrig_time |
 | SRC (setup) | Yes | loop, slice, length_mode, rate_mode, timestretch |
 | AMP | Yes | attack, hold, release, volume, balance |
-| LFO | Partial | Offsets defined, no high-level API |
+| LFO | Yes | 3 LFOs per track via `track.lfo(n)`: speed, depth, destination, waveform, multiplier, trig_mode |
 | FX1 | Yes | All effect types with named params |
 | FX2 | Yes | All effect types with named params |
 
 ### LFO Details
 
-LFO offsets exist in `_io/bank.py` but no high-level accessor:
-- Speed 1-3 (LFO_SPD1, LFO_SPD2, LFO_SPD3)
-- Depth 1-3 (LFO_DEP1, LFO_DEP2, LFO_DEP3)
-- LFO setup (destination, waveform, etc.) - not mapped
+Each audio and MIDI track has 3 independent LFOs (`track.lfo(1)`, `lfo(2)`, `lfo(3)`).
+Each exposes:
+- `speed`, `depth` (0-127) — main LFO page values
+- `destination` (raw index), `waveform`, `multiplier`, `trig_mode` — LFO setup page
+- P-locks: `step.lfo_speed(n)` / `step.lfo_depth(n)` on both audio and MIDI steps
+- Scene locks for LFO speed/depth already present via `AudioSceneTrack`
+
+Enums: `LfoWaveform` (TRI, SIN, SQR, SAW, EXP, RMP, RND), `LfoTrigMode` (FREE,
+TRIG, HOLD, ONE, HALF).
 
 ### Recorder Setup
 
 | Feature | octapy | Notes |
 |---------|--------|-------|
-| Recording source | Yes | MAIN, CUE, inputs, tracks |
+| Recording source | Yes | MAIN, CUE, inputs, tracks via `RecordingSource` |
 | Recording length | Yes | MAX or step count |
-| One-shot mode | No | Not exposed |
-| Processing | No | Not exposed |
+| One-shot mode | Yes | `RecTrigMode.ONE`, `ONE2`, `HOLD` |
+| Processing | Yes | fade in/out, gain AB/CD, qrec, qpl |
 
 ## MIDI Tracks (Parts)
 
@@ -58,9 +63,9 @@ LFO offsets exist in `_io/bank.py` but no high-level accessor:
 | Default note | Yes | Note assignment |
 | Note length | Yes | Quantized values |
 | Arpeggiator | Yes | transpose, legato, mode, speed, range, note_length |
-| CC1 page | Partial | Offsets defined, no high-level API |
-| CC2 page | Partial | Offsets defined, no high-level API |
-| LFO | Partial | Offsets defined, no high-level API |
+| CC1 page | Yes | `cc_value(n)` setup + p-lock via `step.cc(n)` |
+| CC2 page | Yes | Same as CC1 (slots 5-10) |
+| LFO | Yes | 3 LFOs per MIDI track via `midi_track.lfo(n)`, same shape as audio |
 
 ## Patterns
 
@@ -70,12 +75,12 @@ LFO offsets exist in `_io/bank.py` but no high-level accessor:
 | MIDI triggers | Yes | 64 steps |
 | Trig conditions | Yes | Full enum (FILL, PRE, NEI, probability, loops) |
 | P-locks (audio) | Yes | All SRC/AMP/FX params |
-| P-locks (MIDI) | Partial | Note, velocity; CC p-locks not exposed |
+| P-locks (MIDI) | Partial | Note/velocity/length/PB/AT in constructor; CC p-locks via `step.cc_value(n)` accessor |
 | Per-track length | Yes | length and scale per track |
 | Pattern scale | Yes | scale_mode, scale_length, scale_mult |
 | Pattern chaining | No | Chain behavior not exposed |
-| Swing trigs | Partial | Offsets exist, no high-level API |
-| Slide trigs | Partial | Offsets exist, no high-level API |
+| Swing trigs | Yes | `step.swing`, plus `track.swing_steps = [...]` (audio + MIDI) |
+| Slide trigs | Yes | `step.slide`, plus `track.slide_steps = [...]` (audio only) |
 
 ## Scenes
 
@@ -86,18 +91,24 @@ LFO offsets exist in `_io/bank.py` but no high-level accessor:
 | LFO locks | Yes | spd1-3, dep1-3 |
 | FX1 locks | Yes | All params |
 | FX2 locks | Yes | All params |
-| Crossfader assign | No | Scene XLV assignments not exposed |
+| Crossfader assign | Yes | `scene.crossfader(track)` / `scene.set_crossfader(track, value)` |
 
 ## Project Settings
 
+All fields in project.work are preserved on round-trip. High-level grouped
+accessors live under `project.settings`:
+
 | Feature | octapy | Notes |
 |---------|--------|-------|
-| Tempo | Yes | BPM setting |
-| Master track | Yes | Enable/disable |
+| Tempo | Yes | `settings.tempo` (BPM) |
+| Master track | Yes | `settings.master_track` |
 | Sample slots | Yes | Flex and Static pools |
-| Audio routing | No | CUE/MAIN settings not exposed |
-| MIDI settings | Partial | Clock, transport, program change send/receive exposed; channels, control not exposed |
-| Metronome | No | Not exposed |
+| MIDI clock/transport/PC | Yes | `settings.midi_clock_*`, `midi_program_change_*` |
+| MIDI per-track channels | Yes | `settings.midi.trig_channels[]`, `set_trig_channel(track, ch)` |
+| MIDI routing (CC/note in/out) | Yes | `settings.midi.auto_channel`, `soft_thru`, `audio_trk_cc_in/out` etc. |
+| Pattern chain settings | Yes | `settings.pattern_chain.chain_behavior`, `auto_silence_tracks`, `auto_trig_lfos` |
+| Audio routing / mixer | Yes | `settings.mixer.main_level`, `cue_level`, `phones_mix`, `gate_ab/cd`, … |
+| Metronome | Yes | `settings.metronome.enabled`, `time_signature`, `cue_volume`, … |
 
 ## Not Implemented
 

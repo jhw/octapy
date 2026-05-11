@@ -136,6 +136,13 @@ class MidiPatternTrack:
         else:
             self._data[offset] &= ~(1 << bit_pos)
 
+        # Sync swing bit
+        offset = MidiTrackTrigsOffset.TRIG_SWING + byte_idx
+        if step.swing:
+            self._data[offset] |= (1 << bit_pos)
+        else:
+            self._data[offset] &= ~(1 << bit_pos)
+
         # Sync condition data
         active, trigless, condition_data, plock_data = step.write()
         cond_offset = MidiTrackTrigsOffset.TRIG_CONDITIONS + step_idx * 2
@@ -191,6 +198,9 @@ class MidiPatternTrack:
         # Get trigless bit
         trigless = bool(self._data[MidiTrackTrigsOffset.TRIG_TRIGLESS + byte_idx] & (1 << bit_pos))
 
+        # Get swing bit
+        swing = bool(self._data[MidiTrackTrigsOffset.TRIG_SWING + byte_idx] & (1 << bit_pos))
+
         # Get condition data
         cond_offset = MidiTrackTrigsOffset.TRIG_CONDITIONS + step_idx * 2
         condition_data = bytes(self._data[cond_offset:cond_offset + 2])
@@ -200,6 +210,7 @@ class MidiPatternTrack:
         plock_data = bytes(self._data[plock_offset:plock_offset + MIDI_PLOCK_SIZE])
 
         step = MidiStep.read(step_num, active, trigless, condition_data, plock_data)
+        step._swing = swing
         # Connect sync callback so step changes immediately update the buffer
         step._sync_callback = self._on_step_changed
         return step
@@ -254,6 +265,18 @@ class MidiPatternTrack:
         for step_num in range(1, 65):
             if step_num in self._steps:
                 self._steps[step_num].trigless = step_num in value
+
+    @property
+    def swing_steps(self) -> List[int]:
+        """Get/set steps with the swing trig flag (1-indexed list)."""
+        return _trig_mask_to_steps(self._data, MidiTrackTrigsOffset.TRIG_SWING)
+
+    @swing_steps.setter
+    def swing_steps(self, value: List[int]):
+        _steps_to_trig_mask(self._data, MidiTrackTrigsOffset.TRIG_SWING, value)
+        for step_num in range(1, 65):
+            if step_num in self._steps:
+                self._steps[step_num]._swing = step_num in value
 
     # === Serialization ===
 

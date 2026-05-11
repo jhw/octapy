@@ -40,46 +40,44 @@ Project
 
 ```
 octapy/api/
-├── project.py          # Project entry point
-├── bank.py             # Bank container
+├── enums.py            # MachineType, TrigCondition, NoteLength, MidiNote, FX types, etc.
+├── settings.py         # Settings, RenderSettings (project-level)
 ├── sample_pool.py      # SamplePool for loading samples
 ├── slot_manager.py     # Sample slot management
-├── enums.py            # MachineType, TrigCondition, NoteLength, etc.
 ├── utils.py            # Quantization utilities
-├── part/               # Part and PartTrack classes
-│   ├── base.py         # BasePartTrack (ABC)
-│   ├── audio.py        # AudioPartTrack (LFO, AMP pages)
-│   ├── sampler.py      # SamplerPartTrack (Flex/Static base)
-│   ├── flex.py         # FlexPartTrack
-│   ├── static.py       # StaticPartTrack
-│   ├── thru.py         # ThruPartTrack (input routing)
-│   ├── neighbor.py     # NeighborPartTrack
-│   ├── pickup.py       # PickupPartTrack
-│   ├── midi.py         # MidiPartTrack
-│   └── part.py         # Part container
-├── pattern/            # Pattern and PatternTrack classes
-│   ├── base.py         # BasePatternTrack (ABC)
-│   ├── audio.py        # AudioPatternTrack
-│   ├── midi.py         # MidiPatternTrack
-│   └── pattern.py      # Pattern container
-└── step/               # Step classes
-    ├── base.py         # BaseStep + trig mask utilities
-    ├── audio.py        # AudioStep (base for audio tracks)
-    ├── sampler.py      # SamplerStep (volume, pitch, sample lock)
-    └── midi.py         # MidiStep (note, velocity, CC)
+└── core/
+    ├── project.py      # Project entry point
+    ├── bank.py         # Bank container
+    ├── pattern.py      # Pattern container
+    ├── part.py         # Part container
+    ├── scene.py        # Scene (crossfader parameter locks)
+    ├── _page.py        # Shared param-page accessors
+    ├── _trig.py        # Trig mask helpers
+    ├── audio/
+    │   ├── part_track.py     # AudioPartTrack (machine config, AMP, FX)
+    │   ├── pattern_track.py  # AudioPatternTrack (trigs, p-locks)
+    │   ├── recorder.py       # AudioRecorderSetup
+    │   ├── scene_track.py    # AudioSceneTrack (per-scene locks)
+    │   └── step.py           # AudioStep (volume, pitch, sample lock)
+    └── midi/
+        ├── part_track.py     # MidiPartTrack (channel, default note, arp)
+        ├── pattern_track.py  # MidiPatternTrack
+        └── step.py           # MidiStep (note, velocity, CC)
 ```
 
 ### Machine Types
 
-AudioPartTrack returns machine-specific subclasses based on the track's machine type:
+`AudioPartTrack.machine_type` selects which machine the track uses. Machine-specific
+parameter pages are accessed through unified accessors (`pitch`, `length`, etc.)
+that read/write the active machine's parameter block.
 
-| Machine | Class | Description |
-|---------|-------|-------------|
-| FLEX | `FlexPartTrack` | RAM-based sample playback |
-| STATIC | `StaticPartTrack` | Streaming sample playback |
-| THRU | `ThruPartTrack` | Live input routing |
-| NEIGHBOR | `NeighborPartTrack` | Adjacent track routing |
-| PICKUP | `PickupPartTrack` | Live looper |
+| Machine | Description |
+|---------|-------------|
+| FLEX | RAM-based sample playback |
+| STATIC | Streaming sample playback |
+| THRU | Live input routing |
+| NEIGHBOR | Adjacent track routing |
+| PICKUP | Live looper |
 
 ### Enums
 

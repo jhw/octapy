@@ -585,3 +585,39 @@ class QRecMode(IntEnum):
     STEP_192 = 15   # Start on next 12 bars
     STEP_256 = 16   # Start on next 16 bars
     OFF = 255       # No quantization (immediate start)
+
+
+# === LFO enums ===
+
+class LfoWaveform(IntEnum):
+    """
+    LFO waveform shape.
+
+    Set via FUNC+LFO page, encoder D (WAVE) on the Octatrack.
+
+    Usage:
+        track.lfo(1).waveform = LfoWaveform.SIN
+    """
+    TRI = 0    # Triangle
+    SIN = 1    # Sine
+    SQR = 2    # Square
+    SAW = 3    # Sawtooth
+    EXP = 4    # Exponential
+    RMP = 5    # Ramp
+    RND = 6    # Random (sample-and-hold)
+
+
+class LfoTrigMode(IntEnum):
+    """
+    LFO trig (retrigger) mode.
+
+    Set via FUNC+LFO page, encoder F (TRIG) on the Octatrack.
+
+    Usage:
+        track.lfo(1).trig_mode = LfoTrigMode.TRIG
+    """
+    FREE = 0   # Free-running, ignores trigs
+    TRIG = 1   # Reset on every trig
+    HOLD = 2   # Reset and hold on trig
+    ONE = 3    # One-shot (single cycle on trig)
+    HALF = 4   # Half-cycle on trig

@@ -56,10 +56,16 @@ TRIGQUANTIZATION={self.trig_quantization}
 
 @dataclass
 class ProjectSettings:
-    """Project-level settings."""
+    """
+    Project-level settings written to the [SETTINGS] section of project.work.
+
+    Fields are listed in the order they appear in the file.
+    """
+    # Basic
     write_protected: int = 0
     tempo_x24: int = 2880       # BPM * 24 (2880 = 120 BPM)
     pattern_tempo_enabled: int = 0
+    # MIDI clock / transport / program change
     midi_clock_send: int = 0
     midi_clock_receive: int = 0
     midi_transport_send: int = 0
@@ -68,12 +74,51 @@ class ProjectSettings:
     midi_program_change_send_ch: int = -1
     midi_program_change_receive: int = 0
     midi_program_change_receive_ch: int = -1
+    # MIDI trig channels (per MIDI track 1-8)
+    midi_trig_channels: List[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5, 6, 7])
+    # MIDI control / routing
+    midi_auto_channel: int = 10
+    midi_soft_thru: int = 0
+    midi_audio_trk_cc_in: int = 1
+    midi_audio_trk_cc_out: int = 3
+    midi_audio_trk_note_in: int = 1
+    midi_audio_trk_note_out: int = 3
+    midi_midi_trk_cc_in: int = 1
+    # Pattern change
+    pattern_change_chain_behavior: int = 0
+    pattern_change_auto_silence_tracks: int = 0
+    pattern_change_auto_trig_lfos: int = 0
+    # Memory/recorder
     load_24bit_flex: int = 0
     dynamic_recorders: int = 0
     record_24bit: int = 0
     reserved_recorder_count: int = 8
     reserved_recorder_length: int = 16
-    master_track: int = 0           # 0 = disabled, 1 = track 8 is master
+    # Mixer/Input
+    input_delay_compensation: int = 0
+    gate_ab: int = 127
+    gate_cd: int = 127
+    gain_ab: int = 64
+    gain_cd: int = 64
+    dir_ab: int = 0
+    dir_cd: int = 0
+    phones_mix: int = 64
+    main_to_cue: int = 0
+    master_track: int = 0       # 0 = disabled, 1 = track 8 is master
+    cue_studio_mode: int = 0
+    main_level: int = 64
+    cue_level: int = 64
+    # Metronome
+    metronome_time_signature: int = 3
+    metronome_time_signature_denominator: int = 2
+    metronome_preroll: int = 0
+    metronome_cue_volume: int = 32
+    metronome_main_volume: int = 0
+    metronome_pitch: int = 12
+    metronome_tonal: int = 1
+    metronome_enabled: int = 0
+    # Trig mode (per MIDI track 1-8)
+    trig_mode_midi: List[int] = field(default_factory=lambda: [0] * 8)
 
 
 @dataclass
@@ -94,6 +139,89 @@ class ProjectState:
     midi_track_mute_mask: int = 0
     midi_track_solo_mask: int = 0
     midi_mode: int = 0
+
+
+# =============================================================================
+# Settings field schema
+#
+# Drives both parsing and serialization for the SETTINGS section so the two
+# stay in lock-step. Each entry is (ini_key, settings_attr). The order here
+# matches the order in the project.work file.
+# =============================================================================
+
+_SETTINGS_FIELDS = (
+    ("WRITEPROTECTED", "write_protected"),
+    ("TEMPOx24", "tempo_x24"),
+    ("PATTERN_TEMPO_ENABLED", "pattern_tempo_enabled"),
+    ("MIDI_CLOCK_SEND", "midi_clock_send"),
+    ("MIDI_CLOCK_RECEIVE", "midi_clock_receive"),
+    ("MIDI_TRANSPORT_SEND", "midi_transport_send"),
+    ("MIDI_TRANSPORT_RECEIVE", "midi_transport_receive"),
+    ("MIDI_PROGRAM_CHANGE_SEND", "midi_program_change_send"),
+    ("MIDI_PROGRAM_CHANGE_SEND_CH", "midi_program_change_send_ch"),
+    ("MIDI_PROGRAM_CHANGE_RECEIVE", "midi_program_change_receive"),
+    ("MIDI_PROGRAM_CHANGE_RECEIVE_CH", "midi_program_change_receive_ch"),
+    # MIDI_TRIG_CH1..8 handled separately as a list
+    ("MIDI_AUTO_CHANNEL", "midi_auto_channel"),
+    ("MIDI_SOFT_THRU", "midi_soft_thru"),
+    ("MIDI_AUDIO_TRK_CC_IN", "midi_audio_trk_cc_in"),
+    ("MIDI_AUDIO_TRK_CC_OUT", "midi_audio_trk_cc_out"),
+    ("MIDI_AUDIO_TRK_NOTE_IN", "midi_audio_trk_note_in"),
+    ("MIDI_AUDIO_TRK_NOTE_OUT", "midi_audio_trk_note_out"),
+    ("MIDI_MIDI_TRK_CC_IN", "midi_midi_trk_cc_in"),
+    ("PATTERN_CHANGE_CHAIN_BEHAVIOR", "pattern_change_chain_behavior"),
+    ("PATTERN_CHANGE_AUTO_SILENCE_TRACKS", "pattern_change_auto_silence_tracks"),
+    ("PATTERN_CHANGE_AUTO_TRIG_LFOS", "pattern_change_auto_trig_lfos"),
+    ("LOAD_24BIT_FLEX", "load_24bit_flex"),
+    ("DYNAMIC_RECORDERS", "dynamic_recorders"),
+    ("RECORD_24BIT", "record_24bit"),
+    ("RESERVED_RECORDER_COUNT", "reserved_recorder_count"),
+    ("RESERVED_RECORDER_LENGTH", "reserved_recorder_length"),
+    ("INPUT_DELAY_COMPENSATION", "input_delay_compensation"),
+    ("GATE_AB", "gate_ab"),
+    ("GATE_CD", "gate_cd"),
+    ("GAIN_AB", "gain_ab"),
+    ("GAIN_CD", "gain_cd"),
+    ("DIR_AB", "dir_ab"),
+    ("DIR_CD", "dir_cd"),
+    ("PHONES_MIX", "phones_mix"),
+    ("MAIN_TO_CUE", "main_to_cue"),
+    ("MASTER_TRACK", "master_track"),
+    ("CUE_STUDIO_MODE", "cue_studio_mode"),
+    ("MAIN_LEVEL", "main_level"),
+    ("CUE_LEVEL", "cue_level"),
+    ("METRONOME_TIME_SIGNATURE", "metronome_time_signature"),
+    ("METRONOME_TIME_SIGNATURE_DENOMINATOR", "metronome_time_signature_denominator"),
+    ("METRONOME_PREROLL", "metronome_preroll"),
+    ("METRONOME_CUE_VOLUME", "metronome_cue_volume"),
+    ("METRONOME_MAIN_VOLUME", "metronome_main_volume"),
+    ("METRONOME_PITCH", "metronome_pitch"),
+    ("METRONOME_TONAL", "metronome_tonal"),
+    ("METRONOME_ENABLED", "metronome_enabled"),
+    # TRIG_MODE_MIDI x8 handled separately as a list
+)
+
+# Insertion point for MIDI_TRIG_CH1..8 (after MIDI_PROGRAM_CHANGE_RECEIVE_CH)
+_MIDI_TRIG_CH_AFTER = "MIDI_PROGRAM_CHANGE_RECEIVE_CH"
+
+
+_STATE_FIELDS = (
+    ("BANK", "bank"),
+    ("PATTERN", "pattern"),
+    ("ARRANGEMENT", "arrangement"),
+    ("ARRANGEMENT_MODE", "arrangement_mode"),
+    ("PART", "part"),
+    ("TRACK", "track"),
+    ("TRACK_OTHERMODE", "track_othermode"),
+    ("SCENE_A_MUTE", "scene_a_mute"),
+    ("SCENE_B_MUTE", "scene_b_mute"),
+    ("TRACK_CUE_MASK", "track_cue_mask"),
+    ("TRACK_MUTE_MASK", "track_mute_mask"),
+    ("TRACK_SOLO_MASK", "track_solo_mask"),
+    ("MIDI_TRACK_MUTE_MASK", "midi_track_mute_mask"),
+    ("MIDI_TRACK_SOLO_MASK", "midi_track_solo_mask"),
+    ("MIDI_MODE", "midi_mode"),
+)
 
 
 # =============================================================================
@@ -150,75 +278,68 @@ class ProjectFile:
         # Parse SETTINGS section
         settings_match = re.search(r'\[SETTINGS\](.*?)\[/SETTINGS\]', content, re.DOTALL)
         if settings_match:
-            settings_content = settings_match.group(1)
+            self._parse_settings(settings_match.group(1))
 
-            tempo_match = re.search(r'TEMPOx24=(\d+)', settings_content)
-            if tempo_match:
-                self.settings.tempo_x24 = int(tempo_match.group(1))
-
-            pattern_tempo_match = re.search(r'PATTERN_TEMPO_ENABLED=(\d+)', settings_content)
-            if pattern_tempo_match:
-                self.settings.pattern_tempo_enabled = int(pattern_tempo_match.group(1))
-
-            # Parse MIDI settings
-            midi_clock_send = re.search(r'MIDI_CLOCK_SEND=(\d+)', settings_content)
-            if midi_clock_send:
-                self.settings.midi_clock_send = int(midi_clock_send.group(1))
-
-            midi_clock_receive = re.search(r'MIDI_CLOCK_RECEIVE=(\d+)', settings_content)
-            if midi_clock_receive:
-                self.settings.midi_clock_receive = int(midi_clock_receive.group(1))
-
-            midi_transport_send = re.search(r'MIDI_TRANSPORT_SEND=(\d+)', settings_content)
-            if midi_transport_send:
-                self.settings.midi_transport_send = int(midi_transport_send.group(1))
-
-            midi_transport_receive = re.search(r'MIDI_TRANSPORT_RECEIVE=(\d+)', settings_content)
-            if midi_transport_receive:
-                self.settings.midi_transport_receive = int(midi_transport_receive.group(1))
-
-            midi_pc_send = re.search(r'MIDI_PROGRAM_CHANGE_SEND=(\d+)', settings_content)
-            if midi_pc_send:
-                self.settings.midi_program_change_send = int(midi_pc_send.group(1))
-
-            midi_pc_send_ch = re.search(r'MIDI_PROGRAM_CHANGE_SEND_CH=(-?\d+)', settings_content)
-            if midi_pc_send_ch:
-                self.settings.midi_program_change_send_ch = int(midi_pc_send_ch.group(1))
-
-            midi_pc_receive = re.search(r'MIDI_PROGRAM_CHANGE_RECEIVE=(\d+)', settings_content)
-            if midi_pc_receive:
-                self.settings.midi_program_change_receive = int(midi_pc_receive.group(1))
-
-            midi_pc_receive_ch = re.search(r'MIDI_PROGRAM_CHANGE_RECEIVE_CH=(-?\d+)', settings_content)
-            if midi_pc_receive_ch:
-                self.settings.midi_program_change_receive_ch = int(midi_pc_receive_ch.group(1))
-
-            master_track = re.search(r'MASTER_TRACK=(\d+)', settings_content)
-            if master_track:
-                self.settings.master_track = int(master_track.group(1))
+        # Parse STATES section
+        states_match = re.search(r'\[STATES\](.*?)\[/STATES\]', content, re.DOTALL)
+        if states_match:
+            self._parse_state(states_match.group(1))
 
         # Parse SAMPLE sections
         sample_matches = re.findall(r'\[SAMPLE\](.*?)\[/SAMPLE\]', content, re.DOTALL)
         for sample_content in sample_matches:
-            slot = SampleSlot()
+            self.sample_slots.append(self._parse_sample(sample_content))
 
-            type_match = re.search(r'TYPE=(\w+)', sample_content)
-            if type_match:
-                slot.slot_type = type_match.group(1)
+    def _parse_settings(self, content: str) -> None:
+        """Parse the SETTINGS section body and populate self.settings."""
+        for ini_key, attr in _SETTINGS_FIELDS:
+            value = _read_int(content, ini_key)
+            if value is not None:
+                setattr(self.settings, attr, value)
 
-            slot_match = re.search(r'SLOT=(\d+)', sample_content)
-            if slot_match:
-                slot.slot_number = int(slot_match.group(1))
+        # MIDI_TRIG_CH1..8 — array of 8 channels
+        for i in range(8):
+            value = _read_int(content, f"MIDI_TRIG_CH{i+1}")
+            if value is not None:
+                self.settings.midi_trig_channels[i] = value
 
-            path_match = re.search(r'PATH=(.+)', sample_content)
-            if path_match:
-                slot.path = path_match.group(1).strip()
+        # TRIG_MODE_MIDI x8 — duplicate-key array. Take the values in order.
+        trig_modes = [int(m) for m in re.findall(r'^TRIG_MODE_MIDI=(-?\d+)', content, re.MULTILINE)]
+        for i, v in enumerate(trig_modes[:8]):
+            self.settings.trig_mode_midi[i] = v
 
-            gain_match = re.search(r'GAIN=(\d+)', sample_content)
-            if gain_match:
-                slot.gain = int(gain_match.group(1))
+    def _parse_state(self, content: str) -> None:
+        """Parse the STATES section body and populate self.state."""
+        for ini_key, attr in _STATE_FIELDS:
+            value = _read_int(content, ini_key)
+            if value is not None:
+                setattr(self.state, attr, value)
 
-            self.sample_slots.append(slot)
+    def _parse_sample(self, content: str) -> SampleSlot:
+        """Parse a single [SAMPLE] block into a SampleSlot."""
+        slot = SampleSlot()
+
+        type_match = re.search(r'TYPE=(\w+)', content)
+        if type_match:
+            slot.slot_type = type_match.group(1)
+
+        for ini_key, attr, kind in (
+            ("SLOT", "slot_number", int),
+            ("BPMx24", "bpm_x24", int),
+            ("TSMODE", "timestretch_mode", int),
+            ("LOOPMODE", "loop_mode", int),
+            ("GAIN", "gain", int),
+            ("TRIGQUANTIZATION", "trig_quantization", int),
+        ):
+            value = _read_int(content, ini_key)
+            if value is not None:
+                setattr(slot, attr, value)
+
+        path_match = re.search(r'^PATH=(.*)$', content, re.MULTILINE)
+        if path_match:
+            slot.path = path_match.group(1).strip()
+
+        return slot
 
     def to_file(self, path: Path) -> None:
         """Write the project file to disk with CRLF line endings."""
@@ -230,7 +351,7 @@ class ProjectFile:
 
     def _generate_content(self) -> str:
         """Generate the INI-style content."""
-        lines = []
+        lines: List[str] = []
 
         # Header comment
         lines.append("############################")
@@ -248,61 +369,14 @@ class ProjectFile:
 
         # SETTINGS section
         lines.append("[SETTINGS]")
-        lines.append(f"WRITEPROTECTED={self.settings.write_protected}")
-        lines.append(f"TEMPOx24={self.settings.tempo_x24}")
-        lines.append(f"PATTERN_TEMPO_ENABLED={self.settings.pattern_tempo_enabled}")
-        lines.append(f"MIDI_CLOCK_SEND={self.settings.midi_clock_send}")
-        lines.append(f"MIDI_CLOCK_RECEIVE={self.settings.midi_clock_receive}")
-        lines.append(f"MIDI_TRANSPORT_SEND={self.settings.midi_transport_send}")
-        lines.append(f"MIDI_TRANSPORT_RECEIVE={self.settings.midi_transport_receive}")
-        lines.append(f"MIDI_PROGRAM_CHANGE_SEND={self.settings.midi_program_change_send}")
-        lines.append(f"MIDI_PROGRAM_CHANGE_SEND_CH={self.settings.midi_program_change_send_ch}")
-        lines.append(f"MIDI_PROGRAM_CHANGE_RECEIVE={self.settings.midi_program_change_receive}")
-        lines.append(f"MIDI_PROGRAM_CHANGE_RECEIVE_CH={self.settings.midi_program_change_receive_ch}")
-
-        for i in range(8):
-            lines.append(f"MIDI_TRIG_CH{i+1}={i}")
-
-        lines.append("MIDI_AUTO_CHANNEL=10")
-        lines.append("MIDI_SOFT_THRU=0")
-        lines.append("MIDI_AUDIO_TRK_CC_IN=1")
-        lines.append("MIDI_AUDIO_TRK_CC_OUT=3")
-        lines.append("MIDI_AUDIO_TRK_NOTE_IN=1")
-        lines.append("MIDI_AUDIO_TRK_NOTE_OUT=3")
-        lines.append("MIDI_MIDI_TRK_CC_IN=1")
-        lines.append("PATTERN_CHANGE_CHAIN_BEHAVIOR=0")
-        lines.append("PATTERN_CHANGE_AUTO_SILENCE_TRACKS=0")
-        lines.append("PATTERN_CHANGE_AUTO_TRIG_LFOS=0")
-        lines.append(f"LOAD_24BIT_FLEX={self.settings.load_24bit_flex}")
-        lines.append(f"DYNAMIC_RECORDERS={self.settings.dynamic_recorders}")
-        lines.append(f"RECORD_24BIT={self.settings.record_24bit}")
-        lines.append(f"RESERVED_RECORDER_COUNT={self.settings.reserved_recorder_count}")
-        lines.append(f"RESERVED_RECORDER_LENGTH={self.settings.reserved_recorder_length}")
-        lines.append("INPUT_DELAY_COMPENSATION=0")
-        lines.append("GATE_AB=127")
-        lines.append("GATE_CD=127")
-        lines.append("GAIN_AB=64")
-        lines.append("GAIN_CD=64")
-        lines.append("DIR_AB=0")
-        lines.append("DIR_CD=0")
-        lines.append("PHONES_MIX=64")
-        lines.append("MAIN_TO_CUE=0")
-        lines.append(f"MASTER_TRACK={self.settings.master_track}")
-        lines.append("CUE_STUDIO_MODE=0")
-        lines.append("MAIN_LEVEL=64")
-        lines.append("CUE_LEVEL=64")
-        lines.append("METRONOME_TIME_SIGNATURE=3")
-        lines.append("METRONOME_TIME_SIGNATURE_DENOMINATOR=2")
-        lines.append("METRONOME_PREROLL=0")
-        lines.append("METRONOME_CUE_VOLUME=32")
-        lines.append("METRONOME_MAIN_VOLUME=0")
-        lines.append("METRONOME_PITCH=12")
-        lines.append("METRONOME_TONAL=1")
-        lines.append("METRONOME_ENABLED=0")
-
-        for _ in range(8):
-            lines.append("TRIG_MODE_MIDI=0")
-
+        for ini_key, attr in _SETTINGS_FIELDS:
+            lines.append(f"{ini_key}={getattr(self.settings, attr)}")
+            if ini_key == _MIDI_TRIG_CH_AFTER:
+                for i, ch in enumerate(self.settings.midi_trig_channels):
+                    lines.append(f"MIDI_TRIG_CH{i+1}={ch}")
+        # TRIG_MODE_MIDI x8 at the end of SETTINGS
+        for v in self.settings.trig_mode_midi:
+            lines.append(f"TRIG_MODE_MIDI={v}")
         lines.append("[/SETTINGS]")
         lines.append("")
 
@@ -312,21 +386,8 @@ class ProjectFile:
         lines.append("############################")
         lines.append("")
         lines.append("[STATES]")
-        lines.append(f"BANK={self.state.bank}")
-        lines.append(f"PATTERN={self.state.pattern}")
-        lines.append(f"ARRANGEMENT={self.state.arrangement}")
-        lines.append(f"ARRANGEMENT_MODE={self.state.arrangement_mode}")
-        lines.append(f"PART={self.state.part}")
-        lines.append(f"TRACK={self.state.track}")
-        lines.append(f"TRACK_OTHERMODE={self.state.track_othermode}")
-        lines.append(f"SCENE_A_MUTE={self.state.scene_a_mute}")
-        lines.append(f"SCENE_B_MUTE={self.state.scene_b_mute}")
-        lines.append(f"TRACK_CUE_MASK={self.state.track_cue_mask}")
-        lines.append(f"TRACK_MUTE_MASK={self.state.track_mute_mask}")
-        lines.append(f"TRACK_SOLO_MASK={self.state.track_solo_mask}")
-        lines.append(f"MIDI_TRACK_MUTE_MASK={self.state.midi_track_mute_mask}")
-        lines.append(f"MIDI_TRACK_SOLO_MASK={self.state.midi_track_solo_mask}")
-        lines.append(f"MIDI_MODE={self.state.midi_mode}")
+        for ini_key, attr in _STATE_FIELDS:
+            lines.append(f"{ini_key}={getattr(self.state, attr)}")
         lines.append("[/STATES]")
         lines.append("")
 
@@ -340,6 +401,7 @@ class ProjectFile:
             lines.append(slot.to_ini_block())
 
         lines.append("############################")
+        lines.append("")
         lines.append("")
 
         return '\n'.join(lines)
@@ -399,6 +461,17 @@ class ProjectFile:
     def tempo_x24(self, value: int):
         """Set the raw tempo value (BPM * 24)."""
         self.settings.tempo_x24 = value
+
+
+def _read_int(content: str, key: str) -> "int | None":
+    """Read an integer value for INI key from content.
+
+    Matches `KEY=value` at start of line, with a signed integer value.
+    """
+    m = re.search(rf'^{re.escape(key)}=(-?\d+)\s*$', content, re.MULTILINE)
+    if m is None:
+        return None
+    return int(m.group(1))
 
 
 # =============================================================================

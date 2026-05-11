@@ -79,6 +79,11 @@ class AudioStep:
         self._step_num = step_num
         self._active = active
         self._trigless = trigless
+        # Swing/slide flags — owned by the parent AudioPatternTrack via
+        # per-step trig masks. They survive read()/write() through the
+        # sync_callback rather than the (active, trigless, ...) tuple.
+        self._swing = False
+        self._slide = False
 
         # Callback to sync changes back to track buffer (set by AudioPatternTrack)
         self._sync_callback: Optional[Callable[["AudioStep"], None]] = None
@@ -141,6 +146,8 @@ class AudioStep:
         instance._step_num = step_num
         instance._active = active
         instance._trigless = trigless
+        instance._swing = False
+        instance._slide = False
         instance._sync_callback = None
         instance._condition_data = bytearray(condition_data[:2])
         instance._plock_data = bytearray(plock_data[:PLOCK_SIZE])
@@ -175,6 +182,8 @@ class AudioStep:
         instance._step_num = self._step_num
         instance._active = self._active
         instance._trigless = self._trigless
+        instance._swing = self._swing
+        instance._slide = self._slide
         instance._sync_callback = None  # Clone doesn't inherit callback
         instance._condition_data = bytearray(self._condition_data)
         instance._plock_data = bytearray(self._plock_data)
@@ -210,6 +219,26 @@ class AudioStep:
     @trigless.setter
     def trigless(self, value: bool):
         self._trigless = value
+        self._notify_sync()
+
+    @property
+    def swing(self) -> bool:
+        """Get/set whether this step has a swing trig (humanizes timing)."""
+        return self._swing
+
+    @swing.setter
+    def swing(self, value: bool):
+        self._swing = bool(value)
+        self._notify_sync()
+
+    @property
+    def slide(self) -> bool:
+        """Get/set whether this step has a slide trig (glides params from the previous trig)."""
+        return self._slide
+
+    @slide.setter
+    def slide(self, value: bool):
+        self._slide = bool(value)
         self._notify_sync()
 
     # === Condition properties ===
@@ -386,6 +415,40 @@ class AudioStep:
     @retrig_time.setter
     def retrig_time(self, value: Optional[int]):
         self._set_plock(PlockOffset.MACHINE_PARAM6, value)
+
+    # === LFO p-locks ===
+
+    def lfo_speed(self, n: int) -> Optional[int]:
+        """
+        Get p-locked LFO speed for LFO `n` (1, 2, or 3).
+
+        Returns None if no p-lock is set (uses Part default).
+        """
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        return self._get_plock(PlockOffset.LFO_SPD1 + (n - 1))
+
+    def set_lfo_speed(self, n: int, value: Optional[int]):
+        """Set p-locked LFO speed for LFO `n` (1, 2, or 3). None clears the lock."""
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        self._set_plock(PlockOffset.LFO_SPD1 + (n - 1), value)
+
+    def lfo_depth(self, n: int) -> Optional[int]:
+        """
+        Get p-locked LFO depth for LFO `n` (1, 2, or 3).
+
+        Returns None if no p-lock is set (uses Part default).
+        """
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        return self._get_plock(PlockOffset.LFO_DEP1 + (n - 1))
+
+    def set_lfo_depth(self, n: int, value: Optional[int]):
+        """Set p-locked LFO depth for LFO `n` (1, 2, or 3). None clears the lock."""
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        self._set_plock(PlockOffset.LFO_DEP1 + (n - 1), value)
 
     @property
     def slice_index(self) -> Optional[int]:

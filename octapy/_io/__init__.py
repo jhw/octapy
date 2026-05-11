@@ -29,6 +29,8 @@ from .bank import (
     PickupParamsOffset,
     PickupSetupOffset,
     AudioTrackParamsOffset,
+    AudioTrackParamsSetupOffset,
+    AUDIO_TRACK_PARAMS_SETUP_SIZE,
     PlockOffset,
     MidiPartOffset,
     MidiTrackValuesOffset,

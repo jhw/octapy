@@ -4,7 +4,141 @@ Settings class - project-level settings.
 
 from __future__ import annotations
 
+from typing import List
+
 from .._io import ProjectSettings as _ProjectSettings
+
+
+class _IntFieldGroup:
+    """Base helper for grouped settings views over a ProjectSettings dataclass."""
+
+    __slots__ = ('_settings',)
+
+    def __init__(self, project_settings: _ProjectSettings):
+        object.__setattr__(self, '_settings', project_settings)
+
+
+def _int_property(attr: str, doc: str = ""):
+    """Build a simple int passthrough property for a ProjectSettings attribute."""
+    def fget(self):
+        return getattr(self._settings, attr)
+
+    def fset(self, value):
+        setattr(self._settings, attr, int(value))
+
+    return property(fget, fset, doc=doc)
+
+
+def _bool_property(attr: str, doc: str = ""):
+    """Build a 0/1 int <-> bool property for a ProjectSettings attribute."""
+    def fget(self):
+        return bool(getattr(self._settings, attr))
+
+    def fset(self, value):
+        setattr(self._settings, attr, int(bool(value)))
+
+    return property(fget, fset, doc=doc)
+
+
+class MixerSettings(_IntFieldGroup):
+    """Audio routing, gates, gains, and main/cue levels.
+
+    These map to the Octatrack's PROJECT > MIXER and PROJECT > AUDIO menus.
+    """
+
+    input_delay_compensation = _int_property('input_delay_compensation', "PROJECT > AUDIO: input latency compensation (steps).")
+    gate_ab = _int_property('gate_ab', "Input gate threshold for inputs A+B (0-127).")
+    gate_cd = _int_property('gate_cd', "Input gate threshold for inputs C+D (0-127).")
+    gain_ab = _int_property('gain_ab', "Input gain for inputs A+B (0-127).")
+    gain_cd = _int_property('gain_cd', "Input gain for inputs C+D (0-127).")
+    dir_ab = _int_property('dir_ab', "Input direct-monitor flag for A+B.")
+    dir_cd = _int_property('dir_cd', "Input direct-monitor flag for C+D.")
+    phones_mix = _int_property('phones_mix', "Headphone mix balance MAIN vs. CUE (0-127).")
+    main_to_cue = _int_property('main_to_cue', "Route MAIN bus to the CUE bus.")
+    cue_studio_mode = _int_property('cue_studio_mode', "Enable Studio Mode on the CUE bus.")
+    main_level = _int_property('main_level', "MAIN output level (0-127).")
+    cue_level = _int_property('cue_level', "CUE output level (0-127).")
+
+
+class MetronomeSettings(_IntFieldGroup):
+    """Metronome timing and volume settings.
+
+    Maps to PROJECT > METRONOME on the Octatrack.
+    """
+
+    enabled = _bool_property('metronome_enabled', "Enable the metronome click.")
+    time_signature = _int_property('metronome_time_signature', "Time signature numerator index.")
+    time_signature_denominator = _int_property('metronome_time_signature_denominator', "Time signature denominator index.")
+    preroll = _int_property('metronome_preroll', "Pre-roll length in bars.")
+    cue_volume = _int_property('metronome_cue_volume', "Metronome volume on the CUE bus (0-127).")
+    main_volume = _int_property('metronome_main_volume', "Metronome volume on the MAIN bus (0-127).")
+    pitch = _int_property('metronome_pitch', "Metronome click pitch.")
+    tonal = _int_property('metronome_tonal', "Use tonal click (1) instead of pure noise (0).")
+
+
+class MidiPortSettings(_IntFieldGroup):
+    """MIDI port routing, trig channels, and CC/note pass-through settings.
+
+    Excludes the clock / transport / program-change flags exposed directly
+    on `Settings` for backwards compatibility.
+    """
+
+    @property
+    def trig_channels(self) -> List[int]:
+        """Per-MIDI-track trig channel assignments (list of 8, channels 0-15)."""
+        return list(self._settings.midi_trig_channels)
+
+    @trig_channels.setter
+    def trig_channels(self, value):
+        value = [int(v) for v in value]
+        if len(value) != 8:
+            raise ValueError(f"trig_channels must have 8 entries, got {len(value)}")
+        self._settings.midi_trig_channels = value
+
+    def trig_channel(self, track_num: int) -> int:
+        """Get MIDI trig channel for a track (1-8)."""
+        if not 1 <= track_num <= 8:
+            raise ValueError(f"Track number must be 1-8, got {track_num}")
+        return self._settings.midi_trig_channels[track_num - 1]
+
+    def set_trig_channel(self, track_num: int, channel: int):
+        """Set MIDI trig channel for a track (1-8). Channel is 0-15."""
+        if not 1 <= track_num <= 8:
+            raise ValueError(f"Track number must be 1-8, got {track_num}")
+        if not 0 <= channel <= 15:
+            raise ValueError(f"Channel must be 0-15, got {channel}")
+        self._settings.midi_trig_channels[track_num - 1] = channel
+
+    auto_channel = _int_property('midi_auto_channel', "MIDI auto channel (used by AUTO and MIDI in).")
+    soft_thru = _int_property('midi_soft_thru', "MIDI soft-thru routing.")
+    audio_trk_cc_in = _int_property('midi_audio_trk_cc_in', "MIDI CC input routing for audio tracks.")
+    audio_trk_cc_out = _int_property('midi_audio_trk_cc_out', "MIDI CC output routing for audio tracks.")
+    audio_trk_note_in = _int_property('midi_audio_trk_note_in', "MIDI note input routing for audio tracks.")
+    audio_trk_note_out = _int_property('midi_audio_trk_note_out', "MIDI note output routing for audio tracks.")
+    midi_trk_cc_in = _int_property('midi_midi_trk_cc_in', "MIDI CC input routing for MIDI tracks.")
+
+    @property
+    def trig_mode_midi(self) -> List[int]:
+        """Per-MIDI-track trig mode array (length 8)."""
+        return list(self._settings.trig_mode_midi)
+
+    @trig_mode_midi.setter
+    def trig_mode_midi(self, value):
+        value = [int(v) for v in value]
+        if len(value) != 8:
+            raise ValueError(f"trig_mode_midi must have 8 entries, got {len(value)}")
+        self._settings.trig_mode_midi = value
+
+
+class PatternChainSettings(_IntFieldGroup):
+    """Behavior settings around pattern change/chain transitions.
+
+    Maps to PROJECT > SEQUENCER on the Octatrack.
+    """
+
+    chain_behavior = _int_property('pattern_change_chain_behavior', "Pattern change chain behavior.")
+    auto_silence_tracks = _bool_property('pattern_change_auto_silence_tracks', "Auto-silence tracks on pattern change.")
+    auto_trig_lfos = _bool_property('pattern_change_auto_trig_lfos', "Auto-trig LFOs on pattern change.")
 
 
 class Settings:
@@ -28,6 +162,32 @@ class Settings:
             project_settings: Low-level ProjectSettings dataclass
         """
         self._settings = project_settings
+        self._mixer = MixerSettings(project_settings)
+        self._metronome = MetronomeSettings(project_settings)
+        self._midi = MidiPortSettings(project_settings)
+        self._pattern_chain = PatternChainSettings(project_settings)
+
+    # === Grouped sub-objects ===
+
+    @property
+    def mixer(self) -> MixerSettings:
+        """Audio mixer, gates, gains, and CUE/MAIN levels."""
+        return self._mixer
+
+    @property
+    def metronome(self) -> MetronomeSettings:
+        """Metronome time signature, volume, pitch."""
+        return self._metronome
+
+    @property
+    def midi(self) -> MidiPortSettings:
+        """MIDI port settings: per-track trig channels, AUTO channel, CC/note routing."""
+        return self._midi
+
+    @property
+    def pattern_chain(self) -> PatternChainSettings:
+        """Pattern change/chain behavior settings."""
+        return self._pattern_chain
 
     # === Tempo ===
 

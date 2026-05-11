@@ -21,6 +21,8 @@ from .enums import (
     RecordingSource,
     RecTrigMode,
     QRecMode,
+    LfoWaveform,
+    LfoTrigMode,
 )
 from .slot_manager import (
     OctapyError,

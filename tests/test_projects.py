@@ -2,9 +2,12 @@
 Tests for ProjectFile.
 """
 
+from pathlib import Path
+
 import pytest
 
 from octapy._io import ProjectFile, SampleSlot
+from octapy._io.project import read_template_file
 
 
 class TestProjectFileBasics:
@@ -213,6 +216,182 @@ class TestProjectFileMidiSettings:
         assert loaded.settings.midi_program_change_send_ch == 10
         assert loaded.settings.midi_program_change_receive == 1
         assert loaded.settings.midi_program_change_receive_ch == 5
+
+
+class TestProjectSettingsFullCoverage:
+    """Round-trip coverage for every ProjectSettings field.
+
+    Phase 1.1: prior to this, many INI fields were hardcoded by the writer,
+    so non-default values silently snapped back to template defaults on save.
+    """
+
+    def test_template_roundtrip_byte_identical(self, temp_dir):
+        """Writing a fresh ProjectFile reproduces the embedded template byte-for-byte."""
+        original = read_template_file("project.work")
+
+        project = ProjectFile.new()
+        path = temp_dir / "project.work"
+        project.to_file(path)
+        written = path.read_bytes()
+
+        assert written == original
+
+    def test_all_settings_fields_preserved(self, temp_dir):
+        """Every settings field round-trips with a non-default value."""
+        project = ProjectFile.new()
+        s = project.settings
+
+        # Apply non-default values to every field
+        s.write_protected = 1
+        s.tempo_x24 = 3000
+        s.pattern_tempo_enabled = 1
+        s.midi_clock_send = 1
+        s.midi_clock_receive = 1
+        s.midi_transport_send = 1
+        s.midi_transport_receive = 1
+        s.midi_program_change_send = 1
+        s.midi_program_change_send_ch = 7
+        s.midi_program_change_receive = 1
+        s.midi_program_change_receive_ch = 8
+        s.midi_trig_channels = [9, 10, 11, 12, 13, 14, 15, 0]
+        s.midi_auto_channel = 5
+        s.midi_soft_thru = 1
+        s.midi_audio_trk_cc_in = 0
+        s.midi_audio_trk_cc_out = 2
+        s.midi_audio_trk_note_in = 0
+        s.midi_audio_trk_note_out = 2
+        s.midi_midi_trk_cc_in = 0
+        s.pattern_change_chain_behavior = 1
+        s.pattern_change_auto_silence_tracks = 1
+        s.pattern_change_auto_trig_lfos = 1
+        s.load_24bit_flex = 1
+        s.dynamic_recorders = 1
+        s.record_24bit = 1
+        s.reserved_recorder_count = 4
+        s.reserved_recorder_length = 32
+        s.input_delay_compensation = 5
+        s.gate_ab = 100
+        s.gate_cd = 80
+        s.gain_ab = 50
+        s.gain_cd = 70
+        s.dir_ab = 1
+        s.dir_cd = 1
+        s.phones_mix = 90
+        s.main_to_cue = 1
+        s.master_track = 1
+        s.cue_studio_mode = 1
+        s.main_level = 100
+        s.cue_level = 110
+        s.metronome_time_signature = 4
+        s.metronome_time_signature_denominator = 1
+        s.metronome_preroll = 2
+        s.metronome_cue_volume = 64
+        s.metronome_main_volume = 32
+        s.metronome_pitch = 24
+        s.metronome_tonal = 0
+        s.metronome_enabled = 1
+        s.trig_mode_midi = [1, 2, 3, 4, 5, 6, 7, 0]
+
+        path = temp_dir / "project.work"
+        project.to_file(path)
+        loaded = ProjectFile.from_file(path)
+
+        for attr in vars(s):
+            assert getattr(loaded.settings, attr) == getattr(s, attr), (
+                f"Settings.{attr} not preserved: wrote {getattr(s, attr)!r} got {getattr(loaded.settings, attr)!r}"
+            )
+
+    def test_state_fields_preserved(self, temp_dir):
+        """Every ProjectState field round-trips with non-default values."""
+        project = ProjectFile.new()
+        st = project.state
+
+        st.bank = 3
+        st.pattern = 7
+        st.arrangement = 1
+        st.arrangement_mode = 1
+        st.part = 2
+        st.track = 4
+        st.track_othermode = 1
+        st.scene_a_mute = 1
+        st.scene_b_mute = 1
+        st.track_cue_mask = 0xAB
+        st.track_mute_mask = 0xCD
+        st.track_solo_mask = 0xEF
+        st.midi_track_mute_mask = 0x12
+        st.midi_track_solo_mask = 0x34
+        st.midi_mode = 1
+
+        path = temp_dir / "project.work"
+        project.to_file(path)
+        loaded = ProjectFile.from_file(path)
+
+        for attr in vars(st):
+            assert getattr(loaded.state, attr) == getattr(st, attr), (
+                f"State.{attr} not preserved: wrote {getattr(st, attr)!r} got {getattr(loaded.state, attr)!r}"
+            )
+
+    def test_midi_trig_channels_default(self, project_file):
+        """Default MIDI_TRIG_CHn values are 0..7."""
+        assert project_file.settings.midi_trig_channels == [0, 1, 2, 3, 4, 5, 6, 7]
+
+    def test_midi_trig_channels_roundtrip(self, project_file, temp_dir):
+        """Per-track MIDI trig channels survive a round-trip."""
+        project_file.settings.midi_trig_channels = [15, 14, 13, 12, 11, 10, 9, 8]
+        path = temp_dir / "project.work"
+        project_file.to_file(path)
+
+        loaded = ProjectFile.from_file(path)
+        assert loaded.settings.midi_trig_channels == [15, 14, 13, 12, 11, 10, 9, 8]
+
+    def test_trig_mode_midi_default(self, project_file):
+        """Default TRIG_MODE_MIDI array is all zeros."""
+        assert project_file.settings.trig_mode_midi == [0] * 8
+
+    def test_trig_mode_midi_roundtrip(self, project_file, temp_dir):
+        """Per-track trig_mode_midi values survive a round-trip."""
+        project_file.settings.trig_mode_midi = [3, 2, 1, 0, 1, 2, 3, 0]
+        path = temp_dir / "project.work"
+        project_file.to_file(path)
+
+        loaded = ProjectFile.from_file(path)
+        assert loaded.settings.trig_mode_midi == [3, 2, 1, 0, 1, 2, 3, 0]
+
+    def test_metronome_defaults_match_template(self, project_file):
+        """Metronome defaults match the OT template."""
+        s = project_file.settings
+        assert s.metronome_time_signature == 3
+        assert s.metronome_time_signature_denominator == 2
+        assert s.metronome_preroll == 0
+        assert s.metronome_cue_volume == 32
+        assert s.metronome_main_volume == 0
+        assert s.metronome_pitch == 12
+        assert s.metronome_tonal == 1
+        assert s.metronome_enabled == 0
+
+    def test_mixer_defaults_match_template(self, project_file):
+        """Mixer/input defaults match the OT template."""
+        s = project_file.settings
+        assert s.gate_ab == 127
+        assert s.gate_cd == 127
+        assert s.gain_ab == 64
+        assert s.gain_cd == 64
+        assert s.phones_mix == 64
+        assert s.main_level == 64
+        assert s.cue_level == 64
+
+    def test_ot_tools_io_blank_project_roundtrip(self, temp_dir):
+        """ot-tools-io's blank-project/project.work round-trips byte-identical."""
+        src = Path("/Users/jhw/work/ot-tools-io/ot-tools-io/test-data/blank-project/project.work")
+        if not src.exists():
+            pytest.skip("ot-tools-io test data not present")
+        original = src.read_bytes()
+
+        project = ProjectFile.from_file(src)
+        path = temp_dir / "project.work"
+        project.to_file(path)
+
+        assert path.read_bytes() == original
 
 
 class TestSampleSlot:
@@ -424,6 +603,124 @@ class TestRenderSettings:
             assert track.machine_type == MachineType.FLEX, (
                 f"Bank 1, Part {part_num}: expected FLEX, got {track.machine_type}"
             )
+
+
+class TestSettingsGroups:
+    """Tests for grouped settings (mixer, metronome, midi, pattern_chain)."""
+
+    def _project(self):
+        from octapy import Project
+        return Project.from_template("TEST")
+
+    def test_mixer_defaults_visible(self):
+        p = self._project()
+        assert p.settings.mixer.main_level == 64
+        assert p.settings.mixer.cue_level == 64
+        assert p.settings.mixer.gate_ab == 127
+        assert p.settings.mixer.phones_mix == 64
+
+    def test_mixer_setters(self):
+        p = self._project()
+        p.settings.mixer.main_level = 100
+        p.settings.mixer.cue_level = 110
+        p.settings.mixer.phones_mix = 90
+        assert p.settings.mixer.main_level == 100
+        assert p.settings.mixer.cue_level == 110
+        assert p.settings.mixer.phones_mix == 90
+        # Backing dataclass also updated
+        assert p._project_file.settings.main_level == 100
+
+    def test_metronome_defaults(self):
+        p = self._project()
+        assert p.settings.metronome.enabled is False
+        assert p.settings.metronome.time_signature == 3
+        assert p.settings.metronome.cue_volume == 32
+        assert p.settings.metronome.pitch == 12
+
+    def test_metronome_setters(self):
+        p = self._project()
+        p.settings.metronome.enabled = True
+        p.settings.metronome.cue_volume = 64
+        p.settings.metronome.pitch = 24
+        assert p.settings.metronome.enabled is True
+        assert p.settings.metronome.cue_volume == 64
+        assert p.settings.metronome.pitch == 24
+
+    def test_midi_defaults(self):
+        p = self._project()
+        assert p.settings.midi.trig_channels == [0, 1, 2, 3, 4, 5, 6, 7]
+        assert p.settings.midi.auto_channel == 10
+        assert p.settings.midi.soft_thru == 0
+
+    def test_midi_set_trig_channel(self):
+        p = self._project()
+        p.settings.midi.set_trig_channel(1, 9)
+        p.settings.midi.set_trig_channel(8, 0)
+        assert p.settings.midi.trig_channel(1) == 9
+        assert p.settings.midi.trig_channel(8) == 0
+        # Others untouched
+        assert p.settings.midi.trig_channel(2) == 1
+
+    def test_midi_set_trig_channel_validation(self):
+        p = self._project()
+        with pytest.raises(ValueError):
+            p.settings.midi.set_trig_channel(0, 5)
+        with pytest.raises(ValueError):
+            p.settings.midi.set_trig_channel(9, 5)
+        with pytest.raises(ValueError):
+            p.settings.midi.set_trig_channel(1, 16)
+
+    def test_midi_trig_channels_setter_validates_length(self):
+        p = self._project()
+        with pytest.raises(ValueError):
+            p.settings.midi.trig_channels = [0, 1, 2]  # too few
+
+    def test_midi_trig_mode_midi(self):
+        p = self._project()
+        assert p.settings.midi.trig_mode_midi == [0] * 8
+        p.settings.midi.trig_mode_midi = [1, 2, 3, 4, 5, 6, 7, 0]
+        assert p.settings.midi.trig_mode_midi == [1, 2, 3, 4, 5, 6, 7, 0]
+
+    def test_pattern_chain_defaults(self):
+        p = self._project()
+        assert p.settings.pattern_chain.chain_behavior == 0
+        assert p.settings.pattern_chain.auto_silence_tracks is False
+        assert p.settings.pattern_chain.auto_trig_lfos is False
+
+    def test_pattern_chain_setters(self):
+        p = self._project()
+        p.settings.pattern_chain.chain_behavior = 1
+        p.settings.pattern_chain.auto_silence_tracks = True
+        p.settings.pattern_chain.auto_trig_lfos = True
+        assert p.settings.pattern_chain.chain_behavior == 1
+        assert p.settings.pattern_chain.auto_silence_tracks is True
+        assert p.settings.pattern_chain.auto_trig_lfos is True
+
+    def test_grouped_settings_round_trip_via_project_file(self, temp_dir):
+        """Mutations through the grouped API survive ProjectFile.to_file roundtrip."""
+        from octapy import Project
+
+        p = Project.from_template("TEST")
+        p.settings.mixer.main_level = 100
+        p.settings.metronome.enabled = True
+        p.settings.metronome.cue_volume = 64
+        p.settings.midi.set_trig_channel(1, 9)
+        p.settings.midi.auto_channel = 5
+        p.settings.pattern_chain.auto_trig_lfos = True
+
+        path = temp_dir / "project.work"
+        p._project_file.to_file(path)
+
+        loaded_pf = type(p._project_file).from_file(path)
+        from octapy.api.settings import Settings
+        loaded = Settings(loaded_pf.settings)
+
+        assert loaded.mixer.main_level == 100
+        assert loaded.metronome.enabled is True
+        assert loaded.metronome.cue_volume == 64
+        assert loaded.midi.trig_channel(1) == 9
+        assert loaded.midi.auto_channel == 5
+        assert loaded.pattern_chain.auto_trig_lfos is True
 
 
 class TestSceneIsBlank:

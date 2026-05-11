@@ -443,6 +443,26 @@ class MidiPartTrack:
         offset = TrackDataOffset.CC1_NUMBER + (n - 1)
         self._data[offset] = value & 0x7F
 
+    # === LFOs ===
+
+    def lfo(self, n: int):
+        """
+        Get an accessor for LFO `n` (1, 2, or 3) on this MIDI track.
+
+        Each LFO exposes `speed`, `depth`, `destination`, `waveform`,
+        `multiplier`, and `trig_mode`. Same shape as audio LFOs.
+
+        Usage:
+            from octapy import LfoWaveform, LfoTrigMode
+
+            lfo = midi_track.lfo(1)
+            lfo.waveform = LfoWaveform.TRI
+            lfo.speed = 32
+            lfo.trig_mode = LfoTrigMode.HOLD
+        """
+        from .lfo import MidiLfo
+        return MidiLfo(self, n)
+
     # === ARP Page ===
 
     @property

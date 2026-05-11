@@ -56,6 +56,7 @@ class MidiStep:
         length: Optional[int] = None,
         pitch_bend: Optional[int] = None,
         aftertouch: Optional[int] = None,
+        cc: Optional[Dict[int, int]] = None,
     ):
         """
         Create a MidiStep with optional parameter overrides.
@@ -71,10 +72,13 @@ class MidiStep:
             length: Note length (quantized to valid NoteLength values)
             pitch_bend: Pitch bend (0-127, 64=center)
             aftertouch: Aftertouch (0-127)
+            cc: Dict mapping CC slot (1-10) to value (0-127) for p-locks
         """
         self._step_num = step_num
         self._active = active
         self._trigless = trigless
+        # MIDI tracks have a swing trig mask but no slide.
+        self._swing = False
 
         # Callback to sync changes back to track buffer (set by MidiPatternTrack)
         self._sync_callback: Optional[Callable[["MidiStep"], None]] = None
@@ -103,6 +107,9 @@ class MidiStep:
             self.pitch_bend = pitch_bend
         if aftertouch is not None:
             self.aftertouch = aftertouch
+        if cc is not None:
+            for slot, value in cc.items():
+                self.set_cc(int(slot), value)
 
     @classmethod
     def read(
@@ -130,6 +137,7 @@ class MidiStep:
         instance._step_num = step_num
         instance._active = active
         instance._trigless = trigless
+        instance._swing = False
         instance._sync_callback = None
         instance._condition_data = bytearray(condition_data[:2])
         instance._plock_data = bytearray(plock_data[:MIDI_PLOCK_SIZE])
@@ -164,6 +172,7 @@ class MidiStep:
         instance._step_num = self._step_num
         instance._active = self._active
         instance._trigless = self._trigless
+        instance._swing = self._swing
         instance._sync_callback = None  # Clone doesn't inherit callback
         instance._condition_data = bytearray(self._condition_data)
         instance._plock_data = bytearray(self._plock_data)
@@ -199,6 +208,16 @@ class MidiStep:
     @trigless.setter
     def trigless(self, value: bool):
         self._trigless = value
+        self._notify_sync()
+
+    @property
+    def swing(self) -> bool:
+        """Get/set whether this step has a swing trig (humanizes timing)."""
+        return self._swing
+
+    @swing.setter
+    def swing(self, value: bool):
+        self._swing = bool(value)
         self._notify_sync()
 
     # === Condition properties ===
@@ -371,6 +390,32 @@ class MidiStep:
         if n < 1 or n > 10:
             raise ValueError(f"CC slot must be 1-10, got {n}")
         self._set_plock(19 + n, value)  # CC1 is at offset 20
+
+    # === LFO p-locks ===
+
+    def lfo_speed(self, n: int) -> Optional[int]:
+        """Get p-locked LFO speed for LFO `n` (1, 2, or 3) — None if not set."""
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        return self._get_plock(MidiPlockOffset.LFO_SPD1 + (n - 1))
+
+    def set_lfo_speed(self, n: int, value: Optional[int]):
+        """Set p-locked LFO speed for LFO `n` (1, 2, or 3). None clears the lock."""
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        self._set_plock(MidiPlockOffset.LFO_SPD1 + (n - 1), value)
+
+    def lfo_depth(self, n: int) -> Optional[int]:
+        """Get p-locked LFO depth for LFO `n` (1, 2, or 3) — None if not set."""
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        return self._get_plock(MidiPlockOffset.LFO_DEP1 + (n - 1))
+
+    def set_lfo_depth(self, n: int, value: Optional[int]):
+        """Set p-locked LFO depth for LFO `n` (1, 2, or 3). None clears the lock."""
+        if not 1 <= n <= 3:
+            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
+        self._set_plock(MidiPlockOffset.LFO_DEP1 + (n - 1), value)
 
     def to_dict(self) -> dict:
         """
