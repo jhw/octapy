@@ -103,12 +103,13 @@ accessors live under `project.settings`:
 | Tempo | Yes | `settings.tempo` (BPM) |
 | Master track | Yes | `settings.master_track` |
 | Sample slots | Yes | Flex and Static pools |
-| MIDI clock/transport/PC | Yes | `settings.midi_clock_*`, `midi_program_change_*` |
+| MIDI clock/transport/PC | Yes | `settings.midi.clock_send/_receive`, `transport_send/_receive`, `program_change_send/_receive` (+ `_ch`) |
 | MIDI per-track channels | Yes | `settings.midi.trig_channels[]`, `set_trig_channel(track, ch)` |
 | MIDI routing (CC/note in/out) | Yes | `settings.midi.auto_channel`, `soft_thru`, `audio_trk_cc_in/out` etc. |
 | Pattern chain settings | Yes | `settings.pattern_chain.chain_behavior`, `auto_silence_tracks`, `auto_trig_lfos` |
 | Audio routing / mixer | Yes | `settings.mixer.main_level`, `cue_level`, `phones_mix`, `gate_ab/cd`, … |
 | Metronome | Yes | `settings.metronome.enabled`, `time_signature`, `cue_volume`, … |
+| Recorder allocation / 24-bit | Yes | `settings.memory.dynamic_recorders`, `record_24bit`, `reserved_recorder_count/_length`, `load_24bit_flex` |
 
 ## Not Implemented
 

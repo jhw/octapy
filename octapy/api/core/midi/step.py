@@ -393,29 +393,19 @@ class MidiStep:
 
     # === LFO p-locks ===
 
-    def lfo_speed(self, n: int) -> Optional[int]:
-        """Get p-locked LFO speed for LFO `n` (1, 2, or 3) — None if not set."""
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        return self._get_plock(MidiPlockOffset.LFO_SPD1 + (n - 1))
+    def lfo(self, n: int):
+        """
+        Get a p-lock accessor for LFO `n` (1, 2, or 3) on this step.
 
-    def set_lfo_speed(self, n: int, value: Optional[int]):
-        """Set p-locked LFO speed for LFO `n` (1, 2, or 3). None clears the lock."""
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        self._set_plock(MidiPlockOffset.LFO_SPD1 + (n - 1), value)
+        Returns an LfoPlock with `.speed` and `.depth` properties — same
+        shape as `audio_step.lfo(n)`.
 
-    def lfo_depth(self, n: int) -> Optional[int]:
-        """Get p-locked LFO depth for LFO `n` (1, 2, or 3) — None if not set."""
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        return self._get_plock(MidiPlockOffset.LFO_DEP1 + (n - 1))
-
-    def set_lfo_depth(self, n: int, value: Optional[int]):
-        """Set p-locked LFO depth for LFO `n` (1, 2, or 3). None clears the lock."""
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        self._set_plock(MidiPlockOffset.LFO_DEP1 + (n - 1), value)
+        Usage:
+            midi_step.lfo(1).speed = 32
+            midi_step.lfo(3).depth = 100
+        """
+        from .._lfo_plock import LfoPlock
+        return LfoPlock(self, n, MidiPlockOffset.LFO_SPD1, MidiPlockOffset.LFO_DEP1)
 
     def to_dict(self) -> dict:
         """

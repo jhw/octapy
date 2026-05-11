@@ -77,11 +77,23 @@ class MetronomeSettings(_IntFieldGroup):
 
 
 class MidiPortSettings(_IntFieldGroup):
-    """MIDI port routing, trig channels, and CC/note pass-through settings.
+    """All MIDI port-level settings: sync, transport, program change,
+    per-track trig channels, and CC/note pass-through.
 
-    Excludes the clock / transport / program-change flags exposed directly
-    on `Settings` for backwards compatibility.
+    Maps to PROJECT > MIDI on the Octatrack.
     """
+
+    # Clock / transport
+    clock_send = _bool_property('midi_clock_send', "Send MIDI clock to external gear.")
+    clock_receive = _bool_property('midi_clock_receive', "Sync to incoming MIDI clock.")
+    transport_send = _bool_property('midi_transport_send', "Send MIDI transport (start/stop/continue).")
+    transport_receive = _bool_property('midi_transport_receive', "Respond to MIDI transport.")
+
+    # Program change
+    program_change_send = _bool_property('midi_program_change_send', "Send program change on pattern switch.")
+    program_change_send_ch = _int_property('midi_program_change_send_ch', "Program-change send channel (-1 = disabled, 0-15).")
+    program_change_receive = _bool_property('midi_program_change_receive', "Switch patterns on incoming program change.")
+    program_change_receive_ch = _int_property('midi_program_change_receive_ch', "Program-change receive channel (-1 = disabled, 0-15).")
 
     @property
     def trig_channels(self) -> List[int]:
@@ -130,6 +142,19 @@ class MidiPortSettings(_IntFieldGroup):
         self._settings.trig_mode_midi = value
 
 
+class MemorySettings(_IntFieldGroup):
+    """Recorder buffer allocation and 24-bit flags.
+
+    Maps to PROJECT > MEMORY on the Octatrack.
+    """
+
+    load_24bit_flex = _bool_property('load_24bit_flex', "Load 24-bit samples to flex slots.")
+    dynamic_recorders = _bool_property('dynamic_recorders', "Use dynamic recorder allocation.")
+    record_24bit = _bool_property('record_24bit', "Record at 24-bit depth.")
+    reserved_recorder_count = _int_property('reserved_recorder_count', "Number of reserved recorder buffers (1-8).")
+    reserved_recorder_length = _int_property('reserved_recorder_length', "Reserved recorder buffer length in bars.")
+
+
 class PatternChainSettings(_IntFieldGroup):
     """Behavior settings around pattern change/chain transitions.
 
@@ -145,13 +170,20 @@ class Settings:
     """
     High-level representation of project settings.
 
-    Wraps the low-level ProjectSettings dataclass with typed accessors.
-    Access via project.settings.
+    Settings are organized into groups that mirror the Octatrack's
+    PROJECT menu: `midi`, `mixer`, `metronome`, `memory`, `pattern_chain`.
+    A few project-wide scalars live directly on `Settings`: `tempo`,
+    `master_track`, `pattern_tempo_enabled`, `write_protected`.
 
     Usage:
         project.settings.tempo = 140.0
-        project.settings.midi_clock_send = True
-        project.settings.record_24bit = True
+        project.settings.master_track = True
+        project.settings.midi.clock_send = True
+        project.settings.midi.set_trig_channel(1, 9)
+        project.settings.mixer.main_level = 100
+        project.settings.metronome.enabled = True
+        project.settings.memory.record_24bit = True
+        project.settings.pattern_chain.auto_trig_lfos = True
     """
 
     def __init__(self, project_settings: _ProjectSettings):
@@ -165,6 +197,7 @@ class Settings:
         self._mixer = MixerSettings(project_settings)
         self._metronome = MetronomeSettings(project_settings)
         self._midi = MidiPortSettings(project_settings)
+        self._memory = MemorySettings(project_settings)
         self._pattern_chain = PatternChainSettings(project_settings)
 
     # === Grouped sub-objects ===
@@ -181,15 +214,20 @@ class Settings:
 
     @property
     def midi(self) -> MidiPortSettings:
-        """MIDI port settings: per-track trig channels, AUTO channel, CC/note routing."""
+        """MIDI port settings: clock, transport, program change, per-track trig channels, routing."""
         return self._midi
+
+    @property
+    def memory(self) -> MemorySettings:
+        """Recorder buffer allocation and 24-bit flags."""
+        return self._memory
 
     @property
     def pattern_chain(self) -> PatternChainSettings:
         """Pattern change/chain behavior settings."""
         return self._pattern_chain
 
-    # === Tempo ===
+    # === Top-level scalars ===
 
     @property
     def tempo(self) -> float:
@@ -199,131 +237,6 @@ class Settings:
     @tempo.setter
     def tempo(self, bpm: float):
         self._settings.tempo_x24 = int(bpm * 24)
-
-    # === MIDI Clock/Transport ===
-
-    @property
-    def midi_clock_send(self) -> bool:
-        """Enable/disable sending MIDI clock to external gear."""
-        return bool(self._settings.midi_clock_send)
-
-    @midi_clock_send.setter
-    def midi_clock_send(self, value: bool):
-        self._settings.midi_clock_send = int(value)
-
-    @property
-    def midi_clock_receive(self) -> bool:
-        """Enable/disable syncing to incoming MIDI clock."""
-        return bool(self._settings.midi_clock_receive)
-
-    @midi_clock_receive.setter
-    def midi_clock_receive(self, value: bool):
-        self._settings.midi_clock_receive = int(value)
-
-    @property
-    def midi_transport_send(self) -> bool:
-        """Enable/disable sending MIDI transport (start/stop/continue)."""
-        return bool(self._settings.midi_transport_send)
-
-    @midi_transport_send.setter
-    def midi_transport_send(self, value: bool):
-        self._settings.midi_transport_send = int(value)
-
-    @property
-    def midi_transport_receive(self) -> bool:
-        """Enable/disable responding to MIDI transport (start/stop/continue)."""
-        return bool(self._settings.midi_transport_receive)
-
-    @midi_transport_receive.setter
-    def midi_transport_receive(self, value: bool):
-        self._settings.midi_transport_receive = int(value)
-
-    # === MIDI Program Change ===
-
-    @property
-    def midi_program_change_send(self) -> bool:
-        """Enable/disable sending program changes on pattern switch."""
-        return bool(self._settings.midi_program_change_send)
-
-    @midi_program_change_send.setter
-    def midi_program_change_send(self, value: bool):
-        self._settings.midi_program_change_send = int(value)
-
-    @property
-    def midi_program_change_send_ch(self) -> int:
-        """MIDI channel for sending program changes (-1 = disabled, 0-15 = channel)."""
-        return self._settings.midi_program_change_send_ch
-
-    @midi_program_change_send_ch.setter
-    def midi_program_change_send_ch(self, value: int):
-        self._settings.midi_program_change_send_ch = value
-
-    @property
-    def midi_program_change_receive(self) -> bool:
-        """Enable/disable switching patterns on incoming program change."""
-        return bool(self._settings.midi_program_change_receive)
-
-    @midi_program_change_receive.setter
-    def midi_program_change_receive(self, value: bool):
-        self._settings.midi_program_change_receive = int(value)
-
-    @property
-    def midi_program_change_receive_ch(self) -> int:
-        """MIDI channel for receiving program changes (-1 = disabled, 0-15 = channel)."""
-        return self._settings.midi_program_change_receive_ch
-
-    @midi_program_change_receive_ch.setter
-    def midi_program_change_receive_ch(self, value: int):
-        self._settings.midi_program_change_receive_ch = value
-
-    # === Recorder Settings ===
-
-    @property
-    def dynamic_recorders(self) -> bool:
-        """Enable/disable dynamic recorder allocation."""
-        return bool(self._settings.dynamic_recorders)
-
-    @dynamic_recorders.setter
-    def dynamic_recorders(self, value: bool):
-        self._settings.dynamic_recorders = int(value)
-
-    @property
-    def record_24bit(self) -> bool:
-        """Enable/disable 24-bit recording."""
-        return bool(self._settings.record_24bit)
-
-    @record_24bit.setter
-    def record_24bit(self, value: bool):
-        self._settings.record_24bit = int(value)
-
-    @property
-    def reserved_recorder_count(self) -> int:
-        """Number of reserved recorder buffers (1-8)."""
-        return self._settings.reserved_recorder_count
-
-    @reserved_recorder_count.setter
-    def reserved_recorder_count(self, value: int):
-        self._settings.reserved_recorder_count = value
-
-    @property
-    def reserved_recorder_length(self) -> int:
-        """Reserved recorder buffer length in bars."""
-        return self._settings.reserved_recorder_length
-
-    @reserved_recorder_length.setter
-    def reserved_recorder_length(self, value: int):
-        self._settings.reserved_recorder_length = value
-
-    @property
-    def load_24bit_flex(self) -> bool:
-        """Enable/disable loading 24-bit samples to flex slots."""
-        return bool(self._settings.load_24bit_flex)
-
-    @load_24bit_flex.setter
-    def load_24bit_flex(self, value: bool):
-        self._settings.load_24bit_flex = int(value)
-
-    # === Other Settings ===
 
     @property
     def write_protected(self) -> bool:
@@ -336,7 +249,7 @@ class Settings:
 
     @property
     def pattern_tempo_enabled(self) -> bool:
-        """Enable/disable per-pattern tempo."""
+        """Enable/disable per-pattern tempo (paired with `tempo`)."""
         return bool(self._settings.pattern_tempo_enabled)
 
     @pattern_tempo_enabled.setter

@@ -3542,35 +3542,35 @@ class TestAudioLfo:
 
 
 class TestAudioStepLfoPlocks:
-    """Tests for AudioStep p-lock LFO speed/depth accessors."""
+    """Tests for AudioStep.lfo(n) p-lock accessor."""
 
-    def test_lfo_speed_unset_default_none(self):
+    def test_lfo_unset_default_none(self):
         step = AudioStep(step_num=1)
         for n in (1, 2, 3):
-            assert step.lfo_speed(n) is None
-            assert step.lfo_depth(n) is None
+            assert step.lfo(n).speed is None
+            assert step.lfo(n).depth is None
 
     def test_set_lfo_speed_persists(self):
         step = AudioStep(step_num=1)
-        step.set_lfo_speed(1, 32)
-        step.set_lfo_depth(2, 100)
-        assert step.lfo_speed(1) == 32
-        assert step.lfo_depth(2) == 100
-        assert step.lfo_speed(2) is None  # other LFOs untouched
-        assert step.lfo_depth(1) is None
+        step.lfo(1).speed = 32
+        step.lfo(2).depth = 100
+        assert step.lfo(1).speed == 32
+        assert step.lfo(2).depth == 100
+        assert step.lfo(2).speed is None  # other LFOs untouched
+        assert step.lfo(1).depth is None
 
     def test_clear_lfo_plock_with_none(self):
         step = AudioStep(step_num=1)
-        step.set_lfo_speed(1, 32)
-        step.set_lfo_speed(1, None)
-        assert step.lfo_speed(1) is None
+        step.lfo(1).speed = 32
+        step.lfo(1).speed = None
+        assert step.lfo(1).speed is None
 
     def test_invalid_lfo_number(self):
         step = AudioStep(step_num=1)
         with pytest.raises(ValueError):
-            step.lfo_speed(0)
+            step.lfo(0)
         with pytest.raises(ValueError):
-            step.set_lfo_speed(4, 64)
+            step.lfo(4)
 
 
 class TestMidiLfo:
@@ -3614,28 +3614,28 @@ class TestMidiLfo:
 
 
 class TestMidiStepLfoPlocks:
-    """Tests for MidiStep p-lock LFO speed/depth accessors."""
+    """Tests for MidiStep.lfo(n) p-lock accessor."""
 
     def test_lfo_unset_default_none(self):
         step = MidiStep(step_num=1)
         for n in (1, 2, 3):
-            assert step.lfo_speed(n) is None
-            assert step.lfo_depth(n) is None
+            assert step.lfo(n).speed is None
+            assert step.lfo(n).depth is None
 
     def test_set_lfo_speed_persists(self):
         step = MidiStep(step_num=1)
-        step.set_lfo_speed(1, 32)
-        step.set_lfo_depth(3, 100)
-        assert step.lfo_speed(1) == 32
-        assert step.lfo_depth(3) == 100
-        assert step.lfo_speed(2) is None
+        step.lfo(1).speed = 32
+        step.lfo(3).depth = 100
+        assert step.lfo(1).speed == 32
+        assert step.lfo(3).depth == 100
+        assert step.lfo(2).speed is None
 
     def test_invalid_lfo_number(self):
         step = MidiStep(step_num=1)
         with pytest.raises(ValueError):
-            step.lfo_speed(0)
+            step.lfo(0)
         with pytest.raises(ValueError):
-            step.set_lfo_depth(4, 64)
+            step.lfo(4)
 
 
 class TestAudioSwingSlide:

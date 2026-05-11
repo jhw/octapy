@@ -426,91 +426,80 @@ class TestSampleSlot:
 
 
 class TestProjectMidiSettings:
-    """High-level Project MIDI settings tests (via project.settings)."""
+    """High-level project MIDI settings via project.settings.midi."""
 
     def test_midi_clock_send_default_false(self):
-        """Test midi_clock_send defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_clock_send is False
+        assert project.settings.midi.clock_send is False
 
     def test_midi_clock_send_set_true(self):
-        """Test setting midi_clock_send to True."""
         from octapy import Project
         project = Project.from_template("TEST")
-        project.settings.midi_clock_send = True
-        assert project.settings.midi_clock_send is True
+        project.settings.midi.clock_send = True
+        assert project.settings.midi.clock_send is True
 
     def test_midi_clock_receive_default_false(self):
-        """Test midi_clock_receive defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_clock_receive is False
+        assert project.settings.midi.clock_receive is False
 
     def test_midi_transport_send_default_false(self):
-        """Test midi_transport_send defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_transport_send is False
+        assert project.settings.midi.transport_send is False
 
     def test_midi_transport_receive_default_false(self):
-        """Test midi_transport_receive defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_transport_receive is False
+        assert project.settings.midi.transport_receive is False
 
     def test_midi_program_change_send_default_false(self):
-        """Test midi_program_change_send defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_program_change_send is False
+        assert project.settings.midi.program_change_send is False
 
     def test_midi_program_change_send_ch_default(self):
-        """Test midi_program_change_send_ch defaults to -1."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_program_change_send_ch == -1
+        assert project.settings.midi.program_change_send_ch == -1
 
     def test_midi_program_change_receive_default_false(self):
-        """Test midi_program_change_receive defaults to False."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_program_change_receive is False
+        assert project.settings.midi.program_change_receive is False
 
     def test_midi_program_change_receive_ch_default(self):
-        """Test midi_program_change_receive_ch defaults to -1."""
         from octapy import Project
         project = Project.from_template("TEST")
-        assert project.settings.midi_program_change_receive_ch == -1
+        assert project.settings.midi.program_change_receive_ch == -1
 
     @pytest.mark.slow
     def test_midi_settings_roundtrip(self, temp_dir):
-        """Test that MIDI settings survive save/load via high-level API."""
+        """MIDI settings survive save/load via the grouped API."""
         from octapy import Project
 
         project = Project.from_template("TEST")
-        project.settings.midi_clock_send = True
-        project.settings.midi_clock_receive = True
-        project.settings.midi_transport_send = True
-        project.settings.midi_transport_receive = True
-        project.settings.midi_program_change_send = True
-        project.settings.midi_program_change_send_ch = 10
-        project.settings.midi_program_change_receive = True
-        project.settings.midi_program_change_receive_ch = 5
+        project.settings.midi.clock_send = True
+        project.settings.midi.clock_receive = True
+        project.settings.midi.transport_send = True
+        project.settings.midi.transport_receive = True
+        project.settings.midi.program_change_send = True
+        project.settings.midi.program_change_send_ch = 10
+        project.settings.midi.program_change_receive = True
+        project.settings.midi.program_change_receive_ch = 5
 
-        # Save and reload
         project.to_directory(temp_dir / "TEST")
         loaded = Project.from_directory(temp_dir / "TEST")
 
-        # Verify
-        assert loaded.settings.midi_clock_send is True
-        assert loaded.settings.midi_clock_receive is True
-        assert loaded.settings.midi_transport_send is True
-        assert loaded.settings.midi_transport_receive is True
-        assert loaded.settings.midi_program_change_send is True
-        assert loaded.settings.midi_program_change_send_ch == 10
-        assert loaded.settings.midi_program_change_receive is True
-        assert loaded.settings.midi_program_change_receive_ch == 5
+        assert loaded.settings.midi.clock_send is True
+        assert loaded.settings.midi.clock_receive is True
+        assert loaded.settings.midi.transport_send is True
+        assert loaded.settings.midi.transport_receive is True
+        assert loaded.settings.midi.program_change_send is True
+        assert loaded.settings.midi.program_change_send_ch == 10
+        assert loaded.settings.midi.program_change_receive is True
+        assert loaded.settings.midi.program_change_receive_ch == 5
 
 
 class TestMasterTrackSettings:
@@ -695,6 +684,25 @@ class TestSettingsGroups:
         assert p.settings.pattern_chain.chain_behavior == 1
         assert p.settings.pattern_chain.auto_silence_tracks is True
         assert p.settings.pattern_chain.auto_trig_lfos is True
+
+    def test_memory_defaults(self):
+        p = self._project()
+        assert p.settings.memory.load_24bit_flex is False
+        assert p.settings.memory.dynamic_recorders is False
+        assert p.settings.memory.record_24bit is False
+        assert p.settings.memory.reserved_recorder_count == 8
+        assert p.settings.memory.reserved_recorder_length == 16
+
+    def test_memory_setters(self):
+        p = self._project()
+        p.settings.memory.record_24bit = True
+        p.settings.memory.dynamic_recorders = True
+        p.settings.memory.reserved_recorder_count = 4
+        p.settings.memory.reserved_recorder_length = 32
+        assert p.settings.memory.record_24bit is True
+        assert p.settings.memory.dynamic_recorders is True
+        assert p.settings.memory.reserved_recorder_count == 4
+        assert p.settings.memory.reserved_recorder_length == 32
 
     def test_grouped_settings_round_trip_via_project_file(self, temp_dir):
         """Mutations through the grouped API survive ProjectFile.to_file roundtrip."""

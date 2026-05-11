@@ -418,37 +418,20 @@ class AudioStep:
 
     # === LFO p-locks ===
 
-    def lfo_speed(self, n: int) -> Optional[int]:
+    def lfo(self, n: int):
         """
-        Get p-locked LFO speed for LFO `n` (1, 2, or 3).
+        Get a p-lock accessor for LFO `n` (1, 2, or 3) on this step.
 
-        Returns None if no p-lock is set (uses Part default).
+        Returns an LfoPlock with `.speed` and `.depth` properties. Each
+        returns None when unset and accepts None to clear.
+
+        Usage:
+            step.lfo(1).speed = 32
+            step.lfo(2).depth = 100
+            step.lfo(1).speed = None        # clear
         """
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        return self._get_plock(PlockOffset.LFO_SPD1 + (n - 1))
-
-    def set_lfo_speed(self, n: int, value: Optional[int]):
-        """Set p-locked LFO speed for LFO `n` (1, 2, or 3). None clears the lock."""
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        self._set_plock(PlockOffset.LFO_SPD1 + (n - 1), value)
-
-    def lfo_depth(self, n: int) -> Optional[int]:
-        """
-        Get p-locked LFO depth for LFO `n` (1, 2, or 3).
-
-        Returns None if no p-lock is set (uses Part default).
-        """
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        return self._get_plock(PlockOffset.LFO_DEP1 + (n - 1))
-
-    def set_lfo_depth(self, n: int, value: Optional[int]):
-        """Set p-locked LFO depth for LFO `n` (1, 2, or 3). None clears the lock."""
-        if not 1 <= n <= 3:
-            raise ValueError(f"LFO number must be 1, 2, or 3 — got {n}")
-        self._set_plock(PlockOffset.LFO_DEP1 + (n - 1), value)
+        from .._lfo_plock import LfoPlock
+        return LfoPlock(self, n, PlockOffset.LFO_SPD1, PlockOffset.LFO_DEP1)
 
     @property
     def slice_index(self) -> Optional[int]:

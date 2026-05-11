@@ -290,26 +290,9 @@ class Part:
         track._track_num = track_num
         self._midi_tracks[track_num] = track
 
-    # Alias for backward compatibility
+    # Short alias for audio_track()
     def track(self, track_num: int) -> AudioPartTrack:
-        """Alias for audio_track()."""
-        return self.audio_track(track_num)
-
-    # Machine-specific track accessors (convenience methods)
-    def flex_track(self, track_num: int) -> AudioPartTrack:
-        """Get audio track configured as Flex machine."""
-        return self.audio_track(track_num)
-
-    def static_track(self, track_num: int) -> AudioPartTrack:
-        """Get audio track configured as Static machine."""
-        return self.audio_track(track_num)
-
-    def thru_track(self, track_num: int) -> AudioPartTrack:
-        """Get audio track configured as Thru machine."""
-        return self.audio_track(track_num)
-
-    def neighbor_track(self, track_num: int) -> AudioPartTrack:
-        """Get audio track configured as Neighbor machine."""
+        """Short alias for `audio_track(track_num)`."""
         return self.audio_track(track_num)
 
     # === Scene access ===

@@ -409,8 +409,8 @@ class LoopMode(IntEnum):
     Set via FUNC+SRC page, encoder A (LOOP).
 
     Usage:
-        track = part.flex_track(1)
-        track.loop_mode = LoopMode.ON
+        track = part.track(1)
+        track.setup.loop = LoopMode.ON
     """
     OFF = 0    # No looping
     ON = 1     # Loop enabled
@@ -426,8 +426,8 @@ class SliceMode(IntEnum):
     Set via FUNC+SRC page, encoder B (SLIC).
 
     Usage:
-        track = part.flex_track(1)
-        track.slice_mode = SliceMode.ON
+        track = part.track(1)
+        track.setup.slice = SliceMode.ON
     """
     OFF = 0
     ON = 1
@@ -449,8 +449,8 @@ class LengthMode(IntEnum):
         - TIME: LEN controls slice length
 
     Usage:
-        track = part.flex_track(1)
-        track.length_mode = LengthMode.TIME  # Enable length control
+        track = part.track(1)
+        track.setup.length_mode = LengthMode.TIME  # Enable length control
     """
     OFF = 0    # LEN inactive (also SLICE when slice mode is ON)
     TIME = 1   # LEN controls length linearly
@@ -466,8 +466,8 @@ class RateMode(IntEnum):
     Note: For reverse playback, use PITCH mode (timestretch cannot reverse).
 
     Usage:
-        track = part.flex_track(1)
-        track.rate_mode = RateMode.PITCH  # Allow reverse via negative rate
+        track = part.track(1)
+        track.setup.rate_mode = RateMode.PITCH  # Allow reverse via negative rate
     """
     PITCH = 0  # RATE affects pitch (allows reverse with negative values)
     TSTR = 1   # RATE affects timestretch amount
@@ -481,8 +481,8 @@ class TimestretchMode(IntEnum):
     Set via FUNC+SRC page, encoder E (TSTR).
 
     Usage:
-        track = part.flex_track(1)
-        track.timestretch_mode = TimestretchMode.OFF  # Disable for reverse playback
+        track = part.track(1)
+        track.setup.timestretch = TimestretchMode.OFF  # Disable for reverse playback
     """
     OFF = 0    # No timestretch
     AUTO = 1   # Use per-sample settings from audio editor
