@@ -21,17 +21,19 @@ from ...._io import (
     AUDIO_TRACK_PARAMS_SETUP_SIZE,
     RECORDER_SETUP_SIZE,
     FX_DEFAULTS,
-    # Template (machine) defaults
-    TEMPLATE_DEFAULT_SRC_VALUES,
-    TEMPLATE_DEFAULT_SRC_SETUP,
-    TEMPLATE_DEFAULT_AMP,
-    TEMPLATE_DEFAULT_FX1_PARAMS,
-    TEMPLATE_DEFAULT_FX2_PARAMS,
-    TEMPLATE_DEFAULT_FX1_TYPE,
-    TEMPLATE_DEFAULT_FX2_TYPE,
-    # Octapy recommended defaults (length=127, length_mode=TIME)
+    # OT factory reference values (used by reset_to_factory_defaults)
+    OT_FACTORY_SRC_VALUES,
+    OT_FACTORY_SRC_SETUP,
+    OT_FACTORY_AMP,
+    OT_FACTORY_FX1_PARAMS,
+    OT_FACTORY_FX2_PARAMS,
+    OT_FACTORY_FX1_TYPE,
+    OT_FACTORY_FX2_TYPE,
+    OT_FACTORY_RECORDER_SETUP,
+    # Octapy baseline defaults (length=127, length_mode=TIME, loop=OFF)
     OCTAPY_DEFAULT_SRC_VALUES,
     OCTAPY_DEFAULT_SRC_SETUP,
+    OCTAPY_DEFAULT_RECORDER_SETUP,
 )
 from ...enums import MachineType, FX1Type, FX2Type
 from .recorder import AudioRecorderSetup
@@ -175,13 +177,19 @@ class AudioPartTrack:
             self._recorder = AudioRecorderSetup()
 
     def _apply_defaults(self):
-        """Apply template (machine) default values to the buffer."""
+        """Apply the octapy baseline default values to the buffer.
+
+        SRC page uses OCTAPY_DEFAULT_* values (length=127, length_mode=TIME,
+        loop=OFF) so a standalone AudioPartTrack() matches what you get
+        from Bank.from_template() and BankFile.new(). LFO/AMP/FX values
+        match the OT factory baseline (those have no octapy override).
+        """
         # Machine type defaults to FLEX (but will be overwritten by constructor)
         self._data[TrackDataOffset.MACHINE_TYPE] = int(MachineType.FLEX)
 
         # FX types
-        self._data[TrackDataOffset.FX1_TYPE] = TEMPLATE_DEFAULT_FX1_TYPE
-        self._data[TrackDataOffset.FX2_TYPE] = TEMPLATE_DEFAULT_FX2_TYPE
+        self._data[TrackDataOffset.FX1_TYPE] = OT_FACTORY_FX1_TYPE
+        self._data[TrackDataOffset.FX2_TYPE] = OT_FACTORY_FX2_TYPE
 
         # Volume
         self._data[TrackDataOffset.VOLUME_MAIN] = 108
@@ -191,13 +199,11 @@ class AudioPartTrack:
         for i in range(MACHINE_SLOT_SIZE):
             self._data[TrackDataOffset.MACHINE_SLOTS + i] = 0
 
-        # Machine params values - apply template SRC defaults for FLEX
+        # Machine params values + setup — octapy baseline for FLEX
         offset = TrackDataOffset.MACHINE_PARAMS_VALUES + MachineParamsOffset.FLEX
-        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_SRC_VALUES
-
-        # Machine params setup - apply template SRC defaults for FLEX
+        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
         offset = TrackDataOffset.MACHINE_PARAMS_SETUP + MachineParamsOffset.FLEX
-        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_SRC_SETUP
+        self._data[offset:offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
 
         # Track params - LFO values defaults (spd=32, dep=0 for all 3 LFOs)
         # Matches ot-tools-io AudioTrackParamsValues default.
@@ -206,15 +212,15 @@ class AudioPartTrack:
 
         # Track params - AMP defaults
         offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.AMP_ATK
-        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_AMP
+        self._data[offset:offset + 6] = OT_FACTORY_AMP
 
         # FX1 params
         offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX1_PARAM1
-        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_FX1_PARAMS
+        self._data[offset:offset + 6] = OT_FACTORY_FX1_PARAMS
 
         # FX2 params
         offset = TrackDataOffset.TRACK_PARAMS + AudioTrackParamsOffset.FX2_PARAM1
-        self._data[offset:offset + 6] = TEMPLATE_DEFAULT_FX2_PARAMS
+        self._data[offset:offset + 6] = OT_FACTORY_FX2_PARAMS
 
         # Recorder setup will be handled by AudioRecorderSetup object
 
@@ -288,6 +294,38 @@ class AudioPartTrack:
         self._data[values_offset:values_offset + 6] = OCTAPY_DEFAULT_SRC_VALUES
         setup_offset = TrackDataOffset.MACHINE_PARAMS_SETUP + machine_offset
         self._data[setup_offset:setup_offset + 6] = OCTAPY_DEFAULT_SRC_SETUP
+
+    def reset_to_factory_defaults(self, machine_type: MachineType = None):
+        """
+        Reset this track's SRC page + recorder to the OT factory defaults.
+
+        Escape hatch for callers that want byte-for-byte matching with the
+        Octatrack's on-device factory state instead of octapy's workflow
+        defaults. Touches the same fields `apply_recommended_defaults`
+        would, but writes the OT_FACTORY_* values:
+
+        - SRC values: length=0, length_mode=OFF, loop=ON
+        - Recorder: sources=A+B/C+D, rlen=MAX, qrec=OFF, loop=ON
+
+        Args:
+            machine_type: FLEX or STATIC. Defaults to this track's
+                current machine_type if omitted.
+        """
+        if machine_type is None:
+            machine_type = self.machine_type
+        try:
+            machine_offset = self._RECOMMENDED_DEFAULTS_MACHINES[machine_type]
+        except KeyError:
+            raise ValueError(
+                f"reset_to_factory_defaults only supports FLEX or STATIC, got {machine_type}"
+            )
+        values_offset = TrackDataOffset.MACHINE_PARAMS_VALUES + machine_offset
+        self._data[values_offset:values_offset + 6] = OT_FACTORY_SRC_VALUES
+        setup_offset = TrackDataOffset.MACHINE_PARAMS_SETUP + machine_offset
+        self._data[setup_offset:setup_offset + 6] = OT_FACTORY_SRC_SETUP
+        # Reset the recorder too — its OCTAPY defaults are a substantial change
+        # from the OT factory state, so the user almost certainly wants both.
+        self._recorder = AudioRecorderSetup.read(OT_FACTORY_RECORDER_SETUP)
 
     def configure_flex(self, slot: int) -> None:
         """

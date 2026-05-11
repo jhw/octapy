@@ -301,9 +301,6 @@ class RenderSettings:
         - track_num: int 1-8
         - source: RecordingSource enum value
 
-        The recorder track is automatically excluded from propagate_src and
-        propagate_fx to avoid overwriting its machine configuration.
-
         Default is None (no automatic recorder track configuration).
         """
         return self._recorder_track

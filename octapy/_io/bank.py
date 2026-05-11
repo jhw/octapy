@@ -351,36 +351,41 @@ class MachineSlotOffset(IntEnum):
 AUDIO_TRACK_PARAMS_SIZE = 24
 
 # =============================================================================
-# Template Default Values (from ot-tools-io / OT CLEAN TEMPLATE)
-# These match the Octatrack's factory defaults exactly.
-# Used for propagation blank-checking (only propagate if target is at default).
+# OT Factory Default Values
+# These match the Octatrack's factory defaults exactly — they are the values
+# the device writes when a fresh project is created on hardware, and match
+# the bundled `project-template-1.40B.zip` byte-for-byte.
+#
+# Kept as a reference baseline. The actual values applied by the high-level
+# API live in the OCTAPY_DEFAULT_* block further down and override a small
+# subset of these to fit programmatic one-shot sample workflows.
 # =============================================================================
 
 # FX type defaults
-TEMPLATE_DEFAULT_FX1_TYPE = 4    # FILTER
-TEMPLATE_DEFAULT_FX2_TYPE = 8    # DELAY
+OT_FACTORY_FX1_TYPE = 4    # FILTER
+OT_FACTORY_FX2_TYPE = 8    # DELAY
 
 # AMP page defaults (6 bytes): ATK, HOLD, REL, VOL, BAL, unused
-TEMPLATE_DEFAULT_AMP_ATK = 0
-TEMPLATE_DEFAULT_AMP_HOLD = 127
-TEMPLATE_DEFAULT_AMP_REL = 127
-TEMPLATE_DEFAULT_AMP_VOL = 64
-TEMPLATE_DEFAULT_AMP_BAL = 64
-TEMPLATE_DEFAULT_AMP_UNUSED = 127
-TEMPLATE_DEFAULT_AMP = bytes([
-    TEMPLATE_DEFAULT_AMP_ATK,
-    TEMPLATE_DEFAULT_AMP_HOLD,
-    TEMPLATE_DEFAULT_AMP_REL,
-    TEMPLATE_DEFAULT_AMP_VOL,
-    TEMPLATE_DEFAULT_AMP_BAL,
-    TEMPLATE_DEFAULT_AMP_UNUSED,
+OT_FACTORY_AMP_ATK = 0
+OT_FACTORY_AMP_HOLD = 127
+OT_FACTORY_AMP_REL = 127
+OT_FACTORY_AMP_VOL = 64
+OT_FACTORY_AMP_BAL = 64
+OT_FACTORY_AMP_UNUSED = 127
+OT_FACTORY_AMP = bytes([
+    OT_FACTORY_AMP_ATK,
+    OT_FACTORY_AMP_HOLD,
+    OT_FACTORY_AMP_REL,
+    OT_FACTORY_AMP_VOL,
+    OT_FACTORY_AMP_BAL,
+    OT_FACTORY_AMP_UNUSED,
 ])
 
 # FX1 page defaults (6 bytes) - FILTER is the template default FX1 type
-TEMPLATE_DEFAULT_FX1_PARAMS = bytes([0, 127, 0, 64, 0, 64])
+OT_FACTORY_FX1_PARAMS = bytes([0, 127, 0, 64, 0, 64])
 
 # FX2 page defaults (6 bytes) - DELAY is the template default FX2 type
-TEMPLATE_DEFAULT_FX2_PARAMS = bytes([48, 0, 127, 0, 127, 0])
+OT_FACTORY_FX2_PARAMS = bytes([48, 0, 127, 0, 127, 0])
 
 # =============================================================================
 # Per-FX-Type Default Parameters (A-F / params 1-6)
@@ -426,42 +431,48 @@ FX_DEFAULTS = {
 
 # SRC page VALUES defaults for Flex/Static (6 bytes): PTCH, STRT, LEN, RATE, RTRG, RTIM
 # From ot-tools-io AudioTrackMachineParamsValuesStd default
-TEMPLATE_DEFAULT_SRC_PTCH = 64   # No transpose
-TEMPLATE_DEFAULT_SRC_STRT = 0    # Start at beginning
-TEMPLATE_DEFAULT_SRC_LEN = 0     # Length mode dependent
-TEMPLATE_DEFAULT_SRC_RATE = 127  # Full speed forward
-TEMPLATE_DEFAULT_SRC_RTRG = 0    # No retrig
-TEMPLATE_DEFAULT_SRC_RTIM = 79   # Retrig time
-TEMPLATE_DEFAULT_SRC_VALUES = bytes([
-    TEMPLATE_DEFAULT_SRC_PTCH,
-    TEMPLATE_DEFAULT_SRC_STRT,
-    TEMPLATE_DEFAULT_SRC_LEN,
-    TEMPLATE_DEFAULT_SRC_RATE,
-    TEMPLATE_DEFAULT_SRC_RTRG,
-    TEMPLATE_DEFAULT_SRC_RTIM,
+OT_FACTORY_SRC_PTCH = 64   # No transpose
+OT_FACTORY_SRC_STRT = 0    # Start at beginning
+OT_FACTORY_SRC_LEN = 0     # Length mode dependent
+OT_FACTORY_SRC_RATE = 127  # Full speed forward
+OT_FACTORY_SRC_RTRG = 0    # No retrig
+OT_FACTORY_SRC_RTIM = 79   # Retrig time
+OT_FACTORY_SRC_VALUES = bytes([
+    OT_FACTORY_SRC_PTCH,
+    OT_FACTORY_SRC_STRT,
+    OT_FACTORY_SRC_LEN,
+    OT_FACTORY_SRC_RATE,
+    OT_FACTORY_SRC_RTRG,
+    OT_FACTORY_SRC_RTIM,
 ])
 
 # SRC SETUP page defaults for Flex/Static (6 bytes): LOOP, SLIC, LEN, RATE, TSTR, TSNS
 # From ot-tools-io AudioTrackMachineParamsSetupStd default
-TEMPLATE_DEFAULT_SETUP_LOOP = 1   # Loop ON
-TEMPLATE_DEFAULT_SETUP_SLIC = 0   # Slice OFF
-TEMPLATE_DEFAULT_SETUP_LEN = 0    # Length mode OFF
-TEMPLATE_DEFAULT_SETUP_RATE = 0   # Rate mode PITCH
-TEMPLATE_DEFAULT_SETUP_TSTR = 1   # Timestretch AUTO
-TEMPLATE_DEFAULT_SETUP_TSNS = 64  # Timestretch sensitivity
-TEMPLATE_DEFAULT_SRC_SETUP = bytes([
-    TEMPLATE_DEFAULT_SETUP_LOOP,
-    TEMPLATE_DEFAULT_SETUP_SLIC,
-    TEMPLATE_DEFAULT_SETUP_LEN,
-    TEMPLATE_DEFAULT_SETUP_RATE,
-    TEMPLATE_DEFAULT_SETUP_TSTR,
-    TEMPLATE_DEFAULT_SETUP_TSNS,
+OT_FACTORY_SETUP_LOOP = 1   # Loop ON
+OT_FACTORY_SETUP_SLIC = 0   # Slice OFF
+OT_FACTORY_SETUP_LEN = 0    # Length mode OFF
+OT_FACTORY_SETUP_RATE = 0   # Rate mode PITCH
+OT_FACTORY_SETUP_TSTR = 1   # Timestretch AUTO
+OT_FACTORY_SETUP_TSNS = 64  # Timestretch sensitivity
+OT_FACTORY_SRC_SETUP = bytes([
+    OT_FACTORY_SETUP_LOOP,
+    OT_FACTORY_SETUP_SLIC,
+    OT_FACTORY_SETUP_LEN,
+    OT_FACTORY_SETUP_RATE,
+    OT_FACTORY_SETUP_TSTR,
+    OT_FACTORY_SETUP_TSNS,
 ])
 
 # =============================================================================
-# Octapy Default Overrides
-# These differ from OT template defaults to provide better workflows.
-# Applied in BankFile.new() when creating projects from template.
+# Octapy Default Values
+# The values octapy uses as its baseline. These differ from the OT factory
+# defaults above in a small number of fields chosen for one-shot sample
+# programming workflows (length=127, length_mode=TIME, loop=OFF).
+#
+# Applied everywhere octapy creates a fresh track or bank: BankFile.new(),
+# AudioPartTrack(), and AudioPartTrack.apply_recommended_defaults().
+# Use AudioPartTrack.reset_to_factory_defaults() to flip back to OT factory
+# values.
 # =============================================================================
 
 # SRC page VALUES overrides for Flex machines
@@ -469,12 +480,12 @@ TEMPLATE_DEFAULT_SRC_SETUP = bytes([
 # Reason: With length_mode=TIME, length=127 ensures full sample playback
 OCTAPY_DEFAULT_SRC_LEN = 127  # OVERRIDE: Full sample length
 OCTAPY_DEFAULT_SRC_VALUES = bytes([
-    TEMPLATE_DEFAULT_SRC_PTCH,   # 64 - unchanged
-    TEMPLATE_DEFAULT_SRC_STRT,   # 0 - unchanged
+    OT_FACTORY_SRC_PTCH,   # 64 - unchanged
+    OT_FACTORY_SRC_STRT,   # 0 - unchanged
     OCTAPY_DEFAULT_SRC_LEN,      # 127 - OVERRIDE (was 0)
-    TEMPLATE_DEFAULT_SRC_RATE,   # 127 - unchanged
-    TEMPLATE_DEFAULT_SRC_RTRG,   # 0 - unchanged
-    TEMPLATE_DEFAULT_SRC_RTIM,   # 79 - unchanged
+    OT_FACTORY_SRC_RATE,   # 127 - unchanged
+    OT_FACTORY_SRC_RTRG,   # 0 - unchanged
+    OT_FACTORY_SRC_RTIM,   # 79 - unchanged
 ])
 
 # SRC SETUP page overrides for Flex machines
@@ -484,11 +495,11 @@ OCTAPY_DEFAULT_SETUP_LOOP = 0  # OVERRIDE: Loop OFF (was 1)
 OCTAPY_DEFAULT_SETUP_LEN = 1   # OVERRIDE: Length mode TIME (was 0/OFF)
 OCTAPY_DEFAULT_SRC_SETUP = bytes([
     OCTAPY_DEFAULT_SETUP_LOOP,   # 0 - OVERRIDE (was 1)
-    TEMPLATE_DEFAULT_SETUP_SLIC, # 0 - unchanged
+    OT_FACTORY_SETUP_SLIC, # 0 - unchanged
     OCTAPY_DEFAULT_SETUP_LEN,    # 1 - OVERRIDE (was 0)
-    TEMPLATE_DEFAULT_SETUP_RATE, # 0 - unchanged
-    TEMPLATE_DEFAULT_SETUP_TSTR, # 1 - unchanged
-    TEMPLATE_DEFAULT_SETUP_TSNS, # 64 - unchanged
+    OT_FACTORY_SETUP_RATE, # 0 - unchanged
+    OT_FACTORY_SETUP_TSTR, # 1 - unchanged
+    OT_FACTORY_SETUP_TSNS, # 64 - unchanged
 ])
 
 
@@ -694,41 +705,41 @@ class RecorderSetupOffset(IntEnum):
 
 
 # =============================================================================
-# Recorder Setup Template Defaults (from ot-tools-io / OT CLEAN TEMPLATE)
+# Recorder Setup OT Factory Defaults
 # Note: OT template has SRC3=9 (MAIN), but ot-tools-io default is SRC3=0.
-# We use the actual OT template values for propagation blank-checking.
+# We use the actual OT template values as the factory reference.
 # =============================================================================
 
 # Sources page defaults (FUNC+REC1)
-TEMPLATE_DEFAULT_RECORDER_IN_AB = 1   # A+B stereo
-TEMPLATE_DEFAULT_RECORDER_IN_CD = 1   # C+D stereo
-TEMPLATE_DEFAULT_RECORDER_RLEN = 64   # MAX (continuous recording)
-TEMPLATE_DEFAULT_RECORDER_TRIG = 0    # ONE (one-shot)
-TEMPLATE_DEFAULT_RECORDER_SRC3 = 9    # MAIN (internal routing) - differs from ot-tools-io default of 0
-TEMPLATE_DEFAULT_RECORDER_LOOP = 1    # Loop ON
+OT_FACTORY_RECORDER_IN_AB = 1   # A+B stereo
+OT_FACTORY_RECORDER_IN_CD = 1   # C+D stereo
+OT_FACTORY_RECORDER_RLEN = 64   # MAX (continuous recording)
+OT_FACTORY_RECORDER_TRIG = 0    # ONE (one-shot)
+OT_FACTORY_RECORDER_SRC3 = 9    # MAIN (internal routing) - differs from ot-tools-io default of 0
+OT_FACTORY_RECORDER_LOOP = 1    # Loop ON
 
 # Processing page defaults (FUNC+REC2)
-TEMPLATE_DEFAULT_RECORDER_FIN = 0
-TEMPLATE_DEFAULT_RECORDER_FOUT = 0
-TEMPLATE_DEFAULT_RECORDER_AB_GAIN = 0
-TEMPLATE_DEFAULT_RECORDER_QREC = 255  # OFF (no quantization)
-TEMPLATE_DEFAULT_RECORDER_QPL = 255   # OFF
-TEMPLATE_DEFAULT_RECORDER_CD_GAIN = 0
+OT_FACTORY_RECORDER_FIN = 0
+OT_FACTORY_RECORDER_FOUT = 0
+OT_FACTORY_RECORDER_AB_GAIN = 0
+OT_FACTORY_RECORDER_QREC = 255  # OFF (no quantization)
+OT_FACTORY_RECORDER_QPL = 255   # OFF
+OT_FACTORY_RECORDER_CD_GAIN = 0
 
-# Combined template default bytes for blank-check during propagation
-TEMPLATE_DEFAULT_RECORDER_SETUP = bytes([
-    TEMPLATE_DEFAULT_RECORDER_IN_AB,
-    TEMPLATE_DEFAULT_RECORDER_IN_CD,
-    TEMPLATE_DEFAULT_RECORDER_RLEN,
-    TEMPLATE_DEFAULT_RECORDER_TRIG,
-    TEMPLATE_DEFAULT_RECORDER_SRC3,
-    TEMPLATE_DEFAULT_RECORDER_LOOP,
-    TEMPLATE_DEFAULT_RECORDER_FIN,
-    TEMPLATE_DEFAULT_RECORDER_FOUT,
-    TEMPLATE_DEFAULT_RECORDER_AB_GAIN,
-    TEMPLATE_DEFAULT_RECORDER_QREC,
-    TEMPLATE_DEFAULT_RECORDER_QPL,
-    TEMPLATE_DEFAULT_RECORDER_CD_GAIN,
+# Combined OT factory bytes (reference; not applied — see OCTAPY_DEFAULT_RECORDER_SETUP)
+OT_FACTORY_RECORDER_SETUP = bytes([
+    OT_FACTORY_RECORDER_IN_AB,
+    OT_FACTORY_RECORDER_IN_CD,
+    OT_FACTORY_RECORDER_RLEN,
+    OT_FACTORY_RECORDER_TRIG,
+    OT_FACTORY_RECORDER_SRC3,
+    OT_FACTORY_RECORDER_LOOP,
+    OT_FACTORY_RECORDER_FIN,
+    OT_FACTORY_RECORDER_FOUT,
+    OT_FACTORY_RECORDER_AB_GAIN,
+    OT_FACTORY_RECORDER_QREC,
+    OT_FACTORY_RECORDER_QPL,
+    OT_FACTORY_RECORDER_CD_GAIN,
 ])
 
 # =============================================================================
@@ -752,12 +763,12 @@ OCTAPY_DEFAULT_RECORDER_LOOP = 0      # OVERRIDE (was 1)
 OCTAPY_DEFAULT_RECORDER_QREC = 0      # OVERRIDE (was 255/OFF) - 0 = PLEN
 
 # Unchanged from template
-OCTAPY_DEFAULT_RECORDER_TRIG = TEMPLATE_DEFAULT_RECORDER_TRIG    # ONE
-OCTAPY_DEFAULT_RECORDER_FIN = TEMPLATE_DEFAULT_RECORDER_FIN
-OCTAPY_DEFAULT_RECORDER_FOUT = TEMPLATE_DEFAULT_RECORDER_FOUT
-OCTAPY_DEFAULT_RECORDER_AB_GAIN = TEMPLATE_DEFAULT_RECORDER_AB_GAIN
-OCTAPY_DEFAULT_RECORDER_QPL = TEMPLATE_DEFAULT_RECORDER_QPL      # OFF
-OCTAPY_DEFAULT_RECORDER_CD_GAIN = TEMPLATE_DEFAULT_RECORDER_CD_GAIN
+OCTAPY_DEFAULT_RECORDER_TRIG = OT_FACTORY_RECORDER_TRIG    # ONE
+OCTAPY_DEFAULT_RECORDER_FIN = OT_FACTORY_RECORDER_FIN
+OCTAPY_DEFAULT_RECORDER_FOUT = OT_FACTORY_RECORDER_FOUT
+OCTAPY_DEFAULT_RECORDER_AB_GAIN = OT_FACTORY_RECORDER_AB_GAIN
+OCTAPY_DEFAULT_RECORDER_QPL = OT_FACTORY_RECORDER_QPL      # OFF
+OCTAPY_DEFAULT_RECORDER_CD_GAIN = OT_FACTORY_RECORDER_CD_GAIN
 
 # Combined octapy default bytes
 OCTAPY_DEFAULT_RECORDER_SETUP = bytes([

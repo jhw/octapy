@@ -1072,15 +1072,22 @@ class TestAudioPartTrackRecommendedDefaults:
         assert track.src.length == 127  # Still has recommended defaults
 
     def test_apply_recommended_defaults_flex(self):
-        """apply_recommended_defaults(FLEX) sets octapy recommended values."""
+        """apply_recommended_defaults(FLEX) writes octapy SRC values.
+
+        Standalone tracks already start at the octapy baseline so this is
+        idempotent — calling it after reset_to_factory_defaults() is the
+        meaningful path.
+        """
         track = AudioPartTrack(machine_type=MachineType.FLEX)
-        assert track.src.length == 0  # template default
+        track.reset_to_factory_defaults(MachineType.FLEX)
+        assert track.src.length == 0  # factory default
         track.apply_recommended_defaults(MachineType.FLEX)
         assert track.src.length == 127
 
     def test_apply_recommended_defaults_static(self):
-        """apply_recommended_defaults(STATIC) sets octapy recommended values."""
+        """apply_recommended_defaults(STATIC) writes octapy SRC values."""
         track = AudioPartTrack(machine_type=MachineType.STATIC)
+        track.reset_to_factory_defaults(MachineType.STATIC)
         assert track.src.length == 0
         track.apply_recommended_defaults(MachineType.STATIC)
         assert track.src.length == 127
@@ -1136,12 +1143,41 @@ class TestAudioPartTrackRecommendedDefaults:
         with pytest.raises(ValueError):
             track.configure_static(129)
 
-    def test_default_constructor_uses_template_defaults(self):
-        """Default constructor uses OT template defaults, not octapy."""
-        track = AudioPartTrack(machine_type=MachineType.FLEX)
+    def test_default_constructor_uses_octapy_baseline(self):
+        """Default constructor lands on the octapy baseline (length=127, loop=OFF).
 
-        # Template default for length is 0 (not 127)
+        Matches the state of a freshly-loaded Bank.from_template() track —
+        the two construction paths agree.
+        """
+        track = AudioPartTrack(machine_type=MachineType.FLEX)
+        assert track.src.length == 127
+        assert track.setup.loop == 0
+        assert track.setup.length_mode == 1  # TIME
+
+    def test_reset_to_factory_defaults_flips_back_to_ot_values(self):
+        """reset_to_factory_defaults() writes the OT factory SRC + recorder values."""
+        from octapy import RecordingSource
+
+        track = AudioPartTrack(machine_type=MachineType.FLEX)
+        # Start at octapy baseline
+        assert track.src.length == 127
+        assert track.setup.loop == 0
+
+        track.reset_to_factory_defaults()
+
+        # OT factory: length=0, loop=ON, length_mode=OFF
         assert track.src.length == 0
+        assert track.setup.loop == 1
+        assert track.setup.length_mode == 0
+        # OT factory recorder: rlen=64 (MAX), loop=ON, qrec=OFF (255), in_ab=1
+        assert track.recorder.rlen == 64
+        assert track.recorder.loop == 1
+        assert track.recorder.qrec == 255
+
+    def test_reset_to_factory_defaults_rejects_non_sampler(self):
+        track = AudioPartTrack(machine_type=MachineType.THRU)
+        with pytest.raises(ValueError):
+            track.reset_to_factory_defaults(MachineType.THRU)
 
 
 class TestAudioPartTrackSRCPage:
