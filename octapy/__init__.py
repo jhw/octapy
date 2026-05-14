@@ -54,7 +54,11 @@ from .api.enums import (
     # LFO
     LfoWaveform,
     LfoTrigMode,
+    LfoDestination,
 )
+
+# LFO helpers
+from .api.core.audio.lfo import resolve_lfo_destination
 
 # Exceptions
 from .api.slot_manager import (
@@ -88,7 +92,7 @@ from .api import (
     SamplePool,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     # Core classes
@@ -129,6 +133,8 @@ __all__ = [
     "PatternScale",
     "LfoWaveform",
     "LfoTrigMode",
+    "LfoDestination",
+    "resolve_lfo_destination",
     # Exceptions
     "OctapyError",
     "SlotLimitExceeded",

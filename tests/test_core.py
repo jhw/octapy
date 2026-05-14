@@ -3405,6 +3405,126 @@ class TestAudioLfo:
         assert restored.lfo(3).waveform == LfoWaveform.RND
 
 
+class TestLfoDestinationResolution:
+    """Tests for LfoDestination enum + resolve_lfo_destination + lfo.destination_name."""
+
+    def test_destination_enum_values(self):
+        """Enum values match the 32-byte track-parameter block offsets."""
+        from octapy import LfoDestination
+        assert LfoDestination.SRC_PARAM1 == 0
+        assert LfoDestination.LFO1_SPEED == 6
+        assert LfoDestination.LFO3_DEPTH == 11
+        assert LfoDestination.AMP_ATTACK == 12
+        assert LfoDestination.AMP_BALANCE == 16
+        assert LfoDestination.AMP_F == 17
+        assert LfoDestination.FX1_PARAM1 == 18
+        assert LfoDestination.FX1_PARAM6 == 23
+        assert LfoDestination.FX2_PARAM1 == 24
+        assert LfoDestination.FX2_PARAM6 == 29
+
+    def test_resolve_amp_fixed_names(self):
+        """AMP destinations have fixed names regardless of machine/FX type."""
+        from octapy import resolve_lfo_destination
+        assert resolve_lfo_destination(12) == "amp.attack"
+        assert resolve_lfo_destination(13) == "amp.hold"
+        assert resolve_lfo_destination(14) == "amp.release"
+        assert resolve_lfo_destination(15) == "amp.volume"
+        assert resolve_lfo_destination(16) == "amp.balance"
+        assert resolve_lfo_destination(17) == "amp.F"
+
+    def test_resolve_lfo_speed_depth(self):
+        from octapy import resolve_lfo_destination
+        assert resolve_lfo_destination(6) == "lfo1.speed"
+        assert resolve_lfo_destination(7) == "lfo2.speed"
+        assert resolve_lfo_destination(8) == "lfo3.speed"
+        assert resolve_lfo_destination(9) == "lfo1.depth"
+        assert resolve_lfo_destination(10) == "lfo2.depth"
+        assert resolve_lfo_destination(11) == "lfo3.depth"
+
+    def test_resolve_src_flex(self):
+        """SRC params resolve to FLEX names when machine_type=FLEX."""
+        from octapy import MachineType, resolve_lfo_destination
+        assert resolve_lfo_destination(0, machine_type=MachineType.FLEX) == "src.pitch"
+        assert resolve_lfo_destination(1, machine_type=MachineType.FLEX) == "src.start"
+        assert resolve_lfo_destination(2, machine_type=MachineType.FLEX) == "src.length"
+        assert resolve_lfo_destination(3, machine_type=MachineType.FLEX) == "src.rate"
+        assert resolve_lfo_destination(4, machine_type=MachineType.FLEX) == "src.retrig"
+        assert resolve_lfo_destination(5, machine_type=MachineType.FLEX) == "src.retrig_time"
+
+    def test_resolve_src_thru(self):
+        """SRC param names differ for THRU machines."""
+        from octapy import MachineType, resolve_lfo_destination
+        assert resolve_lfo_destination(0, machine_type=MachineType.THRU) == "src.in_ab"
+        assert resolve_lfo_destination(1, machine_type=MachineType.THRU) == "src.vol_ab"
+        # THRU has no SRC param 3 — falls back to generic
+        assert resolve_lfo_destination(2, machine_type=MachineType.THRU) == "src.param3"
+
+    def test_resolve_src_no_machine_type(self):
+        """Without machine_type, SRC params get generic param{n} names."""
+        from octapy import resolve_lfo_destination
+        assert resolve_lfo_destination(0) == "src.param1"
+        assert resolve_lfo_destination(5) == "src.param6"
+
+    def test_resolve_fx1_filter(self):
+        """FX1 params resolve to FILTER names when fx1_type=FILTER."""
+        from octapy import FX1Type, resolve_lfo_destination
+        assert resolve_lfo_destination(18, fx1_type=FX1Type.FILTER) == "fx1.base"
+        assert resolve_lfo_destination(19, fx1_type=FX1Type.FILTER) == "fx1.width"
+        assert resolve_lfo_destination(20, fx1_type=FX1Type.FILTER) == "fx1.q"
+        assert resolve_lfo_destination(21, fx1_type=FX1Type.FILTER) == "fx1.depth"
+        assert resolve_lfo_destination(22, fx1_type=FX1Type.FILTER) == "fx1.attack"
+        assert resolve_lfo_destination(23, fx1_type=FX1Type.FILTER) == "fx1.decay"
+
+    def test_resolve_fx2_delay(self):
+        """FX2 params resolve to DELAY names when fx2_type=DELAY."""
+        from octapy import FX2Type, resolve_lfo_destination
+        assert resolve_lfo_destination(24, fx2_type=FX2Type.DELAY) == "fx2.time"
+        assert resolve_lfo_destination(25, fx2_type=FX2Type.DELAY) == "fx2.feedback"
+        assert resolve_lfo_destination(26, fx2_type=FX2Type.DELAY) == "fx2.volume"
+        assert resolve_lfo_destination(29, fx2_type=FX2Type.DELAY) == "fx2.send"
+
+    def test_resolve_fx_no_type(self):
+        """Without FX type, FX params get generic param{n} names."""
+        from octapy import resolve_lfo_destination
+        assert resolve_lfo_destination(18) == "fx1.param1"
+        assert resolve_lfo_destination(23) == "fx1.param6"
+        assert resolve_lfo_destination(24) == "fx2.param1"
+        assert resolve_lfo_destination(29) == "fx2.param6"
+
+    def test_resolve_out_of_range(self):
+        """Indexes outside 0-29 fall back to generic param{n}."""
+        from octapy import resolve_lfo_destination
+        assert resolve_lfo_destination(30) == "param30"
+        assert resolve_lfo_destination(99) == "param99"
+
+    def test_lfo_destination_name_uses_track_types(self):
+        """lfo.destination_name() picks up the parent track's machine + fx types."""
+        from octapy import FX1Type, FX2Type, MachineType
+        track = AudioPartTrack(track_num=1)
+        track.machine_type = MachineType.FLEX
+        track.fx1_type = FX1Type.FILTER
+        track.fx2_type = FX2Type.DELAY
+
+        track.lfo(1).destination = 18   # fx1 param1
+        track.lfo(2).destination = 0    # src param1
+        track.lfo(3).destination = 25   # fx2 param2
+
+        assert track.lfo(1).destination_name() == "fx1.base"
+        assert track.lfo(2).destination_name() == "src.pitch"
+        assert track.lfo(3).destination_name() == "fx2.feedback"
+
+    def test_lfo_destination_name_override(self):
+        """Explicit args override the parent track's types."""
+        from octapy import FX1Type, MachineType
+        track = AudioPartTrack(track_num=1)
+        track.machine_type = MachineType.FLEX
+        track.fx1_type = FX1Type.FILTER
+        track.lfo(1).destination = 18
+
+        # Override fx1_type to ask "what would this be if FX1 were PHASER?"
+        assert track.lfo(1).destination_name(fx1_type=FX1Type.PHASER) == "fx1.center"
+
+
 class TestAudioStepLfoPlocks:
     """Tests for AudioStep.lfo(n) p-lock accessor."""
 

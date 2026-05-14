@@ -9,7 +9,15 @@ Provides Pythonic access to one of the 3 LFOs on an audio track:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
+from ...enums import FX1Type, FX2Type, LfoDestination, MachineType
+from .._page import (
+    AMP_PARAM_NAMES,
+    FX_PARAM_NAMES,
+    SRC_PARAM_NAMES,
+    _AMP_KEY,
+)
 
 if TYPE_CHECKING:
     from .part_track import AudioPartTrack
@@ -24,6 +32,65 @@ _LFO_PMTR_BASE = 0   # bytes 0, 1, 2 = lfo1_pmtr, lfo2_pmtr, lfo3_pmtr
 _LFO_WAVE_BASE = 3   # bytes 3, 4, 5 = lfo1_wave, lfo2_wave, lfo3_wave
 _LFO_MULT_BASE = 24  # bytes 24, 25, 26
 _LFO_TRIG_BASE = 27  # bytes 27, 28, 29
+
+
+def resolve_lfo_destination(
+    index: int,
+    machine_type: Optional[MachineType] = None,
+    fx1_type: Optional[int] = None,
+    fx2_type: Optional[int] = None,
+) -> str:
+    """Resolve an LFO destination byte index to a human-readable name.
+
+    The destination byte is a direct index into the 32-byte track-parameter
+    block (same layout as p-locks and scene locks):
+
+        0-5    SRC playback params 1-6  (machine-type-dependent)
+        6-8    LFO1/2/3 speed
+        9-11   LFO1/2/3 depth
+        12-16  AMP attack/hold/release/volume/balance
+        17     AMP <F> (hidden F parameter)
+        18-23  FX1 params 1-6           (fx-type-dependent)
+        24-29  FX2 params 1-6           (fx-type-dependent)
+
+    `machine_type`, `fx1_type`, `fx2_type` control how SRC and FX params
+    are named. When omitted, generic `src.param{n}` / `fx1.param{n}` /
+    `fx2.param{n}` names are returned.
+
+    Returns names like "src.pitch", "fx1.base", "amp.attack",
+    "lfo1.speed", or "param{n}" for indexes outside 0-29.
+    """
+    if 0 <= index <= 5:
+        n = index + 1
+        if machine_type is not None:
+            names = SRC_PARAM_NAMES.get(machine_type, (None,) * 6)
+            if names[index]:
+                return f"src.{names[index]}"
+        return f"src.param{n}"
+    if 6 <= index <= 8:
+        return f"lfo{index - 5}.speed"
+    if 9 <= index <= 11:
+        return f"lfo{index - 8}.depth"
+    if 12 <= index <= 16:
+        amp_names = AMP_PARAM_NAMES[_AMP_KEY]
+        return f"amp.{amp_names[index - 12]}"
+    if index == 17:
+        return "amp.F"
+    if 18 <= index <= 23:
+        n = index - 17  # 1..6
+        if fx1_type is not None:
+            names = FX_PARAM_NAMES.get(fx1_type, (None,) * 6)
+            if names[n - 1]:
+                return f"fx1.{names[n - 1]}"
+        return f"fx1.param{n}"
+    if 24 <= index <= 29:
+        n = index - 23  # 1..6
+        if fx2_type is not None:
+            names = FX_PARAM_NAMES.get(fx2_type, (None,) * 6)
+            if names[n - 1]:
+                return f"fx2.{names[n - 1]}"
+        return f"fx2.param{n}"
+    return f"param{index}"
 
 
 class AudioLfo:
@@ -131,6 +198,39 @@ class AudioLfo:
     @trig_mode.setter
     def trig_mode(self, value: int):
         self._track._data[self._setup(_LFO_TRIG_BASE)] = int(value) & 0xFF
+
+    def destination_name(
+        self,
+        machine_type: Optional[MachineType] = None,
+        fx1_type: Optional[int] = None,
+        fx2_type: Optional[int] = None,
+    ) -> str:
+        """Resolve this LFO's destination index to a human-readable name.
+
+        Names take the track's machine/FX types into account, so e.g. a
+        FLEX track's SRC params come back as `pitch/start/length/...`
+        while a THRU track's come back as `in_ab/vol_ab/...`. FX params
+        are resolved against their type (`FILTER` -> `base/width/q/...`).
+
+        Defaults pull machine/FX types from the parent part-track. Pass
+        explicit values to override (useful for resolving against a
+        type other than the current one).
+
+        Returns names like:
+            "src.pitch"      "amp.attack"     "lfo1.speed"
+            "fx1.base"       "fx2.feedback"   "amp.F"
+        Falls back to "param{offset}" for indexes outside the documented
+        0-29 range.
+        """
+        if machine_type is None:
+            machine_type = self._track.machine_type
+        if fx1_type is None:
+            fx1_type = self._track.fx1_type
+        if fx2_type is None:
+            fx2_type = self._track.fx2_type
+        return resolve_lfo_destination(
+            self.destination, machine_type, fx1_type, fx2_type
+        )
 
     def __repr__(self) -> str:
         return (

@@ -621,3 +621,54 @@ class LfoTrigMode(IntEnum):
     HOLD = 2   # Reset and hold on trig
     ONE = 3    # One-shot (single cycle on trig)
     HALF = 4   # Half-cycle on trig
+
+
+class LfoDestination(IntEnum):
+    """
+    LFO destination — the parameter the LFO modulates.
+
+    The destination byte is a direct index into the 32-byte track-parameter
+    block layout shared by p-locks, scene locks, and LFO targets:
+
+        offset 0-5    SRC playback params 1-6  (machine-type-dependent)
+        offset 6-8    LFO1/2/3 speed
+        offset 9-11   LFO1/2/3 depth
+        offset 12-16  AMP page (attack/hold/release/volume/balance)
+        offset 17     AMP <F> (hidden F parameter used by scenes/LFOs)
+        offset 18-23  FX1 params 1-6           (fx-type-dependent)
+        offset 24-29  FX2 params 1-6           (fx-type-dependent)
+
+    Use `lfo.destination_name(...)` on an `AudioLfo` to get a human-readable
+    name like `"src.pitch"` / `"fx1.base"` / `"fx2.feedback"` that takes the
+    track's machine and FX types into account.
+    """
+    SRC_PARAM1 = 0
+    SRC_PARAM2 = 1
+    SRC_PARAM3 = 2
+    SRC_PARAM4 = 3
+    SRC_PARAM5 = 4
+    SRC_PARAM6 = 5
+    LFO1_SPEED = 6
+    LFO2_SPEED = 7
+    LFO3_SPEED = 8
+    LFO1_DEPTH = 9
+    LFO2_DEPTH = 10
+    LFO3_DEPTH = 11
+    AMP_ATTACK = 12
+    AMP_HOLD = 13
+    AMP_RELEASE = 14
+    AMP_VOLUME = 15
+    AMP_BALANCE = 16
+    AMP_F = 17
+    FX1_PARAM1 = 18
+    FX1_PARAM2 = 19
+    FX1_PARAM3 = 20
+    FX1_PARAM4 = 21
+    FX1_PARAM5 = 22
+    FX1_PARAM6 = 23
+    FX2_PARAM1 = 24
+    FX2_PARAM2 = 25
+    FX2_PARAM3 = 26
+    FX2_PARAM4 = 27
+    FX2_PARAM5 = 28
+    FX2_PARAM6 = 29
