@@ -168,3 +168,75 @@ class TestProjectFixtureRoundTrip:
             track = part.audio_track(track_num)
             assert track.machine_type is not None
             assert isinstance(track.flex_slot, int)
+
+
+@pytest.mark.slow
+class TestAudioPreservationOnRoundTrip:
+    """Audio files survive Project.to_zip → Project.from_zip and the
+    equivalent directory round-trip. Regression: prior to v0.2.2,
+    from_zip only looked at AUDIO/{name}/ (no audio_subdir segment),
+    so samples written by to_zip went missing on load. The user's
+    audio was silently dropped on round-trip.
+    """
+
+    def _make_project_with_sample(self, tmp: Path, name: str = "AUDIO ROUND TRIP"):
+        """Create a project, drop a tiny WAV into it via add_sample,
+        and return both the project and the WAV path used."""
+        import struct, wave
+        wav_path = tmp / "kick.wav"
+        with wave.open(str(wav_path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(44100)
+            w.writeframes(struct.pack("<h", 0) * 1024)
+        project = Project.from_template(name)
+        project.add_sample(wav_path, slot_type="FLEX", slot=1)
+        return project, wav_path
+
+    def test_zip_round_trip_preserves_audio(self):
+        """to_zip → from_zip keeps samples in the pool with the
+        same filenames (a NEW canonical-layout test, distinct from the
+        legacy samples/ fixture)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            project, wav_path = self._make_project_with_sample(tmp)
+            assert "kick.wav" in project.sample_pool
+
+            zip_path = tmp / f"{project.name}.zip"
+            project.to_zip(zip_path)
+
+            restored = Project.from_zip(zip_path)
+            assert "kick.wav" in restored.sample_pool, (
+                "Sample dropped on zip round-trip — from_zip didn't find "
+                "the AUDIO/<audio_subdir>/<name>/ layout written by to_zip."
+            )
+            assert restored.sample_pool["kick.wav"].exists()
+            assert restored.sample_pool["kick.wav"].stat().st_size > 0
+
+    def test_extracted_zip_via_from_directory_finds_sibling_audio(self):
+        """User workflow: extract a zip and load with from_directory.
+        Samples in sibling AUDIO/<audio_subdir>/<name>/ must still load.
+        Regression: from_directory only looked at <path>/samples/."""
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            project, _ = self._make_project_with_sample(tmp)
+            zip_path = tmp / f"{project.name}.zip"
+            project.to_zip(zip_path)
+
+            # Extract to a working dir (simulating a user extracting the zip).
+            extract_root = tmp / "extracted"
+            extract_root.mkdir()
+            with zipfile.ZipFile(zip_path) as zf:
+                zf.extractall(extract_root)
+
+            proj_dir = extract_root / project.name
+            assert proj_dir.exists()
+            assert (extract_root / "AUDIO" / "projects" / project.name / "kick.wav").exists()
+
+            restored = Project.from_directory(proj_dir)
+            assert "kick.wav" in restored.sample_pool, (
+                "Sample dropped — from_directory didn't scan the sibling "
+                "AUDIO/<audio_subdir>/<name>/ layout."
+            )

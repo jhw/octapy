@@ -199,11 +199,25 @@ class Project:
             if arr_path.exists():
                 instance._arr_files[i] = arr_path.read_bytes()
 
-        # Load bundled samples from samples/ subdirectory
+        # Load bundled samples. Two layouts are supported:
+        #   1. <path>/samples/*.wav — octapy's own bundled-samples
+        #      convention (written by to_directory).
+        #   2. <path>/../AUDIO/<audio_subdir>/<path.name>/*.wav — the
+        #      Octatrack's standard on-device layout (written by
+        #      to_zip, and what real user projects look like once
+        #      extracted). Without this, round-tripping a user zip
+        #      through Project.from_directory + to_zip silently drops
+        #      every audio file in the project.
         samples_dir = path / "samples"
         if samples_dir.exists():
             for sample_file in samples_dir.glob("*.wav"):
                 instance._sample_pool[sample_file.name] = sample_file
+
+        sibling_audio = path.parent / "AUDIO" / instance._audio_subdir / path.name
+        if sibling_audio.exists():
+            for sample_file in sibling_audio.glob("*.wav"):
+                # samples/ wins over AUDIO/ on filename clashes.
+                instance._sample_pool.setdefault(sample_file.name, sample_file)
 
         return instance
 
@@ -212,11 +226,13 @@ class Project:
         """
         Load a project from a zip file.
 
-        Zip structure:
-            {project_name}/   - .work files
-            AUDIO/{project_name}/  - .wav files (optional)
+        Zip structure (canonical):
+            {PROJECT_NAME}/                          - .work files
+            AUDIO/{audio_subdir}/{PROJECT_NAME}/     - .wav files (optional)
 
-        Also supports legacy zip format (project/ and samples/ prefixes).
+        Legacy formats also supported:
+            project/ + samples/         (old fixture layout)
+            AUDIO/{PROJECT_NAME}/        (pre-audio_subdir layout)
 
         Args:
             zip_path: Path to project zip file
@@ -250,14 +266,28 @@ class Project:
         instance._name = zip_path.stem.upper()
         instance._temp_dir = tmp_dir  # Keep alive until Project is garbage collected
 
-        # Load samples from AUDIO/{project_name}/ or legacy samples/
-        project_name = zip_path.stem.upper()
-        audio_dir = tmp_path / "AUDIO" / project_name
-        samples_dir = tmp_path / "samples"
-        sample_source = audio_dir if audio_dir.exists() else samples_dir
-        if sample_source.exists():
-            for sample_file in sample_source.glob("*.wav"):
-                instance._sample_pool[sample_file.name] = sample_file
+        # Load samples. Resolution order matches the documented layouts:
+        #   1. AUDIO/<audio_subdir>/<extracted_dir.name>/  (canonical, written by to_zip)
+        #   2. AUDIO/<audio_subdir>/<zip_stem>/            (extracted dir name differed)
+        #   3. AUDIO/<zip_stem>/                           (pre-audio_subdir legacy)
+        #   4. samples/                                     (oldest legacy format)
+        # First hit wins; we deliberately do NOT merge across sources
+        # to avoid surprising stacking from mixed legacy/canonical zips.
+        candidate_dirs = []
+        zip_stem_upper = zip_path.stem.upper()
+        if project_subdir is not None:
+            candidate_dirs.append(tmp_path / "AUDIO" / instance._audio_subdir / project_subdir.name)
+        candidate_dirs.append(tmp_path / "AUDIO" / instance._audio_subdir / zip_stem_upper)
+        candidate_dirs.append(tmp_path / "AUDIO" / zip_stem_upper)
+        candidate_dirs.append(tmp_path / "samples")
+        for candidate in candidate_dirs:
+            if candidate.exists() and any(candidate.glob("*.wav")):
+                # Only load if pool isn't already populated by from_directory's
+                # sibling-AUDIO scan (which would have found candidate #1 already).
+                if not instance._sample_pool:
+                    for sample_file in candidate.glob("*.wav"):
+                        instance._sample_pool[sample_file.name] = sample_file
+                break
 
         return instance
 

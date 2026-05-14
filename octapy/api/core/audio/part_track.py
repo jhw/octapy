@@ -1117,7 +1117,15 @@ class AudioPartTrack:
     # === Serialization ===
 
     def to_dict(self) -> dict:
-        """Convert audio part track to dictionary."""
+        """Convert audio part track to dictionary.
+
+        The dict captures every byte that survives a round-trip:
+        machine + slot pointers, volume, AMP envelope, FX types and
+        their 6-param tables, SRC playback + setup pages (raw ints —
+        their semantics depend on machine_type, so we don't unpack to
+        names here), and the three LFO setups. Pair with `from_dict`
+        for lossless reconstruction.
+        """
         result = {
             "track": self._track_num,
             "machine_type": self.machine_type.name,
@@ -1132,6 +1140,21 @@ class AudioPartTrack:
             },
             "fx1_type": self.fx1_type,
             "fx2_type": self.fx2_type,
+            "fx1_params": [getattr(self, f"fx1_param{i}") for i in range(1, 7)],
+            "fx2_params": [getattr(self, f"fx2_param{i}") for i in range(1, 7)],
+            "src_params": [self.src._get_param(i) for i in range(1, 7)],
+            "setup_params": [self.setup._get_param(i) for i in range(1, 7)],
+            "lfos": [
+                {
+                    "destination": self.lfo(n).destination,
+                    "waveform": self.lfo(n).waveform,
+                    "multiplier": self.lfo(n).multiplier,
+                    "trig_mode": self.lfo(n).trig_mode,
+                    "speed": self.lfo(n).speed,
+                    "depth": self.lfo(n).depth,
+                }
+                for n in (1, 2, 3)
+            ],
             "recorder": self._recorder.to_dict(),
         }
         # flex_slot and recorder_slot are mutually exclusive
@@ -1144,7 +1167,12 @@ class AudioPartTrack:
 
     @classmethod
     def from_dict(cls, data: dict) -> "AudioPartTrack":
-        """Create an AudioPartTrack from a dictionary."""
+        """Create an AudioPartTrack from a dictionary.
+
+        Round-trips losslessly with `to_dict`. Older dicts (pre-v0.2.2)
+        that omit fx_params / src_params / setup_params / lfos still
+        load — the missing pages just stay at the constructor defaults.
+        """
         kwargs = {
             "track_num": data.get("track", 1),
         }
@@ -1183,7 +1211,37 @@ class AudioPartTrack:
         if "recorder" in data:
             kwargs["recorder"] = AudioRecorderSetup.from_dict(data["recorder"])
 
-        return cls(**kwargs)
+        track = cls(**kwargs)
+
+        # Fields the constructor can't set are applied post-construction.
+        # Order matters: machine_type (already set above) determines the
+        # semantics of src/setup pages, so those go after.
+        for i, v in enumerate(data.get("fx1_params") or [], start=1):
+            setattr(track, f"fx1_param{i}", v)
+        for i, v in enumerate(data.get("fx2_params") or [], start=1):
+            setattr(track, f"fx2_param{i}", v)
+        for i, v in enumerate(data.get("src_params") or [], start=1):
+            track.src._set_param(i, v)
+        for i, v in enumerate(data.get("setup_params") or [], start=1):
+            track.setup._set_param(i, v)
+        for n, lfo_data in enumerate(data.get("lfos") or [], start=1):
+            if n > 3:
+                break
+            lfo = track.lfo(n)
+            if "destination" in lfo_data:
+                lfo.destination = lfo_data["destination"]
+            if "waveform" in lfo_data:
+                lfo.waveform = lfo_data["waveform"]
+            if "multiplier" in lfo_data:
+                lfo.multiplier = lfo_data["multiplier"]
+            if "trig_mode" in lfo_data:
+                lfo.trig_mode = lfo_data["trig_mode"]
+            if "speed" in lfo_data:
+                lfo.speed = lfo_data["speed"]
+            if "depth" in lfo_data:
+                lfo.depth = lfo_data["depth"]
+
+        return track
 
     def __eq__(self, other) -> bool:
         """Check equality based on data buffer and recorder."""

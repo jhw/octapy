@@ -228,3 +228,117 @@ class TestNoteLengthPropertyQuantization:
 
         midi_track.arp_note_length = NoteLength.EIGHTH
         assert midi_track.arp_note_length == 12
+
+
+# =============================================================================
+# AudioPartTrack.to_dict / from_dict round-trip
+# =============================================================================
+
+from octapy import AudioPartTrack, MachineType
+
+
+class TestAudioPartTrackDictRoundTrip:
+    """to_dict / from_dict must preserve every field that the OT
+    binary format encodes for a part-track. Regression: prior to
+    v0.2.2, from_dict ignored fx*_params, src/setup pages, and LFO
+    setup, so dict round-trip silently dropped those bytes.
+    """
+
+    def _set_distinct_fields(self, t: AudioPartTrack):
+        """Mutate every dimension we want to verify round-trips."""
+        t.fx1_type = 17  # FLANGER
+        t.fx2_type = 22  # DARK_REVERB
+        for i, v in enumerate([10, 20, 30, 40, 50, 60], start=1):
+            setattr(t, f"fx1_param{i}", v)
+        for i, v in enumerate([7, 14, 21, 28, 35, 42], start=1):
+            setattr(t, f"fx2_param{i}", v)
+        t.attack = 5
+        t.hold = 100
+        t.release = 50
+        t.amp_volume = 96
+        t.balance = 80
+        for i, v in enumerate([1, 2, 3, 4, 5, 6], start=1):
+            t.src._set_param(i, v)
+        for i, v in enumerate([6, 5, 4, 3, 2, 1], start=1):
+            t.setup._set_param(i, v)
+        for n, (dest, wave, mult, trig, spd, dep) in enumerate(
+            [(18, 1, 2, 1, 32, 64), (19, 2, 0, 3, 16, 90), (20, 3, 1, 0, 48, 32)],
+            start=1,
+        ):
+            lfo = t.lfo(n)
+            lfo.destination = dest
+            lfo.waveform = wave
+            lfo.multiplier = mult
+            lfo.trig_mode = trig
+            lfo.speed = spd
+            lfo.depth = dep
+
+    def test_dict_round_trip_is_idempotent(self):
+        """to_dict → from_dict → to_dict produces the same dict.
+
+        Captures the contract: dict round-trip preserves the active
+        machine's configured state (FX, AMP, SRC/setup of the active
+        machine, LFOs, recorder, volume, slot pointers). The underlying
+        byte buffer also holds SRC/setup pages for the four *inactive*
+        machine types — those aren't exposed by the public API and
+        aren't expected to survive a dict round-trip.
+        """
+        project = Project.from_template("DICT RT")
+        original = project.bank(1).part(1).audio_track(2)
+        original.machine_type = MachineType.NEIGHBOR
+        self._set_distinct_fields(original)
+
+        d1 = original.to_dict()
+        restored = AudioPartTrack.from_dict(d1)
+        d2 = restored.to_dict()
+        assert d1 == d2, "to_dict → from_dict → to_dict not idempotent"
+
+    def test_dict_round_trip_preserves_fx_params(self):
+        """Specifically check that FX param tables aren't dropped."""
+        project = Project.from_template("FX RT")
+        t = project.bank(1).part(1).audio_track(1)
+        t.fx1_type = 4  # FILTER
+        for i, v in enumerate([42, 76, 32, 0, 100, 64], start=1):
+            setattr(t, f"fx1_param{i}", v)
+
+        restored = AudioPartTrack.from_dict(t.to_dict())
+        for i in range(1, 7):
+            assert getattr(restored, f"fx1_param{i}") == getattr(t, f"fx1_param{i}"), (
+                f"fx1_param{i} dropped on round-trip"
+            )
+
+    def test_dict_round_trip_preserves_lfos(self):
+        """LFO destination + waveform + spd/dep survive dict round-trip."""
+        project = Project.from_template("LFO RT")
+        t = project.bank(1).part(1).audio_track(1)
+        lfo1 = t.lfo(1)
+        lfo1.destination = 18  # fx1.base
+        lfo1.waveform = 1
+        lfo1.speed = 64
+        lfo1.depth = 100
+
+        restored = AudioPartTrack.from_dict(t.to_dict())
+        assert restored.lfo(1).destination == 18
+        assert restored.lfo(1).waveform == 1
+        assert restored.lfo(1).speed == 64
+        assert restored.lfo(1).depth == 100
+
+    def test_dict_omitting_new_fields_still_loads(self):
+        """Backwards compat: a pre-v0.2.2 dict (no fx_params / lfos /
+        src_params / setup_params) still loads."""
+        old_style_dict = {
+            "track": 3,
+            "machine_type": "NEIGHBOR",
+            "static_slot": 0,
+            "flex_slot": 0,
+            "volume": {"main": 108, "cue": 0},
+            "amp": {"attack": 0, "hold": 127, "release": 24, "volume": 108, "balance": 64},
+            "fx1_type": 4,
+            "fx2_type": 8,
+            "recorder": {"source": "OFF", "rlen": 16, "trig": "ONE2", "loop": False,
+                         "fin": 0, "fout": 0, "ab_gain": 0, "qrec": "OFF", "qpl": 255,
+                         "cd_gain": 0},
+        }
+        track = AudioPartTrack.from_dict(old_style_dict)
+        assert track.machine_type == MachineType.NEIGHBOR
+        assert track.fx1_type == 4
