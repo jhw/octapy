@@ -263,7 +263,9 @@ class Scene:
         """
         Convert scene to dictionary.
 
-        Returns dict with scene number and tracks that have any locks set.
+        Returns dict with scene number, tracks that have any param locks
+        set, and per-track crossfader (XLV) assignments. Pages with no
+        locks and tracks with no XLV assignment are omitted.
         """
         result = {"scene": self._scene_num, "tracks": []}
 
@@ -271,6 +273,10 @@ class Scene:
             track = self.track(track_num)
             if track.has_locks():
                 result["tracks"].append(track.to_dict())
+
+        xlv = self.crossfader_assignments
+        if xlv:
+            result["xlv"] = dict(xlv)
 
         return result
 
@@ -283,6 +289,9 @@ class Scene:
             for track_data in data["tracks"]:
                 track = AudioSceneTrack.from_dict(track_data)
                 scene.set_track(track.track_num, track)
+
+        for track_num, value in (data.get("xlv") or {}).items():
+            scene.set_crossfader(int(track_num), value)
 
         return scene
 

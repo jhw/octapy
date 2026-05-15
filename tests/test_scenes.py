@@ -466,6 +466,69 @@ class TestSceneCrossfader:
 
 
 # =============================================================================
+# Dict round-trip Tests
+# =============================================================================
+
+class TestSceneToDict:
+    """to_dict / from_dict must round-trip param locks AND XLV.
+
+    Before v0.2.3 to_dict dropped XLV silently — a Scene with only
+    crossfader assignments would dump as {scene: N, tracks: []} and
+    reload with no XLV at all, so any consumer using these primitives
+    to ship scene libraries (e.g. an export pipeline that dumps a
+    template's scenes to YAML) lost crossfader morph data.
+    """
+
+    def test_param_locks_only(self, scene):
+        scene.track(1).amp_volume = 100
+        scene.track(2).fx1_param3 = 64
+        d = scene.to_dict()
+        restored = Scene.from_dict(d)
+        assert restored.track(1).amp_volume == 100
+        assert restored.track(2).fx1_param3 == 64
+        assert restored.crossfader_assignments == {}
+
+    def test_xlv_only(self, scene):
+        scene.set_crossfader(1, 0)
+        scene.set_crossfader(7, 127)
+        d = scene.to_dict()
+        assert d["xlv"] == {1: 0, 7: 127}
+        restored = Scene.from_dict(d)
+        assert restored.crossfader_assignments == {1: 0, 7: 127}
+
+    def test_locks_and_xlv(self, scene):
+        scene.track(3).pitch = 72
+        scene.set_crossfader(3, 50)
+        scene.set_crossfader(8, 110)
+        d = scene.to_dict()
+        restored = Scene.from_dict(d)
+        assert restored.track(3).pitch == 72
+        assert restored.crossfader_assignments == {3: 50, 8: 110}
+
+    def test_idempotent(self, scene):
+        scene.track(1).amp_attack = 10
+        scene.set_crossfader(2, 64)
+        d1 = scene.to_dict()
+        d2 = Scene.from_dict(d1).to_dict()
+        assert d1 == d2
+
+    def test_xlv_omitted_when_empty(self, scene):
+        scene.track(1).amp_volume = 100
+        d = scene.to_dict()
+        assert "xlv" not in d
+
+    def test_xlv_clear_with_none(self, scene):
+        """A None value in the xlv dict clears the assignment.
+
+        Mirrors set_crossfader's nullable contract so explicit clears
+        survive a round-trip.
+        """
+        scene.set_crossfader(1, 64)
+        restored = Scene.from_dict({"scene": 1, "xlv": {1: None}})
+        assert restored.crossfader_assignments == {}
+
+
+# =============================================================================
 # Roundtrip Tests
 # =============================================================================
 
