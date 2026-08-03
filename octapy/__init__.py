@@ -24,7 +24,7 @@ Example:
     pattern.track(1).active_steps = [1, 5, 9, 13]  # Returns AudioPatternTrack
     pattern.track(1).step(5).condition = TrigCondition.FILL  # Returns AudioStep
 
-    # Add a sample (slot auto-assigned, flex_count auto-updated)
+    # Add a sample (slot auto-assigned)
     project.add_sample("../AUDIO/kick.wav")
 
     # Save

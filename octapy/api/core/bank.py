@@ -52,7 +52,7 @@ class Bank:
     def __init__(
         self,
         bank_num: int = 1,
-        flex_count: int = 0,
+        parts_edited_bitmask: int = 0,
         parts: Optional[List[Part]] = None,
         patterns: Optional[List[Pattern]] = None,
     ):
@@ -61,13 +61,13 @@ class Bank:
 
         Args:
             bank_num: Bank number (1-16)
-            flex_count: Number of active flex slots (0-127)
+            parts_edited_bitmask: 4-bit mask of which parts have unsaved edits (bit N = part N+1)
             parts: Optional list of 4 Part objects
             patterns: Optional list of 16 Pattern objects
         """
         self._bank_num = bank_num
         self._bank_file = BankFile()
-        self._bank_file.flex_count = flex_count
+        self._bank_file.parts_edited_bitmask = parts_edited_bitmask
 
         # Initialize collections
         self._parts: Dict[int, Part] = {}
@@ -265,13 +265,13 @@ class Bank:
         return self._bank_num
 
     @property
-    def flex_count(self) -> int:
-        """Get/set the flex slot counter."""
-        return self._bank_file.flex_count
+    def parts_edited_bitmask(self) -> int:
+        """Get/set the 4-bit mask of which parts have unsaved edits (bit N = part N+1)."""
+        return self._bank_file.parts_edited_bitmask
 
-    @flex_count.setter
-    def flex_count(self, value: int):
-        self._bank_file.flex_count = value
+    @parts_edited_bitmask.setter
+    def parts_edited_bitmask(self, value: int):
+        self._bank_file.parts_edited_bitmask = value
 
     # === Part access ===
 
@@ -342,11 +342,11 @@ class Bank:
             include_scenes: Include scene locks in parts (default False)
 
         Returns:
-            Dict with bank number, flex count, parts, and patterns.
+            Dict with bank number, parts-edited bitmask, parts, and patterns.
         """
         return {
             "bank": self._bank_num,
-            "flex_count": self.flex_count,
+            "parts_edited_bitmask": self.parts_edited_bitmask,
             "parts": [self._parts[n].to_dict(include_scenes=include_scenes) for n in range(1, 5)],
             "patterns": [self._patterns[n].to_dict(include_steps=include_steps) for n in range(1, 17)],
         }
@@ -356,7 +356,7 @@ class Bank:
         """Create a Bank from a dictionary."""
         bank = cls(
             bank_num=data.get("bank", 1),
-            flex_count=data.get("flex_count", 0),
+            parts_edited_bitmask=data.get("parts_edited_bitmask", 0),
         )
 
         if "parts" in data:
@@ -377,7 +377,7 @@ class Bank:
             return NotImplemented
         if self._bank_num != other._bank_num:
             return False
-        if self.flex_count != other.flex_count:
+        if self.parts_edited_bitmask != other.parts_edited_bitmask:
             return False
         if self._parts != other._parts:
             return False
@@ -386,4 +386,4 @@ class Bank:
         return True
 
     def __repr__(self) -> str:
-        return f"Bank(bank={self._bank_num}, flex_count={self.flex_count})"
+        return f"Bank(bank={self._bank_num}, parts_edited_bitmask={self.parts_edited_bitmask})"

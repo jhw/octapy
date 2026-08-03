@@ -2832,14 +2832,14 @@ class TestBankStandalone:
         bank = Bank()
 
         assert bank.bank_num == 1
-        assert bank.flex_count == 0
+        assert bank.parts_edited_bitmask == 0
 
     def test_constructor_with_kwargs(self):
-        """Bank accepts kwargs for bank_num and flex_count."""
-        bank = Bank(bank_num=5, flex_count=10)
+        """Bank accepts kwargs for bank_num and parts_edited_bitmask."""
+        bank = Bank(bank_num=5, parts_edited_bitmask=10)
 
         assert bank.bank_num == 5
-        assert bank.flex_count == 10
+        assert bank.parts_edited_bitmask == 10
 
     def test_contains_4_parts(self):
         """Bank contains 4 Parts."""
@@ -2898,16 +2898,16 @@ class TestBankStandalone:
         assert bank.pattern(1).part == 3
         assert bank.pattern(1).scale_length == 32
 
-    def test_flex_count_setter(self):
-        """flex_count is writable."""
+    def test_parts_edited_bitmask_setter(self):
+        """parts_edited_bitmask is writable."""
         bank = Bank()
-        bank.flex_count = 25
+        bank.parts_edited_bitmask = 10
 
-        assert bank.flex_count == 25
+        assert bank.parts_edited_bitmask == 10
 
     def test_clone(self):
         """clone() creates independent copy."""
-        original = Bank(bank_num=2, flex_count=5)
+        original = Bank(bank_num=2, parts_edited_bitmask=5)
         original.part(1).active_scene_a = 3
         original.pattern(1).scale_length = 32
 
@@ -2915,42 +2915,42 @@ class TestBankStandalone:
 
         # Should be equal
         assert cloned.bank_num == original.bank_num
-        assert cloned.flex_count == original.flex_count
+        assert cloned.parts_edited_bitmask == original.parts_edited_bitmask
         assert cloned.part(1).active_scene_a == 3
         assert cloned.pattern(1).scale_length == 32
 
         # But independent
-        cloned.flex_count = 10
+        cloned.parts_edited_bitmask = 10
         cloned.part(1).active_scene_a = 7
 
-        assert original.flex_count == 5
+        assert original.parts_edited_bitmask == 5
         assert original.part(1).active_scene_a == 3
 
     def test_equality(self):
         """Bank objects with same data are equal."""
-        a = Bank(bank_num=1, flex_count=5)
-        b = Bank(bank_num=1, flex_count=5)
-        c = Bank(bank_num=1, flex_count=10)
+        a = Bank(bank_num=1, parts_edited_bitmask=5)
+        b = Bank(bank_num=1, parts_edited_bitmask=5)
+        c = Bank(bank_num=1, parts_edited_bitmask=10)
 
         assert a == b
         assert a != c
 
     def test_to_dict(self):
         """to_dict() returns bank properties."""
-        bank = Bank(bank_num=3, flex_count=7)
+        bank = Bank(bank_num=3, parts_edited_bitmask=7)
         bank.part(1).active_scene_a = 5
         bank.pattern(1).part = 2
 
         d = bank.to_dict()
 
         assert d["bank"] == 3
-        assert d["flex_count"] == 7
+        assert d["parts_edited_bitmask"] == 7
         assert len(d["parts"]) == 4
         assert len(d["patterns"]) == 16
 
     def test_from_dict(self):
         """from_dict() creates equivalent object."""
-        original = Bank(bank_num=5, flex_count=8)
+        original = Bank(bank_num=5, parts_edited_bitmask=8)
         original.pattern(1).part = 3
         original.pattern(1).scale_length = 32
 
@@ -2958,7 +2958,7 @@ class TestBankStandalone:
         restored = Bank.from_dict(d)
 
         assert restored.bank_num == original.bank_num
-        assert restored.flex_count == original.flex_count
+        assert restored.parts_edited_bitmask == original.parts_edited_bitmask
         assert restored.pattern(1).part == 3
         assert restored.pattern(1).scale_length == 32
 
@@ -3082,11 +3082,11 @@ class TestProjectStandalone:
     def test_set_bank(self):
         """set_bank() replaces the bank at given position."""
         project = Project()
-        new_bank = Bank(bank_num=1, flex_count=15)
+        new_bank = Bank(bank_num=1, parts_edited_bitmask=15)
 
         project.set_bank(1, new_bank)
 
-        assert project.bank(1).flex_count == 15
+        assert project.bank(1).parts_edited_bitmask == 15
 
     def test_name_setter(self):
         """name is writable and uppercased."""
@@ -3114,7 +3114,7 @@ class TestProjectStandalone:
     def test_clone(self):
         """clone() creates independent copy."""
         original = Project(name="TEST", tempo=125.0)
-        original.bank(1).flex_count = 5
+        original.bank(1).parts_edited_bitmask = 5
         original.bank(1).pattern(1).scale_length = 32
 
         cloned = original.clone()
@@ -3122,15 +3122,15 @@ class TestProjectStandalone:
         # Should be equal
         assert cloned.name == original.name
         assert cloned.tempo == original.tempo
-        assert cloned.bank(1).flex_count == 5
+        assert cloned.bank(1).parts_edited_bitmask == 5
         assert cloned.bank(1).pattern(1).scale_length == 32
 
         # But independent
         cloned.tempo = 130.0
-        cloned.bank(1).flex_count = 10
+        cloned.bank(1).parts_edited_bitmask = 10
 
         assert original.tempo == 125.0
-        assert original.bank(1).flex_count == 5
+        assert original.bank(1).parts_edited_bitmask == 5
 
     def test_equality(self):
         """Project objects with same data are equal."""
@@ -3155,14 +3155,14 @@ class TestProjectStandalone:
     def test_from_dict(self):
         """from_dict() creates equivalent object."""
         original = Project(name="RESTORED", tempo=145.0)
-        original.bank(1).flex_count = 7
+        original.bank(1).parts_edited_bitmask = 7
 
         d = original.to_dict()
         restored = Project.from_dict(d)
 
         assert restored.name == original.name
         assert restored.tempo == original.tempo
-        assert restored.bank(1).flex_count == 7
+        assert restored.bank(1).parts_edited_bitmask == 7
 
 
 @pytest.mark.slow

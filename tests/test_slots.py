@@ -78,13 +78,13 @@ class TestSlotMarkers:
     """Tests for markers set by add_sample."""
 
     def test_add_sample_sets_trim_end(self, sample_files):
-        """Test that add_sample sets trim_end to sample length in markers."""
+        """Test that add_sample sets trim_end to the sample's frame count in markers."""
         project = Project.from_template("TEST")
         slot = project.add_sample(sample_files["kick.wav"])
 
         markers = project.markers.get_slot(slot)
-        assert markers.sample_length > 0
-        assert markers.trim_end == markers.sample_length
+        assert markers.trim_end > 0
+        assert markers.trim_start == 0
 
     def test_add_static_sample_sets_trim_end(self, sample_files):
         """Test that add_sample sets trim_end for static samples too."""
@@ -92,8 +92,8 @@ class TestSlotMarkers:
         slot = project.add_sample(sample_files["kick.wav"], slot_type="STATIC")
 
         markers = project.markers.get_slot(slot, is_static=True)
-        assert markers.sample_length > 0
-        assert markers.trim_end == markers.sample_length
+        assert markers.trim_end > 0
+        assert markers.trim_start == 0
 
 
 class TestSliceCount:
@@ -160,31 +160,6 @@ class TestSlotTracking:
 
         assert project.get_slot("kick.wav", "FLEX") == 1
         assert project.get_slot("snare.wav", "STATIC") == 1
-
-
-class TestFlexCountUpdate:
-    """Tests for automatic flex_count update."""
-
-    def test_flex_count_auto_updated(self, sample_files):
-        """Test that bank flex_count is auto-updated."""
-        project = Project.from_template("TEST")
-        bank = project.bank(1)
-
-        assert bank.flex_count == 0
-
-        project.add_sample(sample_files["kick.wav"])
-        assert bank.flex_count == 1
-
-        project.add_sample(sample_files["snare.wav"])
-        assert bank.flex_count == 2
-
-    def test_flex_count_not_updated_for_static(self, sample_files):
-        """Test that static samples don't update flex_count."""
-        project = Project.from_template("TEST")
-        bank = project.bank(1)
-
-        project.add_sample(sample_files["kick.wav"], slot_type="STATIC")
-        assert bank.flex_count == 0
 
 
 class TestSlotExceptions:

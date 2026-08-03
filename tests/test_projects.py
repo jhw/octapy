@@ -73,6 +73,16 @@ class TestProjectFileSampleSlots:
 
         assert len(project_file.sample_slots) == 3
 
+    def test_static_slots_written_before_flex_slots(self, project_file, temp_dir):
+        """STATIC slots must be written before FLEX slots, matching the reference format."""
+        project_file.add_sample_slot(10, "../AUDIO/flex.wav", slot_type="FLEX")
+        project_file.add_sample_slot(50, "../AUDIO/static.wav", slot_type="STATIC")
+
+        path = temp_dir / "project.work"
+        project_file.to_file(path)
+        content = path.read_text()
+        assert content.index("TYPE=STATIC") < content.index("TYPE=FLEX")
+
     def test_add_recorder_slots(self, project_file):
         """Test adding recorder slots."""
         project_file.add_recorder_slots()
@@ -405,7 +415,7 @@ class TestSampleSlot:
         assert slot.slot_number == 1
         assert slot.path == ""
         assert slot.bpm_x24 == 2880
-        assert slot.gain == 48
+        assert slot.gain == 72
 
     def test_to_ini_block(self):
         """Test INI block generation."""
@@ -413,7 +423,7 @@ class TestSampleSlot:
             slot_type="FLEX",
             slot_number=1,
             path="../AUDIO/kick.wav",
-            gain=48,
+            gain=72,
         )
 
         ini = slot.to_ini_block()
@@ -613,6 +623,14 @@ class TestSettingsGroups:
             p.settings.midi.set_trig_channel(9, 5)
         with pytest.raises(ValueError):
             p.settings.midi.set_trig_channel(1, 16)
+        with pytest.raises(ValueError):
+            p.settings.midi.set_trig_channel(1, -2)
+
+    def test_midi_set_trig_channel_disabled(self):
+        """-1 (DISABLED) is a legitimate device value, consistent with the bulk setter."""
+        p = self._project()
+        p.settings.midi.set_trig_channel(1, -1)
+        assert p.settings.midi.trig_channel(1) == -1
 
     def test_midi_trig_channels_setter_validates_length(self):
         p = self._project()

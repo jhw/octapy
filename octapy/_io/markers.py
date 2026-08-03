@@ -2,8 +2,7 @@
 Markers file I/O for Octatrack.
 
 The markers file (markers.work) contains playback settings for loaded sample slots:
-- Sample length (frame count)
-- Trim start/end points
+- Trim start/end points (trim_start=0, trim_end=<frame count> for an unsliced sample)
 - Loop point
 - Slices (up to 64 per slot)
 
@@ -16,10 +15,17 @@ File layout:
 - Static slots: 128 × 784 bytes
 - Checksum: 2 bytes (big-endian)
 
-Slice data format (per slice, 12 bytes):
-- loop_start: 4 bytes (big-endian uint32) - loop point (0xFFFFFFFF = disabled)
+Slot layout (per slot, 784 bytes):
 - trim_start: 4 bytes (big-endian uint32) - start position in audio samples
 - trim_end: 4 bytes (big-endian uint32) - end position in audio samples
+- loop_point: 4 bytes (big-endian uint32)
+- slices: 64 × 12 bytes
+- slice_count: 4 bytes (big-endian uint32)
+
+Slice data format (per slice, 12 bytes):
+- trim_start: 4 bytes (big-endian uint32) - start position in audio samples
+- trim_end: 4 bytes (big-endian uint32) - end position in audio samples
+- loop_start: 4 bytes (big-endian uint32) - loop point (0xFFFFFFFF = disabled)
 """
 
 from dataclasses import dataclass
@@ -45,10 +51,9 @@ NUM_FLEX_SLOTS = 136      # 128 sample + 8 recorder
 NUM_STATIC_SLOTS = 128
 SLOT_SIZE = 0x310         # 784 bytes per slot
 NUM_SLICES = 64           # 64 slice entries per slot
-MAX_USER_SLICES = 64      # 64 total: 1 implicit (slot fields) + 63 entries (index 63 stores count)
 SLICE_SIZE = 12           # 12 bytes per slice (3 × uint32)
 SLICE_LOOP_DISABLED = 0xFFFFFFFF  # Magic value for disabled loop point
-SLICE_COUNT_OFFSET = 16 + 63 * 12 + 4  # trim_start field of entry 63
+SLICE_COUNT_OFFSET = 12 + NUM_SLICES * SLICE_SIZE  # 780: right after the 64 slice entries
 
 
 # =============================================================================
@@ -128,16 +133,15 @@ class MarkersOffset(IntEnum):
     """Offsets within the markers file."""
     HEADER = 0                      # 21 bytes
     VERSION = 21                    # 1 byte
-    FLEX_SLOTS = 0x1A               # 26 bytes in, flex slots start
+    FLEX_SLOTS = 22                 # 0x16, immediately after header + version
 
 
 class SlotOffset(IntEnum):
     """Offsets within a slot block (784 bytes)."""
-    SAMPLE_LENGTH = 0               # 4 bytes (big-endian uint32)
-    TRIM_START = 4                  # 4 bytes (big-endian uint32)
-    TRIM_END = 8                    # 4 bytes (big-endian uint32)
-    LOOP_POINT = 12                 # 4 bytes (big-endian uint32)
-    SLICES = 16                     # 64 slices × 12 bytes each
+    TRIM_START = 0                  # 4 bytes (big-endian uint32)
+    TRIM_END = 4                    # 4 bytes (big-endian uint32)
+    LOOP_POINT = 8                  # 4 bytes (big-endian uint32)
+    SLICES = 12                     # 64 slices × 12 bytes each
 
 
 # =============================================================================
@@ -156,16 +160,6 @@ class SlotMarkers(OTBlock):
     def __init__(self):
         super().__init__()
         self._data = bytearray(SLOT_SIZE)
-
-    @property
-    def sample_length(self) -> int:
-        """Get the sample length in frames (big-endian uint32)."""
-        return read_u32_be(self._data, SlotOffset.SAMPLE_LENGTH)
-
-    @sample_length.setter
-    def sample_length(self, value: int):
-        """Set the sample length in frames."""
-        write_u32_be(self._data, SlotOffset.SAMPLE_LENGTH, value)
 
     @property
     def trim_start(self) -> int:
@@ -229,9 +223,9 @@ class SlotMarkers(OTBlock):
             loop_start is None if disabled.
         """
         offset = self._slice_offset(index)
-        loop_start = read_u32_be(self._data, offset)
-        trim_start = read_u32_be(self._data, offset + 4)
-        trim_end = read_u32_be(self._data, offset + 8)
+        trim_start = read_u32_be(self._data, offset)
+        trim_end = read_u32_be(self._data, offset + 4)
+        loop_start = read_u32_be(self._data, offset + 8)
         return Slice.from_raw(trim_start, trim_end, loop_start)
 
     def set_slice(
@@ -255,9 +249,9 @@ class SlotMarkers(OTBlock):
         start, end, loop = slice_obj.to_raw()
 
         offset = self._slice_offset(index)
-        write_u32_be(self._data, offset, loop)
-        write_u32_be(self._data, offset + 4, start)
-        write_u32_be(self._data, offset + 8, end)
+        write_u32_be(self._data, offset, start)
+        write_u32_be(self._data, offset + 4, end)
+        write_u32_be(self._data, offset + 8, loop)
 
     def clear_slice(self, index: int) -> None:
         """
@@ -272,9 +266,10 @@ class SlotMarkers(OTBlock):
         write_u32_be(self._data, offset + 8, 0)
 
     def clear_all_slices(self) -> None:
-        """Clear all 64 slices."""
+        """Clear all 64 slices and reset the stored slice count to 0."""
         for i in range(NUM_SLICES):
             self.clear_slice(i)
+        self.slice_count = 0
 
     def get_all_slices(self) -> List[Slice]:
         """
@@ -284,7 +279,7 @@ class SlotMarkers(OTBlock):
             List of Slice objects (only non-empty ones).
         """
         slices = []
-        for i in range(MAX_USER_SLICES):
+        for i in range(NUM_SLICES):
             slice_obj = self.get_slice(i)
             if not slice_obj.is_empty:
                 slices.append(slice_obj)
@@ -378,25 +373,15 @@ class SlotMarkers(OTBlock):
                 (750, 1000),
             ], sample_rate=44100)
         """
-        if len(slices) > MAX_USER_SLICES:
-            raise ValueError(f"Maximum {MAX_USER_SLICES} slices allowed, got {len(slices)}")
+        if len(slices) > NUM_SLICES:
+            raise ValueError(f"Maximum {NUM_SLICES} slices allowed, got {len(slices)}")
 
         # Clear all existing slices
         self.clear_all_slices()
 
-        # The OT encodes the first slice in slot-level fields (trim_end=0,
-        # loop_point=first_slice_end). Remaining slices go in entries 0..N-2.
-        # Confirmed by device comparisons: the OT always absorbs entry[0]
-        # into slot fields, so we write them there directly to avoid duplication.
-        if slices:
-            self.trim_end = 0
-            self.loop_point = self._ms_to_samples(slices[0][1], sample_rate)
-
-        # Write remaining slices (skip the first, it's in slot fields)
-        for i, (start_ms, end_ms) in enumerate(slices[1:]):
+        for i, (start_ms, end_ms) in enumerate(slices):
             self.set_slice_ms(i, start_ms, end_ms, sample_rate=sample_rate)
 
-        # Store slice count (total including the implicit first slice)
         self.slice_count = len(slices)
 
     def get_all_slices_ms(
@@ -405,9 +390,6 @@ class SlotMarkers(OTBlock):
     ) -> List[Tuple[int, int, Optional[int]]]:
         """
         Get all slices in milliseconds (inverse of set_slices_ms).
-
-        Reconstructs the full slice list: first slice from slot-level fields
-        (trim_start..loop_point), remaining slices from entries.
 
         Args:
             sample_rate: Audio sample rate (default 44100 Hz)
@@ -420,13 +402,7 @@ class SlotMarkers(OTBlock):
             return []
 
         result = []
-        # First slice is in slot-level fields
-        start_ms = self._samples_to_ms(self.trim_start, sample_rate)
-        end_ms = self._samples_to_ms(self.loop_point, sample_rate)
-        result.append((start_ms, end_ms, None))
-
-        # Remaining slices in entries 0..N-2
-        for i in range(n - 1):
+        for i in range(n):
             slice_obj = self.get_slice(i)
             if slice_obj.is_empty:
                 break
@@ -527,18 +503,6 @@ class MarkersFile(OTBlock):
         """Write SlotMarkers data back to the file."""
         offset = self._get_slot_offset(slot, is_static)
         self._data[offset:offset + SLOT_SIZE] = markers._data
-
-    # === Convenience methods ===
-
-    def get_sample_length(self, slot: int, is_static: bool = False) -> int:
-        """Get the sample length for a slot."""
-        offset = self._get_slot_offset(slot, is_static)
-        return read_u32_be(self._data, offset)
-
-    def set_sample_length(self, slot: int, length: int, is_static: bool = False):
-        """Set the sample length for a slot."""
-        offset = self._get_slot_offset(slot, is_static)
-        write_u32_be(self._data, offset, length)
 
     # === Checksum ===
 

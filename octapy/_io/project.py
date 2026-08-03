@@ -34,9 +34,9 @@ class SampleSlot:
     slot_number: int = 1        # 1-indexed (1-128 for samples, 129-136 for recorders)
     path: str = ""              # Relative path from project folder
     bpm_x24: int = 2880         # BPM * 24 (2880 = 120 BPM)
-    timestretch_mode: int = 0   # 0 = OFF, 1 = NORMAL, 2 = BEAT
+    timestretch_mode: int = 0   # 0 = OFF, 2 = NORMAL, 3 = BEAT
     loop_mode: int = 0          # 0 = OFF, 1 = LOOP, 2 = PIPO
-    gain: int = 48              # 0-127 (48 = 0dB)
+    gain: int = 72              # 0-96, ±24dB in 0.5dB steps (72 = 0dB)
     trig_quantization: int = -1 # -1 = default
 
     def to_ini_block(self) -> str:
@@ -397,7 +397,9 @@ class ProjectFile:
         lines.append("############################")
         lines.append("")
 
-        for slot in sorted(self.sample_slots, key=lambda s: s.slot_number):
+        # Reference writes all STATIC slots before all FLEX slots (each type
+        # sorted by slot number within its own block).
+        for slot in sorted(self.sample_slots, key=lambda s: (s.slot_type != "STATIC", s.slot_number)):
             lines.append(slot.to_ini_block())
 
         lines.append("############################")
@@ -411,7 +413,7 @@ class ProjectFile:
         slot_number: int,
         path: str,
         slot_type: str = "FLEX",
-        gain: int = 48,
+        gain: int = 72,
         loop_mode: int = 0,
         timestretch_mode: int = 0,
     ) -> SampleSlot:

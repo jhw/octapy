@@ -114,11 +114,11 @@ class MidiPortSettings(_IntFieldGroup):
         return self._settings.midi_trig_channels[track_num - 1]
 
     def set_trig_channel(self, track_num: int, channel: int):
-        """Set MIDI trig channel for a track (1-8). Channel is 0-15."""
+        """Set MIDI trig channel for a track (1-8). Channel is 0-15, or -1 for disabled."""
         if not 1 <= track_num <= 8:
             raise ValueError(f"Track number must be 1-8, got {track_num}")
-        if not 0 <= channel <= 15:
-            raise ValueError(f"Channel must be 0-15, got {channel}")
+        if not -1 <= channel <= 15:
+            raise ValueError(f"Channel must be -1-15, got {channel}")
         self._settings.midi_trig_channels[track_num - 1] = channel
 
     auto_channel = _int_property('midi_auto_channel', "MIDI auto channel (used by AUTO and MIDI in).")

@@ -381,7 +381,7 @@ class Project:
 
         sample_rate = 44100
         total_frames = int(buffer_duration_ms * sample_rate / 1000)
-        slot_markers.sample_length = total_frames
+        slot_markers.trim_end = total_frames
         slices_ms = [
             (int(i * slice_duration_ms), int((i + 1) * slice_duration_ms))
             for i in range(num_slices)
@@ -627,7 +627,7 @@ class Project:
         local_path: Path | str,
         slot_type: str = "FLEX",
         slot: Optional[int] = None,
-        gain: int = 48,
+        gain: int = 72,
     ) -> int:
         """
         Add a sample to the project from a local file.
@@ -640,7 +640,7 @@ class Project:
             local_path: Local path to WAV file
             slot_type: "FLEX" or "STATIC"
             slot: Slot number (1-128). If None, auto-assigns next available.
-            gain: Gain value 0-127 (48 = 0dB)
+            gain: Gain value 0-96, ±24dB in 0.5dB steps (72 = 0dB)
 
         Returns:
             The assigned slot number
@@ -678,20 +678,12 @@ class Project:
             gain=gain,
         )
 
-        # Update markers.work with sample length and trim end
+        # Update markers.work with trim end (trim_start stays 0 - full sample)
         frame_count = _get_wav_frame_count(local_path)
         if frame_count > 0 and self._markers:
-            self._markers.set_sample_length(slot, frame_count, is_static=not is_flex)
             slot_markers = self._markers.get_slot(slot, is_static=not is_flex)
             slot_markers.trim_end = frame_count
             self._markers.set_slot(slot, slot_markers, is_static=not is_flex)
-
-        # Auto-update flex_count in banks
-        if is_flex:
-            flex_count = sum(1 for s in self._project_file.sample_slots
-                            if s.slot_type == "FLEX" and s.slot_number <= 128)
-            for bank in self._banks.values():
-                bank.flex_count = flex_count
 
         return slot
 

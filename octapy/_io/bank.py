@@ -61,7 +61,7 @@ class BankOffset(IntEnum):
     VERSION = 21                    # 1 byte
     PATTERNS = 22                   # 16 patterns start here (0x16)
     PARTS = 0x8EED6                 # 8 parts start here (4 unsaved + 4 saved)
-    FLEX_COUNTER = 0x9B4B2          # Counter for active flex slots
+    PARTS_EDITED_BITMASK = 0x9B4B2  # 4-bit mask of parts with unsaved edits
     CHECKSUM = 0x9B4CF              # 2-byte checksum (big-endian u16)
 
 
@@ -1020,15 +1020,16 @@ class BankFile(OTBlock):
             base += 4 * PART_BLOCK_SIZE
         return base + (part - 1) * PART_BLOCK_SIZE
 
-    # === Flex counter ===
+    # === Parts edited bitmask ===
 
     @property
-    def flex_count(self) -> int:
-        return self._data[BankOffset.FLEX_COUNTER]
+    def parts_edited_bitmask(self) -> int:
+        """4-bit mask of which of the 4 parts have unsaved edits (bit N = part N+1)."""
+        return self._data[BankOffset.PARTS_EDITED_BITMASK]
 
-    @flex_count.setter
-    def flex_count(self, value: int):
-        self._data[BankOffset.FLEX_COUNTER] = value & 0xFF
+    @parts_edited_bitmask.setter
+    def parts_edited_bitmask(self, value: int):
+        self._data[BankOffset.PARTS_EDITED_BITMASK] = value & 0x0F
 
     # === Trig helpers (for testing) ===
 

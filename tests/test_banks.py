@@ -114,13 +114,13 @@ class TestBankFileTrigs:
         assert result == steps
 
 
-class TestBankFileFlexCount:
-    """Flex counter tests."""
+class TestBankFilePartsEditedBitmask:
+    """Parts-edited bitmask tests."""
 
-    def test_flex_count(self, bank_file):
-        """Test flex counter."""
-        bank_file.flex_count = 4
-        assert bank_file.flex_count == 4
+    def test_parts_edited_bitmask(self, bank_file):
+        """Test parts-edited bitmask."""
+        bank_file.parts_edited_bitmask = 9  # parts 1 and 4
+        assert bank_file.parts_edited_bitmask == 9
 
 
 class TestBankFileChecksum:

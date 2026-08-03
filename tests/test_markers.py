@@ -58,7 +58,9 @@ class TestMarkersFileRoundTrip:
         path = temp_dir / "markers.work"
 
         # Modify something
-        markers_file.set_sample_length(slot=1, length=44100)
+        slot = markers_file.get_slot(1)
+        slot.trim_end = 44100
+        markers_file.set_slot(1, slot)
 
         # Write (should update checksum)
         markers_file.to_file(path)
@@ -68,34 +70,42 @@ class TestMarkersFileRoundTrip:
         assert loaded.verify_checksum() is True
 
 
-class TestMarkersFileSampleLength:
-    """Sample length tests."""
+class TestMarkersFileTrimPoints:
+    """Trim start/end tests (trim_end doubles as the full sample length when trim_start=0)."""
 
-    def test_set_sample_length_flex(self, markers_file):
-        """Test setting flex slot sample length."""
-        markers_file.set_sample_length(slot=1, length=44100)
-        assert markers_file.get_sample_length(slot=1) == 44100
+    def test_set_trim_end_flex(self, markers_file):
+        """Test setting flex slot trim end."""
+        slot = markers_file.get_slot(1)
+        slot.trim_end = 44100
+        markers_file.set_slot(1, slot)
+        assert markers_file.get_slot(1).trim_end == 44100
 
-    def test_set_sample_length_static(self, markers_file):
-        """Test setting static slot sample length."""
-        markers_file.set_sample_length(slot=1, length=88200, is_static=True)
-        assert markers_file.get_sample_length(slot=1, is_static=True) == 88200
+    def test_set_trim_end_static(self, markers_file):
+        """Test setting static slot trim end."""
+        slot = markers_file.get_slot(1, is_static=True)
+        slot.trim_end = 88200
+        markers_file.set_slot(1, slot, is_static=True)
+        assert markers_file.get_slot(1, is_static=True).trim_end == 88200
 
-    def test_set_sample_length_large(self, markers_file):
-        """Test setting large sample length (32-bit value)."""
+    def test_set_trim_end_large(self, markers_file):
+        """Test setting large trim end (32-bit value)."""
         large_length = 10_000_000  # ~3.7 minutes at 44.1kHz
-        markers_file.set_sample_length(slot=1, length=large_length)
-        assert markers_file.get_sample_length(slot=1) == large_length
+        slot = markers_file.get_slot(1)
+        slot.trim_end = large_length
+        markers_file.set_slot(1, slot)
+        assert markers_file.get_slot(1).trim_end == large_length
 
-    def test_set_sample_length_multiple_slots(self, markers_file):
-        """Test setting sample lengths on multiple slots."""
+    def test_set_trim_end_multiple_slots(self, markers_file):
+        """Test setting trim end on multiple slots."""
         lengths = {1: 44100, 2: 88200, 3: 132300, 4: 22050}
 
-        for slot, length in lengths.items():
-            markers_file.set_sample_length(slot=slot, length=length)
+        for slot_num, length in lengths.items():
+            slot = markers_file.get_slot(slot_num)
+            slot.trim_end = length
+            markers_file.set_slot(slot_num, slot)
 
-        for slot, expected in lengths.items():
-            assert markers_file.get_sample_length(slot=slot) == expected
+        for slot_num, expected in lengths.items():
+            assert markers_file.get_slot(slot_num).trim_end == expected
 
 
 class TestMarkersFileSlotAccess:
@@ -116,13 +126,11 @@ class TestMarkersFileSlotAccess:
         slot = markers_file.get_slot(1)
 
         # Set properties
-        slot.sample_length = 44100
         slot.trim_start = 0
         slot.trim_end = 44100
         slot.loop_point = 22050
 
         # Verify
-        assert slot.sample_length == 44100
         assert slot.trim_start == 0
         assert slot.trim_end == 44100
         assert slot.loop_point == 22050
@@ -400,13 +408,14 @@ class TestSlotMarkersSliceMilliseconds:
         assert slices[2] == (500, 750, None)
         assert slices[3] == (750, 1000, None)
 
-    def test_set_slices_ms_slot_and_entry_layout(self, markers_file):
-        """Test that first slice is in slot fields, rest in entries.
+    def test_set_slices_ms_entry_layout(self, markers_file):
+        """Test that all slices land in plain entries 0..N-1.
 
-        The OT encodes the first slice in slot-level fields and remaining
-        slices in entries 0..N-2. Confirmed by device comparisons.
+        Slot-level trim_start/trim_end/loop_point represent the sample's own
+        trim bounds and are independent of the slice entries.
         """
         slot = markers_file.get_slot(1)
+        slot.trim_end = 44100  # sample's own bounds, set independently
 
         slot.set_slices_ms([
             (0, 250),
@@ -415,29 +424,29 @@ class TestSlotMarkersSliceMilliseconds:
             (750, 1000),
         ], sample_rate=44100)
 
-        # Slot-level: first slice encoded as trim_end=0, loop_point=first_end
-        assert slot.trim_end == 0
-        assert slot.loop_point == 11025  # 250ms at 44.1kHz
+        # Slot-level fields are untouched by set_slices_ms
+        assert slot.trim_end == 44100
+        assert slot.loop_point == 0
 
-        # Entry 0 = second slice (250-500ms)
         s0 = slot.get_slice(0)
-        assert s0.trim_start == 11025  # 250ms
-        assert s0.trim_end == 22050    # 500ms
+        assert s0.trim_start == 0
+        assert s0.trim_end == 11025    # 250ms
 
-        # Entry 1 = third slice (500-750ms)
         s1 = slot.get_slice(1)
-        assert s1.trim_start == 22050  # 500ms
-        assert s1.trim_end == 33075    # 750ms
+        assert s1.trim_start == 11025  # 250ms
+        assert s1.trim_end == 22050    # 500ms
 
-        # Entry 2 = fourth slice (750-1000ms)
         s2 = slot.get_slice(2)
-        assert s2.trim_start == 33075  # 750ms
-        assert s2.trim_end == 44100    # 1000ms
+        assert s2.trim_start == 22050  # 500ms
+        assert s2.trim_end == 33075    # 750ms
 
-        # Entry 3 should be empty (only 3 entries for 4 slices)
-        assert slot.get_slice(3).is_empty
+        s3 = slot.get_slice(3)
+        assert s3.trim_start == 33075  # 750ms
+        assert s3.trim_end == 44100    # 1000ms
 
-        # slice_count = total including implicit first
+        # Entry 4 should be empty (only 4 entries used)
+        assert slot.get_slice(4).is_empty
+
         assert slot.slice_count == 4
 
     def test_set_slices_ms_clears_existing(self, markers_file):
@@ -456,7 +465,7 @@ class TestSlotMarkersSliceMilliseconds:
         """Test that set_slices_ms enforces max 64 slices."""
         slot = markers_file.get_slot(1)
 
-        # Exactly 64 slices should succeed (1 implicit + 63 entries)
+        # Exactly 64 slices should succeed (64 entries)
         slot.set_slices_ms([(i, i + 1) for i in range(64)])
         assert slot.slice_count == 64
 
